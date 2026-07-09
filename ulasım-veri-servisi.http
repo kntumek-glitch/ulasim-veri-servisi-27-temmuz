@@ -1,0 +1,6 @@
+@ulasım_veri_servisi_HostAddress = http://localhost:5108
+
+GET {{ulasım_veri_servisi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
