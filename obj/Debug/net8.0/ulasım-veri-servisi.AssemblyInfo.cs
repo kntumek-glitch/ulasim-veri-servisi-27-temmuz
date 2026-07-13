@@ -14,7 +14,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("ulasım-veri-servisi")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0fee025978d28981f21f10bfe395b8d0ac9bd40c")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+54cd2d49c0decb3c02481e59c9b04392673e75a9")]
 [assembly: System.Reflection.AssemblyProductAttribute("ulasım-veri-servisi")]
 [assembly: System.Reflection.AssemblyTitleAttribute("ulasım-veri-servisi")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

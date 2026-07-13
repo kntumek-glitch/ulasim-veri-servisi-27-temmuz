@@ -144,3 +144,4 @@ C:\Users\HP\source\repos\ulasım-veri-servisi\ulasım-veri-servisi\bin\Debug\net
 C:\Users\HP\source\repos\ulasım-veri-servisi\ulasım-veri-servisi\bin\Debug\net8.0\Swashbuckle.AspNetCore.Annotations.dll
 C:\Users\HP\source\repos\ulasım-veri-servisi\ulasım-veri-servisi\bin\Debug\net8.0\swagger-raw.json
 C:\Users\HP\source\repos\ulasım-veri-servisi\ulasım-veri-servisi\obj\Debug\net8.0\staticwebassets.upToDateCheck.txt
+C:\Users\HP\source\repos\ulasım-veri-servisi\ulasım-veri-servisi\obj\Debug\net8.0\ulasım-veri-servisi.sourcelink.json

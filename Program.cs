@@ -2,13 +2,17 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
+using Microsoft.Extensions.Caching.Memory;
 using TransportDataService;
+using ulasım_veri_servisi.Services;
 
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 
+
 builder.Services.AddControllers();
+
 
 builder.Services.AddDbContext<AppDbContext>(options =>
     options.UseNpgsql(
@@ -26,6 +30,13 @@ builder.Services.AddSwaggerGen(c =>
     c.EnableAnnotations();
 });
 
+builder.Services.AddHttpClient<IExternalEshotService, ExternalEshotService>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddMemoryCache();
+builder.Services.AddScoped<ApproachingBusService>();
+builder.Services.AddScoped<RouteVehiclesService>();
 var app = builder.Build();
 
 // Configure the HTTP request pipeline.

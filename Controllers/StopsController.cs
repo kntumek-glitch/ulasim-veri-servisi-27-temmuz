@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using TransportDataService;
+using ulasım_veri_servisi.Services;
 
 namespace ulasım_veri_servisi.Controllers
 {
@@ -10,11 +11,15 @@ namespace ulasım_veri_servisi.Controllers
     [Route("api/v1/stops")]
     public class StopsController : ControllerBase
     {
+        private readonly ApproachingBusService _approachingBusService;
         private readonly AppDbContext _context;
 
-        public StopsController(AppDbContext context)
+        public StopsController(
+       AppDbContext context,
+       ApproachingBusService approachingBusService)
         {
             _context = context;
+            _approachingBusService = approachingBusService;
         }
 
         [HttpGet]
@@ -175,6 +180,33 @@ namespace ulasım_veri_servisi.Controllers
 
             return R * c;
         }
+       
+        [HttpGet("{id}/approaching-buses")]
+        [SwaggerOperation(
+    Summary = "Durağa yaklaşan otobüsleri getirir",
+    Description = "Veritabanındaki durak Id'sine göre ESHOT API'den yaklaşan otobüsleri döndürür."
+)]
+        [ProducesResponseType(typeof(ApproachingBusResponse), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
+        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetApproachingBuses([FromRoute] int id)
+        {
+            try
+            {
+                var result = await _approachingBusService.GetApproachingBusesAsync(id);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                if (ex.Message == "Durak bulunamadı.")
+                {
+                    return NotFound(ex.Message);
+                }
+
+                return StatusCode(500, ex.Message);
+            }
+        }
     }
+
 
 }

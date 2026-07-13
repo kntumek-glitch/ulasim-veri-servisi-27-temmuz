@@ -23,25 +23,83 @@
         }
       }
     },
-    "/api/Product/{id}": {
+    "/api/v1/routes/{routeNumber}/vehicles": {
       "get": {
         "tags": [
-          "Product"
+          "Routes"
         ],
+        "summary": "Hattaki aktif araç konumlarını getirir",
+        "description": "Belirtilen hatta çalışan aktif otobüslerin konumlarını döndürür.",
         "parameters": [
           {
-            "name": "id",
+            "name": "routeNumber",
             "in": "path",
             "required": true,
             "schema": {
-              "type": "integer",
-              "format": "int32"
+              "type": "string"
             }
           }
         ],
         "responses": {
           "200": {
-            "description": "OK"
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteVehiclesResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteVehiclesResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/RouteVehiclesResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
           }
         }
       }
@@ -215,10 +273,160 @@
           }
         }
       }
+    },
+    "/api/v1/stops/{id}/approaching-buses": {
+      "get": {
+        "tags": [
+          "Stops"
+        ],
+        "summary": "Durağa yaklaşan otobüsleri getirir",
+        "description": "Veritabanındaki durak Id'sine göre ESHOT API'den yaklaşan otobüsleri döndürür.",
+        "parameters": [
+          {
+            "name": "id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "format": "int32"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproachingBusResponse"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproachingBusResponse"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApproachingBusResponse"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "text/plain": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "application/json": {
+                "schema": {
+                  "type": "string"
+                }
+              },
+              "text/json": {
+                "schema": {
+                  "type": "string"
+                }
+              }
+            }
+          }
+        }
+      }
     }
   },
   "components": {
     "schemas": {
+      "ApproachingBusItem": {
+        "type": "object",
+        "properties": {
+          "busId": {
+            "type": "string",
+            "nullable": true
+          },
+          "routeNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "routeName": {
+            "type": "string",
+            "nullable": true
+          },
+          "remainingStopCount": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "direction": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "isAccessible": {
+            "type": "boolean"
+          },
+          "hasBicycleRack": {
+            "type": "boolean"
+          }
+        },
+        "additionalProperties": false
+      },
+      "ApproachingBusResponse": {
+        "type": "object",
+        "properties": {
+          "stopId": {
+            "type": "integer",
+            "format": "int32"
+          },
+          "externalStopId": {
+            "type": "string",
+            "nullable": true
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fromCache": {
+            "type": "boolean"
+          },
+          "buses": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ApproachingBusItem"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
+      },
       "ProblemDetails": {
         "type": "object",
         "properties": {
@@ -245,6 +453,52 @@
           }
         },
         "additionalProperties": { }
+      },
+      "RouteVehicleItem": {
+        "type": "object",
+        "properties": {
+          "busId": {
+            "type": "string",
+            "nullable": true
+          },
+          "direction": {
+            "type": "string",
+            "nullable": true
+          },
+          "latitude": {
+            "type": "number",
+            "format": "double"
+          },
+          "longitude": {
+            "type": "number",
+            "format": "double"
+          }
+        },
+        "additionalProperties": false
+      },
+      "RouteVehiclesResponse": {
+        "type": "object",
+        "properties": {
+          "routeNumber": {
+            "type": "string",
+            "nullable": true
+          },
+          "retrievedAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "fromCache": {
+            "type": "boolean"
+          },
+          "vehicles": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/RouteVehicleItem"
+            },
+            "nullable": true
+          }
+        },
+        "additionalProperties": false
       }
     }
   }

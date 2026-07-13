@@ -1,17 +1,5 @@
 ﻿# Database Design
 
-## Stops Tablosu
-
-| Alan | Tip |
-|------|-----|
-| Id | int |
-| StopId | int |
-| Name | varchar |
-| Latitude | double precision |
-| Longitude | double precision |
-
-### Primary Key# Database Design
-
 ## Stop
 
 Otobüs duraklarını tutar.
@@ -39,7 +27,7 @@ Bir durağın geçtiği hatları tutar.
 | RouteNumber | string |
 | CreatedAt | DateTime |
 
-İlişki:
+### İlişki
 
 - Stop (1) → (N) StopRoute
 
@@ -65,7 +53,7 @@ CSV import işlemlerini kayıt altına alır.
 
 ## ExternalApiLog
 
-Dış servislere yapılan istekleri kaydeder.
+Dış API servislerine yapılan istekleri kayıt altına alır.
 
 | Alan | Tip |
 |------|-----|
@@ -78,10 +66,10 @@ Dış servislere yapılan istekleri kaydeder.
 | ErrorMessage | string |
 | CreatedAt | DateTime |
 
-- Id
+---
 
-### Açıklama
+## Veritabanı İlişkileri
 
-Bu tabloda ESHOT durak bilgileri tutulacaktır.
-
-İleride ihtiyaç halinde yeni tablolar eklenebilir.
+- **Stop (1) → (N) StopRoute**
+- **ImportRun** tablosu her CSV import işlemini kayıt altına alır.
+- **ExternalApiLog** tablosu ESHOT dış servislerine yapılan başarılı ve başarısız tüm istekleri kaydeder.
