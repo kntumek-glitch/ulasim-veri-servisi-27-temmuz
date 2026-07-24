@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {}
+    "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {}
   },
   "projects": {
-    "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {
+    "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
+        "projectUniqueName": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
         "projectName": "ulasım-veri-servisi",
-        "projectPath": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
+        "projectPath": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
         "packagesPath": "C:\\Users\\HP\\.nuget\\packages\\",
-        "outputPath": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\obj\\",
+        "outputPath": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
@@ -53,14 +53,6 @@
             "CsvHelper": {
               "target": "Package",
               "version": "[33.1.0, )"
-            },
-            "Microsoft.EntityFrameworkCore.InMemory": {
-              "target": "Package",
-              "version": "[8.0.0, )"
-            },
-            "Microsoft.EntityFrameworkCore.SqlServer": {
-              "target": "Package",
-              "version": "[8.0.0, )"
             },
             "Microsoft.EntityFrameworkCore.Tools": {
               "include": "Runtime, Build, Native, ContentFiles, Analyzers, BuildTransitive",

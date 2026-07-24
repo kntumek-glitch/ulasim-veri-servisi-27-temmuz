@@ -1,32 +1,44 @@
-﻿using TransportDataService;
+using System.Diagnostics;
+using TransportDataService;
 using TransportDataService.Domain;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
+using ulasım_veri_servisi.Services;
+
+using ulasım_veri_servisi.Exceptions;
+using System.Net;
+
 
 namespace ulasım_veri_servisi.Services
 {
     public class ExternalEshotService : IExternalEshotService
     {
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(20);
         private readonly HttpClient _httpClient;
         private readonly AppDbContext _context;
         private readonly IMemoryCache _memoryCache;
-
+        private readonly ILogger<ExternalEshotService> _logger;
         public ExternalEshotService(
-      HttpClient httpClient,
-      AppDbContext context,
-      IMemoryCache memoryCache)
+       HttpClient httpClient,
+       AppDbContext context,
+       IMemoryCache memoryCache,
+       ILogger<ExternalEshotService> logger)
         {
             _httpClient = httpClient;
             _context = context;
             _memoryCache = memoryCache;
+            _logger = logger;
         }
-        public async Task<CachedResult<List<EshotBusDto>>> GetApproachingBusesAsync(string externalStopId)
+        
+        public async Task<CachedResult<List<EshotBusDto>>> GetApproachingBusesAsync(string externalStopId, CancellationToken cancellationToken = default)
 
 
         {
+
             var url = $"https://openapi.izmir.bel.tr/api/iztek/duragayaklasanotobusler/{externalStopId}";
 
-            var cacheKey = $"approaching-buses-{externalStopId}";
+            var cacheKey = $"approaching-buses:{externalStopId}";
+
 
             if (_memoryCache.TryGetValue(cacheKey, out List<EshotBusDto>? cachedBuses))
             {
@@ -37,89 +49,84 @@ namespace ulasım_veri_servisi.Services
                 };
             }
 
-            var start = DateTime.UtcNow;
+            var stopwatch = Stopwatch.StartNew();
 
             try
             {
-                var startTime = DateTime.UtcNow;
-                var response = await _httpClient.GetAsync(url);
-                var duration = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
-
-
-
+                var response = await _httpClient.GetAsync(url, cancellationToken);
+                
                 if (!response.IsSuccessStatusCode)
                 {
-                    _context.ExternalApiLogs.Add(new ExternalApiLog
-                    {
-                        EndpointName = "ApproachingBuses",
-                        RequestUrl = url,
-                        HttpStatusCode = (int)response.StatusCode,
-                        ResponseDurationMs = duration,
-                        IsSuccessful = false,
-                        ErrorMessage = "Dış API'ye ulaşılamadı.",
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    await LogExternalApiAsync(
+                        "ApproachingBuses",
+                        url,
+                        (int)response.StatusCode,
+                        (int)stopwatch.ElapsedMilliseconds,
+                        false,
+                        "Dış API'ye ulaşılamadı.");
 
-                    await _context.SaveChangesAsync();
-
-                    throw new Exception("Dış API'ye ulaşılamadı.");
+                    throw new BadGatewayException("ESHOT servisinden veri alınamadı.");
                 }
 
                 var json = await response.Content.ReadAsStringAsync();
 
-                var buses = JsonSerializer.Deserialize<List<EshotBusDto>>(json)
-                            ?? new List<EshotBusDto>();
+                var buses = JsonSerializer.Deserialize<List<EshotBusDto>>(json);
 
-                _context.ExternalApiLogs.Add(new ExternalApiLog
+                if (buses == null)
                 {
-                    EndpointName = "ApproachingBuses",
-                    RequestUrl = url,
-                    HttpStatusCode = (int)response.StatusCode,
-                    ResponseDurationMs = duration,
-                    IsSuccessful = true,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    await LogExternalApiAsync(
+                        "ApproachingBuses",
+                        url,
+                        (int)response.StatusCode,
+                        (int)stopwatch.ElapsedMilliseconds,
+                        false,
+                        "Beklenmeyen response modeli.");
 
-                await _context.SaveChangesAsync();
-
-                _memoryCache.Set(
-                    cacheKey,
-                    buses,
-                    TimeSpan.FromSeconds(20));
-                _memoryCache.Set(
-    cacheKey,
-    buses,
-    TimeSpan.FromSeconds(20));
-
-                _context.ExternalApiLogs.Add(new ExternalApiLog
-                {
-                    EndpointName = "ApproachingBuses",
-                    RequestUrl = url,
-                    HttpStatusCode = (int)response.StatusCode,
-                    ResponseDurationMs = duration,
-                    IsSuccessful = response.IsSuccessStatusCode,
-                    ErrorMessage = response.IsSuccessStatusCode ? null : "Dış API hatası",
-                    CreatedAt = DateTime.UtcNow
-                });
-
-                await _context.SaveChangesAsync();
-
+                    throw new BadGatewayException("ESHOT servisinden beklenen veri alınamadı.");
+                }
+                
+                await LogExternalApiAsync(
+                    "ApproachingBuses",
+                    url,
+                    (int)response.StatusCode,
+                    (int)stopwatch.ElapsedMilliseconds,
+                    true,
+                    null);
+                    
+                _memoryCache.Set(cacheKey, buses, CacheDuration);
+                
                 return new CachedResult<List<EshotBusDto>>
                 {
                     Data = buses,
                     FromCache = false
                 };
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                throw new Exception("JSON okunamadı.");
+                await LogExternalApiAsync("ApproachingBuses", url, 500, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
+                throw new BadGatewayException("ESHOT servisinden geçerli veri alınamadı.");
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || !cancellationToken.IsCancellationRequested)
+            {
+                await LogExternalApiAsync("ApproachingBuses", url, 408, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
+                throw new ServiceUnavailableException("ESHOT servisine zaman aşımı nedeniyle ulaşılamadı.");
+            }
+            catch (HttpRequestException ex)
+            {
+                await LogExternalApiAsync("ApproachingBuses", url, 503, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
+                throw new ServiceUnavailableException("ESHOT servisine ulaşılamıyor.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "ApproachingBuses API çağrısında hata oluştu.");
+                throw;
             }
         }
-        public async Task<CachedResult<List<RouteVehicleDto>>> GetRouteVehiclesAsync(string routeNumber)
+        public async Task<CachedResult<List<RouteVehicleDto>>> GetRouteVehiclesAsync(string routeNumber, CancellationToken cancellationToken = default)
         {
             var url = $"https://openapi.izmir.bel.tr/api/iztek/hatotobuskonumlari/{routeNumber}";
 
-            var cacheKey = $"route-vehicles-{routeNumber}";
+            var cacheKey = $"route-vehicles:{routeNumber}";
 
             if (_memoryCache.TryGetValue(cacheKey, out List<RouteVehicleDto>? cachedVehicles))
             {
@@ -130,88 +137,119 @@ namespace ulasım_veri_servisi.Services
                 };
             }
 
-            var start = DateTime.UtcNow;
+            var stopwatch = Stopwatch.StartNew();
 
             try
             {
-
-                var startTime = DateTime.UtcNow;
-
-                var response = await _httpClient.GetAsync(url);
-
-                var duration = (int)(DateTime.UtcNow - startTime).TotalMilliseconds;
-
-
+                var response = await _httpClient.GetAsync(url, cancellationToken);
+                
                 if (!response.IsSuccessStatusCode)
                 {
-                    _context.ExternalApiLogs.Add(new ExternalApiLog
-                    {
-                        EndpointName = "RouteVehicles",
-                        RequestUrl = url,
-                        HttpStatusCode = (int)response.StatusCode,
-                        ResponseDurationMs = duration,
-                        IsSuccessful = false,
-                        ErrorMessage = "Dış API'ye ulaşılamadı.",
-                        CreatedAt = DateTime.UtcNow
-                    });
+                    await LogExternalApiAsync(
+                        "RouteVehicles",
+                        url,
+                        (int)response.StatusCode,
+                        (int)stopwatch.ElapsedMilliseconds,
+                        false,
+                        "Dış API'ye ulaşılamadı.");
 
-                    await _context.SaveChangesAsync();
-
-                    throw new Exception("Dış API'ye ulaşılamadı.");
-                }
-
+                    throw new BadGatewayException("ESHOT servisinden veri alınamadı.");
+                }   
+                
                 var json = await response.Content.ReadAsStringAsync();
-
                 var apiResponse = JsonSerializer.Deserialize<RouteVehiclesApiResponse>(json);
 
-                var vehicles = apiResponse?.HatOtobusKonumlari ?? new List<RouteVehicleDto>();
-
-                _context.ExternalApiLogs.Add(new ExternalApiLog
+                if (apiResponse == null)
                 {
-                    EndpointName = "RouteVehicles",
-                    RequestUrl = url,
-                    HttpStatusCode = (int)response.StatusCode,
-                    ResponseDurationMs = duration,
-                    IsSuccessful = true,
-                    CreatedAt = DateTime.UtcNow
-                });
+                    await LogExternalApiAsync(
+                        "RouteVehicles",
+                        url,
+                        (int)response.StatusCode,
+                        (int)stopwatch.ElapsedMilliseconds,
+                        false,
+                        "Beklenmeyen response modeli.");
 
-                await _context.SaveChangesAsync();
-
-                _memoryCache.Set(
-                    cacheKey,
-                    vehicles,
-                    TimeSpan.FromSeconds(20));
-                _memoryCache.Set(
-    cacheKey,
-    vehicles,
-    TimeSpan.FromSeconds(20));
-
-
-                _context.ExternalApiLogs.Add(new ExternalApiLog
+                    throw new BadGatewayException("ESHOT servisinden beklenen veri alınamadı.");
+                }
+                
+                if (apiResponse.HataVarMi)
                 {
-                    EndpointName = "RouteVehicles",
-                    RequestUrl = url,
-                    HttpStatusCode = (int)response.StatusCode,
-                    ResponseDurationMs = duration,
-                    IsSuccessful = response.IsSuccessStatusCode,
-                    ErrorMessage = response.IsSuccessStatusCode ? null : "Dış API hatası",
-                    CreatedAt = DateTime.UtcNow
-                });
+                    var errorMsg = apiResponse.HataMesaj ?? "ESHOT API hata bildirdi.";
+                    await LogExternalApiAsync(
+                        "RouteVehicles",
+                        url,
+                        (int)response.StatusCode,
+                        (int)stopwatch.ElapsedMilliseconds,
+                        false,
+                        errorMsg);
 
-                await _context.SaveChangesAsync();
+                    throw new BadGatewayException(errorMsg);
+                }
+                
+                if (apiResponse.HatOtobusKonumlari == null)
+                {
+                    apiResponse.HatOtobusKonumlari = new List<RouteVehicleDto>();
+                }
+
+                var vehicles = apiResponse.HatOtobusKonumlari;
+                await LogExternalApiAsync(
+                       "RouteVehicles",
+                       url,
+                       (int)response.StatusCode,
+                       (int)stopwatch.ElapsedMilliseconds,
+                       true,
+                       null);
+
+                _memoryCache.Set(cacheKey, vehicles, CacheDuration);
+               
                 return new CachedResult<List<RouteVehicleDto>>
                 {
                     Data = vehicles,
                     FromCache = false
                 };
             }
-            catch (JsonException)
+            catch (JsonException ex)
             {
-                throw new Exception("JSON okunamadı.");
+                await LogExternalApiAsync("RouteVehicles", url, 500, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
+                throw new BadGatewayException("ESHOT servisinden geçerli veri alınamadı.");
+            }
+            catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || !cancellationToken.IsCancellationRequested)
+            {
+                await LogExternalApiAsync("RouteVehicles", url, 408, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
+                throw new ServiceUnavailableException("ESHOT servisine zaman aşımı nedeniyle ulaşılamadı.");
+            }
+            catch (HttpRequestException ex)
+            {
+                await LogExternalApiAsync("RouteVehicles", url, 503, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
+                throw new ServiceUnavailableException("ESHOT servisine ulaşılamıyor.");
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "RouteVehicles API çağrısında hata oluştu.");
+                throw;
             }
         }
 
+        private async Task LogExternalApiAsync(
+            string endpointName,
+            string requestUrl,
+            int statusCode,
+            int duration,
+            bool isSuccessful,
+            string? errorMessage)
+        {
+            _context.ExternalApiLogs.Add(new ExternalApiLog
+            {
+                EndpointName = endpointName,
+                RequestUrl = requestUrl,
+                HttpStatusCode = statusCode,
+                ResponseDurationMs = duration,
+                IsSuccessful = isSuccessful,
+                ErrorMessage = errorMessage,
+                CreatedAt = DateTime.UtcNow
+            });
 
+            await _context.SaveChangesAsync();
+        }
     }
 }

@@ -1,0 +1,587 @@
+using TransportDataService;
+using TransportDataService.Domain;
+using System.Security.Cryptography;
+using Microsoft.EntityFrameworkCore;
+using System.IO.Compression;
+using CsvHelper;
+using System.Globalization;
+using ulasım_veri_servisi.Models.Gtfs;
+
+  
+namespace ulasım_veri_servisi.Services
+{
+
+    public class GtfsImportService : IGtfsImportService
+    {  
+        private readonly AppDbContext _context;
+        private readonly HttpClient _httpClient;
+        private const string GtfsUrl =
+    "https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip";
+
+        public GtfsImportService(
+            AppDbContext context,
+            HttpClient httpClient)
+        {
+            _context = context;
+            _httpClient = httpClient;
+        }
+
+        public async Task<GtfsImportRun> ImportAsync(CancellationToken cancellationToken)
+        {
+            
+            GtfsImportRun? importRun = null;
+              Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
+           
+            string? tempFolder = null;
+            try
+            {
+          
+
+
+                importRun = new GtfsImportRun
+                {
+                     SourceUrl = GtfsUrl,
+                     DownloadedAt = DateTime.UtcNow,
+                    StartedAt = DateTime.UtcNow,
+                    Status = "Running"
+                };
+
+                _context.GtfsImportRuns.Add(importRun);
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                var response = await _httpClient.GetAsync(
+    GtfsUrl,
+    cancellationToken);
+
+                response.EnsureSuccessStatusCode();
+
+                var zipBytes =
+                    await response.Content.ReadAsByteArrayAsync(
+                        cancellationToken);
+              
+
+                if (response.Headers.ETag != null)
+                {
+                    importRun.ETag =
+                        response.Headers.ETag.Tag;
+                }
+
+                if (response.Content.Headers.LastModified != null)
+                {
+                    importRun.LastModified =
+                        response.Content.Headers
+                        .LastModified
+                        .Value
+                        .UtcDateTime;
+                }
+                var hash = SHA256.HashData(zipBytes);
+
+                importRun.FileHash = Convert.ToHexString(hash);
+
+                var alreadyImported =
+        await _context.GtfsImportRuns.AnyAsync(x =>
+            x.FileHash == importRun.FileHash &&
+            x.Status == "Completed",
+            cancellationToken);
+
+                var hasGtfsStops =
+      await _context.GtfsStops.AnyAsync(cancellationToken);
+
+                if (alreadyImported && hasGtfsStops)
+                {
+                    importRun.Status = "Skipped";
+                    importRun.FinishedAt = DateTime.UtcNow;
+
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    return importRun;
+                }
+
+                tempFolder =
+    Path.Combine(
+        Path.GetTempPath(),
+        Guid.NewGuid().ToString());
+
+                Directory.CreateDirectory(tempFolder);
+
+                var zipPath =
+    Path.Combine(
+        tempFolder,
+        "bus-eshot-gtfs.zip");
+
+                await File.WriteAllBytesAsync(
+                    zipPath,
+                    zipBytes,
+                    cancellationToken);
+
+                using var archive =
+                 ZipFile.OpenRead(zipPath);
+                transaction =
+    await _context.Database.BeginTransactionAsync(
+        cancellationToken);
+                var agencyEntry = archive.GetEntry("agency.txt");
+                if (agencyEntry != null)
+                {
+                    using var stream = agencyEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+       reader,
+       CultureInfo.InvariantCulture);
+
+                    var agencies =
+                        csv.GetRecords<GtfsAgencyRow>()
+                           .ToList();
+
+                    importRun.AgencyCount = agencies.Count;
+
+                    var agencyEntities =
+    agencies.Select(x => new GtfsAgency
+    {
+        AgencyId = x.agency_id ?? "",
+        AgencyName = x.agency_name,
+        AgencyUrl = x.agency_url,
+        AgencyTimezone = x.agency_timezone,
+        AgencyLang = x.agency_lang,
+        AgencyPhone = x.agency_phone
+    }).ToList();
+                    _context.GtfsAgencies.RemoveRange(
+    _context.GtfsAgencies);
+                    _context.GtfsAgencies.AddRange(
+    agencyEntities);
+
+                    await _context.SaveChangesAsync( 
+                        cancellationToken);
+                }
+
+                var routesEntry = archive.GetEntry("routes.txt");
+
+                if (routesEntry != null)
+                {
+                    using var stream = routesEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+                        reader,
+                        CultureInfo.InvariantCulture);
+
+                    var routes =
+                        csv.GetRecords<GtfsRouteRow>()
+                           .ToList();
+
+                    importRun.RouteCount = routes.Count;
+
+                    var routeEntities =
+      routes.Select(x => new GtfsRoute
+      {
+          RouteId = x.route_id,
+          RouteShortName = x.route_short_name,
+          RouteLongName = x.route_long_name,
+          RouteType = x.route_type
+      }).ToList();
+
+                    _context.GtfsRoutes.RemoveRange(
+                        _context.GtfsRoutes);
+
+                    _context.GtfsRoutes.AddRange(
+                        routeEntities);
+
+                    await _context.SaveChangesAsync(
+                        cancellationToken);
+                }
+                var stopsEntry = archive.GetEntry("stops.txt");
+
+                if (stopsEntry != null)
+                {
+                    using var stream = stopsEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+                        reader,
+                        CultureInfo.InvariantCulture);
+
+                    var stops =
+                        csv.GetRecords<GtfsStopRow>()
+                           .ToList();
+
+                    importRun.StopCount = stops.Count;
+
+                    var stopEntities =
+     stops.Select(x => new GtfsStop
+     {
+         StopId = x.stop_id,
+         StopName = x.stop_name,
+         StopLat = x.stop_lat,
+         StopLon = x.stop_lon
+     }).ToList();
+
+                    _context.GtfsStops.RemoveRange(
+                        _context.GtfsStops);
+
+                    _context.GtfsStops.AddRange(
+                        stopEntities);
+
+                    await _context.SaveChangesAsync(
+                        cancellationToken);
+                   
+                }
+
+
+                var tripsEntry = archive.GetEntry("trips.txt");
+
+                if (tripsEntry != null)
+                {
+                    using var stream = tripsEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+                        reader,
+                        CultureInfo.InvariantCulture);
+
+                    var trips =
+                        csv.GetRecords<GtfsTripRow>()
+                           .ToList();
+
+                    importRun.TripCount = trips.Count;
+                   
+
+                    var routeLookup = await _context.GtfsRoutes
+    .ToDictionaryAsync(
+        x => x.RouteId,
+        x => x.Id,
+        cancellationToken);
+
+                    var tripEntities =
+    trips
+    .Where(x => routeLookup.ContainsKey(x.route_id))
+    .Select(x => new GtfsTrip
+    {
+        TripId = x.trip_id,
+        RouteId = x.route_id,
+        GtfsRouteId = routeLookup[x.route_id],
+        ServiceId = x.service_id,
+        DirectionId = x.direction_id,
+        ShapeId = x.shape_id
+    })
+    .ToList();
+                    
+                    _context.GtfsTrips.RemoveRange(_context.GtfsTrips);
+                   
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    const int batchSize = 500;
+
+                    for (int i = 0; i < tripEntities.Count; i += batchSize)
+                    {
+                        var batch = tripEntities
+                            .Skip(i)
+                            .Take(batchSize)
+                            .ToList();
+
+                        _context.GtfsTrips.AddRange(batch);
+
+                        await _context.SaveChangesAsync(cancellationToken);
+                      
+
+                        _context.ChangeTracker.Clear();
+                        GC.Collect();
+                        GC.WaitForPendingFinalizers();
+                    }
+                }
+                var stopTimesEntry = archive.GetEntry("stop_times.txt");
+
+                if (stopTimesEntry != null)
+                {
+                    using var stream = stopTimesEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+                        reader,
+                        CultureInfo.InvariantCulture);
+
+                    var stopTimes = csv.GetRecords<GtfsStopTimeRow>();
+                    var stopLookup = await _context.GtfsStops
+    .ToDictionaryAsync(
+        x => x.StopId,
+        x => x.Id,
+        cancellationToken);
+
+                    var tripLookup = await _context.GtfsTrips
+                        .ToDictionaryAsync(
+                            x => x.TripId,
+                            x => x.Id,
+                            cancellationToken);
+                    _context.GtfsStopTimes.RemoveRange(_context.GtfsStopTimes);
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    const int batchSize = 500;
+
+                    var batch = new List<GtfsStopTime>(batchSize);
+
+                    int total = 0;
+
+                    foreach (var x in stopTimes)
+                    {
+                        if (!stopLookup.TryGetValue(x.stop_id, out var stopDbId))
+                            continue;
+
+                        if (!tripLookup.TryGetValue(x.trip_id, out var tripDbId))
+                            continue;
+
+                        batch.Add(new GtfsStopTime
+                        {
+                            TripId = x.trip_id,
+                            StopId = x.stop_id,
+
+                            GtfsTripId = tripDbId,
+                            GtfsStopId = stopDbId,
+
+                            ArrivalTimeRaw = x.arrival_time,
+                            DepartureTimeRaw = x.departure_time,
+
+                            ArrivalSeconds = GtfsTimeParser.ParseToSeconds(x.arrival_time),
+                            DepartureSeconds = GtfsTimeParser.ParseToSeconds(x.departure_time),
+
+                            StopSequence = x.stop_sequence
+                        });
+
+                        total++;
+
+                        if (batch.Count >= batchSize)
+                        {
+                            _context.GtfsStopTimes.AddRange(batch);
+
+                            await _context.SaveChangesAsync(cancellationToken);
+
+                            _context.ChangeTracker.Clear();
+                            GC.Collect();
+                            GC.WaitForPendingFinalizers();
+
+                            batch.Clear();
+                        }
+                    }
+
+                    if (batch.Count > 0)
+                    {
+                        _context.GtfsStopTimes.AddRange(batch);
+
+                        await _context.SaveChangesAsync(cancellationToken);
+
+                        _context.ChangeTracker.Clear();
+                    }
+
+                    importRun.StopTimeCount = total;
+
+
+                }
+                var calendarEntry = archive.GetEntry("calendar.txt");
+
+                if (calendarEntry != null)
+                {
+                    using var stream = calendarEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+                    using var csv =
+    new CsvReader(
+        reader,
+        CultureInfo.InvariantCulture);
+                    var calendars =
+    csv.GetRecords<GtfsCalendarRow>()
+       .ToList();
+                    var calendarEntities =
+    calendars.Select(x => new GtfsCalendar
+    {
+        ServiceId = x.service_id,
+        Monday = x.monday == 1,
+        Tuesday = x.tuesday == 1,
+
+        Wednesday = x.wednesday == 1,
+
+        Thursday = x.thursday == 1,
+
+        Friday = x.friday == 1,
+
+        Saturday = x.saturday == 1,
+
+        Sunday = x.sunday == 1,
+        StartDate =
+    DateOnly.ParseExact(
+        x.start_date,
+        "yyyyMMdd"),
+        EndDate =
+    DateOnly.ParseExact(
+        x.end_date,
+        "yyyyMMdd"),
+    }).ToList();
+
+                    _context.GtfsCalendars.RemoveRange(
+      _context.GtfsCalendars);
+
+                    _context.GtfsCalendars.AddRange(
+                        calendarEntities);
+
+                    await _context.SaveChangesAsync(
+                        cancellationToken);
+
+                }
+
+               
+                var shapesEntry = archive.GetEntry("shapes.txt");
+
+                if (shapesEntry != null)
+                {
+                    using var stream = shapesEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+                        reader,
+                        CultureInfo.InvariantCulture);
+
+                    var shapes = csv.GetRecords<GtfsShapePointRow>();
+
+              
+
+                    _context.GtfsShapePoints.RemoveRange(_context.GtfsShapePoints);
+
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    const int batchSize = 500;
+
+                    var batch = new List<GtfsShapePoint>(batchSize);
+
+                    int total = 0;
+
+                    foreach (var x in shapes)
+                    {
+                        batch.Add(new GtfsShapePoint
+                        {
+                            ShapeId = x.shape_id,
+                            Latitude = x.shape_pt_lat,
+                            Longitude = x.shape_pt_lon,
+                            Sequence = x.shape_pt_sequence
+                        });
+
+                        total++;
+
+                        if (batch.Count >= batchSize)
+                        {
+                            _context.GtfsShapePoints.AddRange(batch);
+
+                            await _context.SaveChangesAsync(cancellationToken);
+
+                             _context.ChangeTracker.Clear();
+
+                            batch.Clear();
+                        }
+                    }
+                    importRun.ShapePointCount = total;
+                    _context.GtfsImportRuns.Update(importRun);
+
+                    await _context.SaveChangesAsync(cancellationToken);
+
+                    if (batch.Count > 0)
+                    {
+                        _context.GtfsShapePoints.AddRange(batch);
+
+                        await _context.SaveChangesAsync(cancellationToken);
+
+                        _context.ChangeTracker.Clear();
+                    }
+
+                    importRun.ShapePointCount = total;
+                }
+              
+                var feedInfoEntry = archive.GetEntry("feed_info.txt");
+
+                if (feedInfoEntry != null)
+                {
+                    using var stream = feedInfoEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+
+                    using var csv = new CsvReader(
+                        reader,
+                        CultureInfo.InvariantCulture);
+
+                    var feedInfo =
+                        csv.GetRecords<GtfsFeedInfoRow>()
+                           .FirstOrDefault();
+
+                    if (feedInfo != null)
+                    {
+                        importRun.FeedVersion =
+                            feedInfo.feed_version;
+
+                        if (DateOnly.TryParseExact(
+                            feedInfo.feed_start_date,
+                            "yyyyMMdd",
+                            out var startDate))
+                        {
+                            importRun.FeedStartDate = startDate;
+                        }
+
+                        if (DateOnly.TryParseExact(
+                            feedInfo.feed_end_date,
+                            "yyyyMMdd",
+                            out var endDate))
+                        {
+                            importRun.FeedEndDate = endDate;
+                        }
+                    }
+                }
+                importRun.Status = "Completed";
+                importRun.FinishedAt = DateTime.UtcNow;
+
+                await _context.SaveChangesAsync(cancellationToken);
+
+                await transaction.CommitAsync(cancellationToken);
+
+                archive.Dispose();
+
+                if (tempFolder != null && Directory.Exists(tempFolder))
+                {
+                    Directory.Delete(tempFolder, true);
+                }
+
+                return importRun;
+            }
+            catch (Exception ex)
+            {
+                if (transaction != null)
+                {
+                    await transaction.RollbackAsync(cancellationToken);
+                }
+
+                if (importRun != null)
+                {
+                    importRun.Status = "Failed";
+                    importRun.ErrorMessage =
+     ex.ToString(); 
+                    importRun.FinishedAt = DateTime.UtcNow;
+
+                    
+
+                    if (tempFolder != null && Directory.Exists(tempFolder))
+                    {
+                        Directory.Delete(tempFolder, true);
+                    }
+
+                    await _context.SaveChangesAsync(cancellationToken);
+                    return importRun;
+                }
+
+                throw;
+            }
+
+          
+        }
+
+    }
+}

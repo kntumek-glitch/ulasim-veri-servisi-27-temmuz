@@ -1,0 +1,28 @@
+﻿using Microsoft.AspNetCore.Mvc;
+using ulasım_veri_servisi.Services;
+
+namespace ulasım_veri_servisi.Controllers;
+
+[ApiController]
+[Route("api/v1/import")]
+public class GtfsImportController : ControllerBase
+{
+    private readonly IGtfsImportService _gtfsImportService;
+
+    public GtfsImportController(
+        IGtfsImportService gtfsImportService)
+    {
+        _gtfsImportService = gtfsImportService;
+    }
+
+    [HttpPost("gtfs")]
+    public async Task<IActionResult> ImportGtfs(
+        CancellationToken cancellationToken)
+    {
+        var result =
+            await _gtfsImportService.ImportAsync(
+                cancellationToken);
+
+        return Ok(result);
+    }
+}

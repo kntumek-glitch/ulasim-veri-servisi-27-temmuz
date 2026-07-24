@@ -1,6 +1,20 @@
-@ulasım_veri_servisi_HostAddress = http://localhost:5108
 
-GET {{ulasım_veri_servisi_HostAddress}}/weatherforecast/
-Accept: application/json
+
+@host=https://localhost:7267
 
 ###
+
+GET {{host}}/api/v1/stops
+
+###
+
+GET {{host}}/api/v1/stops/1
+
+###
+
+GET {{host}}/api/v1/stops/nearby?latitude=38.462&longitude=27.216&radiusMeters=500
+
+###
+
+POST {{host}}/api/v1/import/stops
+

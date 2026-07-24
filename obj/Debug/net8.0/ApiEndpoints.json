@@ -1,5 +1,418 @@
 [
   {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetFeedInfo",
+    "RelativePath": "api/v1/gtfs/feed-info",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.FeedInfoResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetRoutes",
+    "RelativePath": "api/v1/gtfs/routes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "search",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.PaginatedResponse\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.RouteDto, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetRoute",
+    "RelativePath": "api/v1/gtfs/routes/{routeId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "routeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.RouteDto",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsRouteDeparturesController",
+    "Method": "GetRouteDepartures",
+    "RelativePath": "api/v1/gtfs/routes/{routeId}/departures",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "routeId",
+        "Type": "System.String",
+        "IsRequired": true
+      },
+      {
+        "Name": "directionId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "date",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetRouteDirections",
+    "RelativePath": "api/v1/gtfs/routes/{routeId}/directions",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "routeId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.RouteDirectionsResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetRoutePatterns",
+    "RelativePath": "api/v1/gtfs/routes/{routeId}/patterns",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "routeId",
+        "Type": "System.String",
+        "IsRequired": true
+      },
+      {
+        "Name": "directionId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.GtfsRoutePatternResponse, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetRouteShape",
+    "RelativePath": "api/v1/gtfs/routes/{routeId}/shape",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "routeId",
+        "Type": "System.String",
+        "IsRequired": true
+      },
+      {
+        "Name": "directionId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.ShapePointDto, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetRouteStops",
+    "RelativePath": "api/v1/gtfs/routes/{routeId}/stops",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "routeId",
+        "Type": "System.String",
+        "IsRequired": true
+      },
+      {
+        "Name": "directionId",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.RouteStopDto, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetGtfsStops",
+    "RelativePath": "api/v1/gtfs/stops",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "search",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.PaginatedResponse\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.GtfsStopResponse, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetGtfsStop",
+    "RelativePath": "api/v1/gtfs/stops/{stopId}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "stopId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.GtfsStopResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsController",
+    "Method": "GetGtfsStopRoutes",
+    "RelativePath": "api/v1/gtfs/stops/{stopId}/routes",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "stopId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "System.Collections.Generic.IEnumerable\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.GtfsStopRouteResponse, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsTripsController",
+    "Method": "GetTripStops",
+    "RelativePath": "api/v1/gtfs/trips/{tripId}/stops",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "tripId",
+        "Type": "System.String",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsImportController",
+    "Method": "ImportGtfs",
+    "RelativePath": "api/v1/import/gtfs",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsImportController",
+    "Method": "GetRuns",
+    "RelativePath": "api/v1/import/gtfs/runs",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "status",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "page",
+        "Type": "System.Int32",
+        "IsRequired": false
+      },
+      {
+        "Name": "pageSize",
+        "Type": "System.Int32",
+        "IsRequired": false
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.PaginatedResponse\u00601[[ulas\u0131m_veri_servisi.Models.Gtfs.GtfsImportRunResponse, ulas\u0131m-veri-servisi, Version=1.0.0.0, Culture=neutral, PublicKeyToken=null]]",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsImportController",
+    "Method": "GetRun",
+    "RelativePath": "api/v1/import/gtfs/runs/{id}",
+    "HttpMethod": "GET",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [
+      {
+        "Name": "id",
+        "Type": "System.Int32",
+        "IsRequired": true
+      }
+    ],
+    "ReturnTypes": [
+      {
+        "Type": "ulas\u0131m_veri_servisi.Models.Gtfs.GtfsImportRunResponse",
+        "MediaTypes": [
+          "text/plain",
+          "application/json",
+          "text/json"
+        ],
+        "StatusCode": 200
+      }
+    ]
+  },
+  {
     "ContainingType": "ulas\u0131m_veri_servisi.Controllers.ImportController",
     "Method": "ImportStops",
     "RelativePath": "api/v1/import/stops",
@@ -19,6 +432,16 @@
         "StatusCode": 500
       }
     ]
+  },
+  {
+    "ContainingType": "ulas\u0131m_veri_servisi.Controllers.GtfsReconciliationController",
+    "Method": "Reconcile",
+    "RelativePath": "api/v1/reconciliation/gtfs-stops",
+    "HttpMethod": "POST",
+    "IsController": true,
+    "Order": 0,
+    "Parameters": [],
+    "ReturnTypes": []
   },
   {
     "ContainingType": "ulas\u0131m_veri_servisi.Controllers.RoutesController",
@@ -45,21 +468,18 @@
         "StatusCode": 200
       },
       {
-        "Type": "System.String",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
-        "StatusCode": 404
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 502
       },
       {
-        "Type": "System.String",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 503
+      },
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
         "StatusCode": 500
       }
     ]
@@ -74,6 +494,21 @@
     "Parameters": [
       {
         "Name": "search",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "routeNumber",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "sort",
+        "Type": "System.String",
+        "IsRequired": false
+      },
+      {
+        "Name": "order",
         "Type": "System.String",
         "IsRequired": false
       },
@@ -152,7 +587,7 @@
         "StatusCode": 200
       },
       {
-        "Type": "System.String",
+        "Type": "Microsoft.AspNetCore.Mvc.ProblemDetails",
         "MediaTypes": [
           "text/plain",
           "application/json",
@@ -161,12 +596,18 @@
         "StatusCode": 404
       },
       {
-        "Type": "System.String",
-        "MediaTypes": [
-          "text/plain",
-          "application/json",
-          "text/json"
-        ],
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 502
+      },
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
+        "StatusCode": 503
+      },
+      {
+        "Type": "System.Void",
+        "MediaTypes": [],
         "StatusCode": 500
       }
     ]

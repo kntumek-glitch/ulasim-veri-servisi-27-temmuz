@@ -1,7 +1,9 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
+using ulasım_veri_servisi.Helpers;
+using ulasım_veri_servisi.Exceptions;
 
 namespace ulasım_veri_servisi.Services
 {
@@ -22,7 +24,7 @@ namespace ulasım_veri_servisi.Services
             var stop = await _context.Stops.FindAsync(stopId);
             if (stop == null)
             {
-                throw new Exception("Durak bulunamadı.");
+                throw new NotFoundException("Durak bulunamadı.");
             }
             var cacheResult = await _externalEshotService.GetApproachingBusesAsync(stop.ExternalStopId);
              var result = new ApproachingBusResponse
@@ -42,17 +44,8 @@ namespace ulasım_veri_servisi.Services
                     RouteName = bus.HatAdi ?? string.Empty,
                     RemainingStopCount = bus.KalanDurakSayisi,
                     Direction = bus.HattinYonu.ToString(),
-                    Latitude = double.TryParse(
-                        bus.KoorX?.Replace(",", "."),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out var lat) ? lat : 0,
-
-                    Longitude = double.TryParse(
-                        bus.KoorY?.Replace(",", "."),
-                        System.Globalization.NumberStyles.Any,
-                        System.Globalization.CultureInfo.InvariantCulture,
-                        out var lng) ? lng : 0,
+                    Latitude = CoordinateParser.ParseNullable(bus.KoorX, -90, 90),
+                    Longitude = CoordinateParser.ParseNullable(bus.KoorY, -180, 180),
 
                     IsAccessible = bus.EngelliMi,
                     HasBicycleRack = bus.BisikletAparatliMi

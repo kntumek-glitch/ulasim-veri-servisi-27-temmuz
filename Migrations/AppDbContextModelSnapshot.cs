@@ -58,6 +58,393 @@ namespace ulasım_veri_servisi.Migrations
                     b.ToTable("ExternalApiLogs");
                 });
 
+            modelBuilder.Entity("TransportDataService.Domain.GtfsAgency", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AgencyId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AgencyLang")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AgencyName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AgencyPhone")
+                        .HasColumnType("text");
+
+                    b.Property<string>("AgencyTimezone")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("AgencyUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AgencyId")
+                        .IsUnique();
+
+                    b.ToTable("GtfsAgencies");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsCalendar", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("EndDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("Friday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Monday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Saturday")
+                        .HasColumnType("boolean");
+
+                    b.Property<string>("ServiceId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateOnly>("StartDate")
+                        .HasColumnType("date");
+
+                    b.Property<bool>("Sunday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Thursday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Tuesday")
+                        .HasColumnType("boolean");
+
+                    b.Property<bool>("Wednesday")
+                        .HasColumnType("boolean");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GtfsCalendars");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsCalendarDate", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<DateOnly>("Date")
+                        .HasColumnType("date");
+
+                    b.Property<int>("ExceptionType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ServiceId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GtfsCalendarDates");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsImportRun", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AgencyCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateTime>("DownloadedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("ETag")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ErrorMessage")
+                        .HasColumnType("text");
+
+                    b.Property<int>("FailedRecordCount")
+                        .HasColumnType("integer");
+
+                    b.Property<DateOnly?>("FeedEndDate")
+                        .HasColumnType("date");
+
+                    b.Property<DateOnly?>("FeedStartDate")
+                        .HasColumnType("date");
+
+                    b.Property<string>("FeedVersion")
+                        .HasColumnType("text");
+
+                    b.Property<string>("FileHash")
+                        .HasColumnType("text");
+
+                    b.Property<DateTime?>("FinishedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<DateTime?>("LastModified")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<int>("RouteCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ShapePointCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("SourceUrl")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<DateTime>("StartedAt")
+                        .HasColumnType("timestamp with time zone");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StopCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("StopTimeCount")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("TripCount")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("FileHash");
+
+                    b.ToTable("GtfsImportRuns");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsRoute", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("RouteColor")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RouteDesc")
+                        .HasColumnType("text");
+
+                    b.Property<string>("RouteId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RouteLongName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RouteShortName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("RouteTextColor")
+                        .HasColumnType("text");
+
+                    b.Property<int?>("RouteType")
+                        .HasColumnType("integer");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("RouteId")
+                        .IsUnique();
+
+                    b.ToTable("GtfsRoutes");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsShapePoint", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<double>("Latitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("Longitude")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("Sequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ShapeId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("GtfsShapePoints");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsStop", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("LocationType")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ParentStation")
+                        .HasColumnType("text");
+
+                    b.Property<string>("PlatformCode")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StopCode")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StopDesc")
+                        .HasColumnType("text");
+
+                    b.Property<string>("StopId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<double>("StopLat")
+                        .HasColumnType("double precision");
+
+                    b.Property<double>("StopLon")
+                        .HasColumnType("double precision");
+
+                    b.Property<string>("StopName")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("StopUrl")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ZoneId")
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("StopId")
+                        .IsUnique();
+
+                    b.ToTable("GtfsStops");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsStopTime", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("ArrivalSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("ArrivalTimeRaw")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int?>("DepartureSeconds")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DepartureTimeRaw")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("GtfsStopId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GtfsTripId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("StopId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<int>("StopSequence")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("TripId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GtfsStopId");
+
+                    b.HasIndex("GtfsTripId");
+
+                    b.ToTable("GtfsStopTimes");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsTrip", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int?>("DirectionId")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("GtfsRouteId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RouteId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ServiceId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.Property<string>("ShapeId")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TripHeadsign")
+                        .HasColumnType("text");
+
+                    b.Property<string>("TripId")
+                        .IsRequired()
+                        .HasColumnType("text");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("GtfsRouteId");
+
+                    b.HasIndex("TripId")
+                        .IsUnique();
+
+                    b.ToTable("GtfsTrips");
+                });
+
             modelBuilder.Entity("TransportDataService.Domain.ImportRun", b =>
                 {
                     b.Property<int>("Id")
@@ -112,10 +499,10 @@ namespace ulasım_veri_servisi.Migrations
                         .IsRequired()
                         .HasColumnType("text");
 
-                    b.Property<double>("Latitude")
+                    b.Property<double?>("Latitude")
                         .HasColumnType("double precision");
 
-                    b.Property<double>("Longitude")
+                    b.Property<double?>("Longitude")
                         .HasColumnType("double precision");
 
                     b.Property<string>("Name")
@@ -126,6 +513,9 @@ namespace ulasım_veri_servisi.Migrations
                         .HasColumnType("timestamp with time zone");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("ExternalStopId")
+                        .IsUnique();
 
                     b.ToTable("Stops");
                 });
@@ -150,9 +540,40 @@ namespace ulasım_veri_servisi.Migrations
 
                     b.HasKey("Id");
 
-                    b.HasIndex("StopId");
+                    b.HasIndex("StopId", "RouteNumber")
+                        .IsUnique();
 
                     b.ToTable("StopRoutes");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsStopTime", b =>
+                {
+                    b.HasOne("TransportDataService.Domain.GtfsStop", "Stop")
+                        .WithMany("StopTimes")
+                        .HasForeignKey("GtfsStopId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.HasOne("TransportDataService.Domain.GtfsTrip", "Trip")
+                        .WithMany("StopTimes")
+                        .HasForeignKey("GtfsTripId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Stop");
+
+                    b.Navigation("Trip");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsTrip", b =>
+                {
+                    b.HasOne("TransportDataService.Domain.GtfsRoute", "Route")
+                        .WithMany("Trips")
+                        .HasForeignKey("GtfsRouteId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Route");
                 });
 
             modelBuilder.Entity("TransportDataService.Domain.StopRoute", b =>
@@ -164,6 +585,21 @@ namespace ulasım_veri_servisi.Migrations
                         .IsRequired();
 
                     b.Navigation("Stop");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsRoute", b =>
+                {
+                    b.Navigation("Trips");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsStop", b =>
+                {
+                    b.Navigation("StopTimes");
+                });
+
+            modelBuilder.Entity("TransportDataService.Domain.GtfsTrip", b =>
+                {
+                    b.Navigation("StopTimes");
                 });
 
             modelBuilder.Entity("TransportDataService.Domain.Stop", b =>

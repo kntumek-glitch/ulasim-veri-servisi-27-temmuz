@@ -2,87 +2,154 @@
 
 ## Swagger Testleri
 
-Swagger üzerinden aþaðýdaki endpointler test edilmiþtir.
+Swagger üzerinden aþaðýdaki endpointler baþarýyla test edilmiþtir.
 
 ---
 
-# 1. Durak Listeleme
+## 1. Durak Listeleme
 
-Endpoint:
+**Endpoint**
 
+```
 GET /api/v1/stops
+```
 
-
-Sonuç:
+**Sonuç**
 
 - Status Code: 200 OK
 - Durak listesi baþarýyla döndü.
+- Sayfalama ve arama desteði doðrulandý.
 
 ---
 
-# 2. Durak Detay
+## 2. Durak Detayý
 
-Endpoint:
+**Endpoint**
 
+```
 GET /api/v1/stops/{id}
+```
 
+**Örnek**
 
-Örnek:
-
+```
 GET /api/v1/stops/1
+```
 
-
-Sonuç:
+**Sonuç**
 
 - Status Code: 200 OK
 - Durak bilgileri baþarýyla getirildi.
 
 ---
 
-# 3. Yakýndaki Duraklar
+## 3. Yakýndaki Duraklar
 
-Endpoint:
+**Endpoint**
 
+```
 GET /api/v1/stops/nearby
+```
 
+**Test Parametreleri**
 
-Parametreler:
+```
+latitude=38.42
+longitude=27.13
+radiusMeters=500
+```
 
-latitude
+```
+latitude=38.42
+longitude=27.13
+radiusMeters=1000
+```
 
-longitude
+```
+latitude=38.42
+longitude=27.13
+radiusMeters=2000
+```
 
-radiusMeters
-
-
-Sonuç:
+**Sonuç**
 
 - Status Code: 200 OK
-- Konuma yakýn duraklar listelendi.
+- Yakýndaki duraklar baþarýyla listelendi.
+- Response içerisinde `distanceMeters` alaný doðrulandý.
+- Farklý yarýçap deðerlerinde beklenen þekilde farklý sayýda sonuç döndü.
 
 ---
 
-# 4. CSV Import
+## 4. CSV Import
 
-Endpoint:
+**Endpoint**
 
+```
 POST /api/v1/import/stops
+```
 
+**Sonuç**
 
-Sonuç:
-
+- Status Code: 200 OK
 - CSV verileri baþarýyla aktarýldý.
 - Stops ve StopRoutes tablolarý güncellendi.
+- ImportRun kaydý oluþturuldu.
 
 ---
 
-# 5. Yaklaþan Otobüsler
+## 5. Yaklaþan Otobüsler
 
-Endpoint:
+**Endpoint**
 
+```
 GET /api/v1/stops/{id}/approaching-buses
+```
 
+**Sonuç**
 
-Sonuç:
+- Status Code: 200 OK
+- Dýþ API üzerinden yaklaþan otobüs bilgileri baþarýyla alýndý.
+- Koordinat dönüþümleri doðru þekilde gerçekleþtirildi.
+- Baþarýlý istek ExternalApiLogs tablosuna kaydedildi.
 
-- Dýþ API üzerinden otobüs bilgileri baþarýyla alýndý.
+---
+
+## 6. Hat Araç Konumlarý
+
+**Endpoint**
+
+```
+GET /api/v1/routes/{routeNumber}/vehicles
+```
+
+**Örnek**
+
+```
+GET /api/v1/routes/304/vehicles
+```
+
+**Sonuç**
+
+- Status Code: 200 OK
+- Aktif araç konumlarý baþarýyla getirildi.
+- Araç koordinatlarý doðru þekilde dönüþtürüldü.
+- Baþarýlý istek ExternalApiLogs tablosuna kaydedildi.
+
+---
+
+## 7. Memory Cache
+
+**Test**
+
+Ayný endpoint kýsa süre içerisinde art arda çaðrýldý.
+
+**Sonuç**
+
+- Cache mekanizmasý baþarýyla çalýþtý.
+- Response içerisindeki `fromCache` alaný cache kullanýmýný gösterdi.
+
+---
+
+## Genel Sonuç
+
+Projede geliþtirilen tüm endpointler Swagger üzerinden test edilmiþ ve beklenen sonuçlar doðrulanmýþtýr.

@@ -1,4 +1,4 @@
-﻿using Swashbuckle.AspNetCore.Annotations;
+using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.Mvc;
 using TransportDataService;
 using ulasım_veri_servisi.Services;
@@ -9,11 +9,10 @@ namespace ulasım_veri_servisi.Controllers
     [Route("api/v1/import")]
     public class ImportController : ControllerBase
     {
-        private readonly AppDbContext _context;
-
-        public ImportController(AppDbContext context)
+        private readonly CsvImportService _csvImportService;
+        public ImportController(CsvImportService csvImportService)
         {
-            _context = context;
+            _csvImportService = csvImportService;
         }
 
         [HttpPost("stops")]
@@ -23,10 +22,11 @@ namespace ulasım_veri_servisi.Controllers
 )]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public IActionResult ImportStops()
+        [ServiceFilter(typeof(ulasım_veri_servisi.Filters.AdminKeyAuthAttribute))]
+        public async Task<IActionResult> ImportStops(
+    CancellationToken cancellationToken)
         {
-            var service = new CsvImportService(_context);
-            var result = service.Import();
+            var result = await _csvImportService.ImportAsync(cancellationToken);
 
             return Ok(result);
         }

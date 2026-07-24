@@ -17,24 +17,18 @@ namespace ulasım_veri_servisi.Controllers
 
         [HttpGet("{routeNumber}/vehicles")]
         [SwaggerOperation(
-     Summary = "Hattaki aktif araç konumlarını getirir",
-     Description = "Belirtilen hatta çalışan aktif otobüslerin konumlarını döndürür."
- )]
+         Summary = "Hat üzerindeki araçları getirir",
+         Description = "Verilen hat numarasına göre ESHOT API'den araç konumlarını getirir."
+     )]
         [ProducesResponseType(typeof(RouteVehiclesResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
-
-        public async Task<IActionResult> GetRouteVehicles([FromRoute] string routeNumber)
+        [ProducesResponseType(StatusCodes.Status502BadGateway)]
+        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
+        public async Task<IActionResult> GetRouteVehicles(string routeNumber)
         {
-            try
-            {
-                var result = await _routeVehiclesService.GetRouteVehiclesAsync(routeNumber);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                return StatusCode(500, ex.Message);
-            }
+            var result = await _routeVehiclesService.GetRouteVehiclesAsync(routeNumber);
+
+            return Ok(result);
         }
     }
 }

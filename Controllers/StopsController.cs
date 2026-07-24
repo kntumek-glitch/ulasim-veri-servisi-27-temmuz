@@ -1,8 +1,9 @@
-﻿using System;
+using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using TransportDataService;
+using ulasım_veri_servisi.Exceptions;
 using ulasım_veri_servisi.Services;
 
 namespace ulasım_veri_servisi.Controllers
@@ -22,29 +23,86 @@ namespace ulasım_veri_servisi.Controllers
             _approachingBusService = approachingBusService;
         }
 
+  
+     
         [HttpGet]
         [SwaggerOperation(
     Summary = "Durakları listeler",
-    Description = "Sayfalama ve arama desteğiyle durak listesini döndürür."
+    Description = "Arama, hat numarası filtreleme ve sayfalama desteğiyle durak listesini döndürür."
 )]
         [ProducesResponseType(StatusCodes.Status200OK)]
         public IActionResult GetStops(
-            string? search,
-            int page = 1,
-            int pageSize = 20)
+
+    string? search,
+    string? routeNumber,
+    string? sort,
+    string? order,
+    int page = 1,
+    int pageSize = 20)
 
 
         {
+            search = search?.Trim();
+            routeNumber = routeNumber?.Trim();
+            sort = sort?.Trim();
+            order = order?.Trim();
+            if (page < 1)
+            {
+                return Problem(detail: "page değeri en az 1 olmalıdır.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz parametre");
+            }
+
+            if (pageSize < 1 || pageSize > 100)
+            {
+                return Problem(detail: "pageSize 1 ile 100 arasında olmalıdır.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz parametre");
+            }
             var query = _context.Stops
+                .AsNoTracking()
                 .Include(x => x.StopRoutes)
                 .AsQueryable();
+            if (!string.IsNullOrWhiteSpace(routeNumber))
+            {
+                query = query.Where(x =>
+    x.StopRoutes.Any(r =>
+        r.RouteNumber.ToLower() == routeNumber!.ToLower()));
+            }
+
 
             if (!string.IsNullOrEmpty(search))
             {
-                query = query.Where(x => x.Name.Contains(search));
+                query = query.Where(x =>
+    x.Name.ToLower().Contains(search!.ToLower()));
+            }
+            if (!string.IsNullOrWhiteSpace(sort))
+            {
+                switch (sort.ToLower())
+                {
+                    case "name":
+                        query = order?.ToLower() == "desc"
+                            ? query.OrderByDescending(x => x.Name)
+                            : query.OrderBy(x => x.Name);
+                        break;
+
+                    case "externalstopid":
+                        query = order?.ToLower() == "desc"
+                            ? query.OrderByDescending(x => x.ExternalStopId)
+                            : query.OrderBy(x => x.ExternalStopId);
+                        break;
+
+                    case "id":
+                    default:
+                        query = order?.ToLower() == "desc"
+                            ? query.OrderByDescending(x => x.Id)
+                            : query.OrderBy(x => x.Id);
+                        break;
+                }
+            }
+            else
+            {
+                query = query.OrderBy(x => x.Id);
             }
 
             var totalCount = query.Count();
+            var totalPages = (int)Math.Ceiling((double)totalCount / pageSize);
 
             var items = query
      .Skip((page - 1) * pageSize)
@@ -65,7 +123,10 @@ namespace ulasım_veri_servisi.Controllers
                 items,
                 page,
                 pageSize,
-                totalCount
+                totalCount,
+                totalPages,
+                hasNextPage = page < totalPages,
+                hasPreviousPage = page > 1
             });
         }
         [HttpGet("{id}")]
@@ -78,12 +139,13 @@ namespace ulasım_veri_servisi.Controllers
         public IActionResult GetStopById(int id)
         {
             var stop = _context.Stops
+                .AsNoTracking()
                 .Include(x => x.StopRoutes)
                 .FirstOrDefault(x => x.Id == id);
 
             if (stop == null)
             {
-                return NotFound();
+                return Problem(detail: "İstenen kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak bulunamadı");
             }
 
             return Ok(new
@@ -106,12 +168,13 @@ namespace ulasım_veri_servisi.Controllers
         public IActionResult GetStopByExternalId(string externalStopId)
         {
             var stop = _context.Stops
+                .AsNoTracking()
                 .Include(x => x.StopRoutes)
                 .FirstOrDefault(x => x.ExternalStopId == externalStopId);
 
             if (stop == null)
             {
-                return NotFound();
+                return Problem(detail: "İstenen kaynak bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak bulunamadı");
             }
 
             return Ok(new
@@ -135,21 +198,29 @@ namespace ulasım_veri_servisi.Controllers
     double longitude,
     double radiusMeters)
         {
+            if (radiusMeters <= 0)
+            {
+                return Problem(detail: "radiusMeters sıfırdan büyük olmalıdır.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz parametre");
+            }
             var items = _context.Stops
+                .AsNoTracking()
                 .ToList()
-                .Select(stop => new
-                {
-                    id = stop.Id,
-                    externalStopId = stop.ExternalStopId,
-                    name = stop.Name,
-                    latitude = stop.Latitude,
-                    longitude = stop.Longitude,
-                    distanceMeters = CalculateDistance(
-                        latitude,
-                        longitude,
-                        stop.Latitude,
-                        stop.Longitude)
-                })
+               .Select(stop => new
+               {
+                   id = stop.Id,
+                   externalStopId = stop.ExternalStopId,
+                   name = stop.Name,
+                   latitude = stop.Latitude,
+                   longitude = stop.Longitude,
+                   distanceMeters =
+        stop.Latitude.HasValue && stop.Longitude.HasValue
+            ? CalculateDistance(
+                latitude,
+                longitude,
+                stop.Latitude.Value,
+                stop.Longitude.Value)
+            : (double?)null
+               })
                 .Where(x => x.distanceMeters <= radiusMeters)
                 .OrderBy(x => x.distanceMeters)
                 .ToList();
@@ -180,31 +251,22 @@ namespace ulasım_veri_servisi.Controllers
 
             return R * c;
         }
-       
+
         [HttpGet("{id}/approaching-buses")]
         [SwaggerOperation(
     Summary = "Durağa yaklaşan otobüsleri getirir",
     Description = "Veritabanındaki durak Id'sine göre ESHOT API'den yaklaşan otobüsleri döndürür."
 )]
         [ProducesResponseType(typeof(ApproachingBusResponse), StatusCodes.Status200OK)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status404NotFound)]
-        [ProducesResponseType(typeof(string), StatusCodes.Status500InternalServerError)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        [ProducesResponseType(StatusCodes.Status502BadGateway)]
+        [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
+        [ProducesResponseType(StatusCodes.Status500InternalServerError)]
         public async Task<IActionResult> GetApproachingBuses([FromRoute] int id)
         {
-            try
-            {
-                var result = await _approachingBusService.GetApproachingBusesAsync(id);
-                return Ok(result);
-            }
-            catch (Exception ex)
-            {
-                if (ex.Message == "Durak bulunamadı.")
-                {
-                    return NotFound(ex.Message);
-                }
+            var result = await _approachingBusService.GetApproachingBusesAsync(id);
 
-                return StatusCode(500, ex.Message);
-            }
+            return Ok(result);
         }
     }
 

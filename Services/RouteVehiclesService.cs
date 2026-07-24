@@ -1,7 +1,8 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
+using ulasım_veri_servisi.Helpers;
 
 namespace ulasım_veri_servisi.Services
 {
@@ -20,33 +21,24 @@ namespace ulasım_veri_servisi.Services
         public async Task<RouteVehiclesResponse> GetRouteVehiclesAsync(string routeNumber)
         {
             var cacheResult = await _externalEshotService.GetRouteVehiclesAsync(routeNumber);
-           
+
 
             var result = new RouteVehiclesResponse
             {
                 RouteNumber = routeNumber,
                 RetrievedAt = DateTime.UtcNow,
                 FromCache = cacheResult.FromCache
-            };
+            }; ;
 
             foreach (var bus in cacheResult.Data)
-            {
+            { 
                 result.Vehicles.Add(new RouteVehicleItem
                 {
                     BusId = bus.OtobusId.ToString(),
                     Direction = bus.Yon.ToString(),
 
-                    Latitude = double.TryParse(
-                        bus.KoorX?.Replace(",", "."),
-                        NumberStyles.Any,
-                        CultureInfo.InvariantCulture,
-                        out var lat) ? lat : 0,
-
-                    Longitude = double.TryParse(
-                        bus.KoorY?.Replace(",", "."),
-                        NumberStyles.Any,
-                        CultureInfo.InvariantCulture,
-                        out var lng) ? lng : 0
+                    Latitude = CoordinateParser.ParseNullable(bus.KoorX, -90, 90),
+                    Longitude = CoordinateParser.ParseNullable(bus.KoorY, -180, 180)
                 });
             }
             return result;
