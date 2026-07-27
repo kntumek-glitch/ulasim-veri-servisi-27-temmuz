@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\build\ulasım-veri-servisi.props" />
-</Project>
