@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {}
+    "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {}
   },
   "projects": {
-    "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {
+    "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
+        "projectUniqueName": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
         "projectName": "ulasım-veri-servisi",
-        "projectPath": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
+        "projectPath": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\ulasım-veri-servisi.csproj",
         "packagesPath": "C:\\Users\\HP\\.nuget\\packages\\",
-        "outputPath": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\obj\\",
+        "outputPath": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\obj\\",
         "projectStyle": "PackageReference",
         "fallbackFolders": [
           "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
