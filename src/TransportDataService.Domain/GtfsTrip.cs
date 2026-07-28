@@ -1,9 +1,14 @@
-﻿using System.ComponentModel.DataAnnotations.Schema;
+using System.ComponentModel.DataAnnotations.Schema;
 namespace TransportDataService.Domain;
 
 public class GtfsTrip
 {
     public int Id { get; set; }
+
+    public int GtfsImportRunId { get; set; }
+
+    [ForeignKey(nameof(GtfsImportRunId))]
+    public GtfsImportRun GtfsImportRun { get; set; } = null!;
 
     public string TripId { get; set; } = string.Empty;
 

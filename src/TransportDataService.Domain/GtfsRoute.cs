@@ -4,6 +4,10 @@ public class GtfsRoute
 {
     public int Id { get; set; }
 
+    public int GtfsImportRunId { get; set; }
+
+    public GtfsImportRun GtfsImportRun { get; set; } = null!;
+
     public string RouteId { get; set; } = string.Empty;
 
     public string AgencyId { get; set; } = string.Empty;

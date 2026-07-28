@@ -19,19 +19,44 @@ namespace ulasım_veri_servisi.HealthChecks
             {
                 var run = await _context.GtfsImportRuns
                     .Where(r => r.IsActive && r.Status == "Completed")
-                    .OrderByDescending(r => r.FinishedAt ?? r.DownloadedAt)
+                    .OrderByDescending(r => r.Id)
                     .FirstOrDefaultAsync(cancellationToken);
 
                 var data = new Dictionary<string, object>
                 {
-                    { "is_gtfs_data_loaded", run != null }
+                    { "is_gtfs_data_loaded", run != null },
+                    { "next_auto_import_time", ulasım_veri_servisi.Workers.GtfsAutoUpdateWorker.NextRunTime?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "Unknown" }
                 };
 
                 if (run != null)
                 {
-                    var date = run.FinishedAt ?? run.DownloadedAt;
-                    data.Add("last_successful_import", date.ToString("yyyy-MM-ddTHH:mm:ssZ"));
-                    return HealthCheckResult.Healthy("GTFS data is loaded.", data);
+                    var finishedAt = run.FinishedAt ?? run.StartedAt;
+                    var ageHours = Math.Round((DateTime.UtcNow - finishedAt).TotalHours, 2);
+                    var durationSeconds = run.FinishedAt.HasValue ? Math.Round((run.FinishedAt.Value - run.StartedAt).TotalSeconds, 2) : 0;
+
+                    data.Add("active_feed_id", run.Id);
+                    data.Add("active_feed_hash", run.FileHash ?? "N/A");
+                    data.Add("active_feed_age_hours", ageHours);
+                    data.Add("last_import_status", run.Status);
+                    data.Add("last_successful_import_time", finishedAt.ToString("yyyy-MM-ddTHH:mm:ssZ"));
+                    data.Add("last_import_duration_seconds", durationSeconds);
+                    
+                    data.Add("metrics", new
+                    {
+                        agencyCount = run.AgencyCount,
+                        routeCount = run.RouteCount,
+                        stopCount = run.StopCount,
+                        tripCount = run.TripCount,
+                        stopTimeCount = run.StopTimeCount,
+                        shapePointCount = run.ShapePointCount
+                    });
+                    
+                    data.Add("validation_issues", run.FailedRecordCount);
+
+                    var status = ageHours > 48 ? HealthStatus.Degraded : HealthStatus.Healthy;
+                    var message = ageHours > 48 ? $"GTFS data is loaded but stale ({ageHours} hours old)." : "GTFS data is loaded and up to date.";
+
+                    return new HealthCheckResult(status, message, null, data);
                 }
 
                 return HealthCheckResult.Unhealthy("No successful GTFS import found.", null, data);

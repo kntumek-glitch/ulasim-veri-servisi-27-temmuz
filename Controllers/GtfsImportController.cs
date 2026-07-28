@@ -91,7 +91,7 @@ public class GtfsImportController : ControllerBase
         page = Math.Max(page, 1);
         pageSize = Math.Clamp(pageSize, 1, 100);
 
-        var query = _context.GtfsImportRuns.AsNoTracking().AsQueryable();
+        var query = _context.GtfsImportRuns.Include(x => x.Phases).AsNoTracking().AsQueryable();
         if (!string.IsNullOrWhiteSpace(status))
         {
             var normalizedStatus = status.Trim().ToUpperInvariant();
@@ -120,7 +120,7 @@ public class GtfsImportController : ControllerBase
     [HttpGet("gtfs/runs/{id:int}")]
     public async Task<ActionResult<GtfsImportRunResponse>> GetRun(int id, CancellationToken cancellationToken)
     {
-        var run = await _context.GtfsImportRuns.AsNoTracking().SingleOrDefaultAsync(run => run.Id == id, cancellationToken);
+        var run = await _context.GtfsImportRuns.Include(x => x.Phases).AsNoTracking().SingleOrDefaultAsync(run => run.Id == id, cancellationToken);
         if (run is null)
             return Problem(detail: "İstenen import kaydı bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak bulunamadı");
 

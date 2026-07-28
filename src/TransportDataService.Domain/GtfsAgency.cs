@@ -1,8 +1,12 @@
-﻿namespace TransportDataService.Domain;
+namespace TransportDataService.Domain;
 
 public class GtfsAgency
 {
     public int Id { get; set; }
+
+    public int GtfsImportRunId { get; set; }
+
+    public GtfsImportRun GtfsImportRun { get; set; } = null!;
 
     public string AgencyId { get; set; } = string.Empty;
 

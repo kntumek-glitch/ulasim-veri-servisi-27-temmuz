@@ -34,8 +34,11 @@ public class ReconciliationIntegrationTests
     {
         // Clear existing data
         await _context.Database.ExecuteSqlRawAsync("""
-            TRUNCATE TABLE "Stops", "GtfsStops" RESTART IDENTITY CASCADE
+            TRUNCATE TABLE "Stops", "GtfsStops", "GtfsImportRuns" RESTART IDENTITY CASCADE
             """);
+
+        var run = new GtfsImportRun { Id = 1, Status = "Completed", IsActive = true, FinishedAt = DateTime.UtcNow };
+        _context.GtfsImportRuns.Add(run);
 
         // Stops table (CSV import data)
         var stops = new List<Stop>
@@ -51,12 +54,12 @@ public class ReconciliationIntegrationTests
         // GTFS Stops (from GTFS import)
         var gtfsStops = new List<GtfsStop>
         {
-            new() { Id = 1, StopId = "S1", StopName = "Stop 1", StopLat = 38.4, StopLon = 27.1, StopCode = "S1" },      // Direct match
-            new() { Id = 2, StopId = "S2", StopName = "Stop 2", StopLat = 38.5, StopLon = 27.2, StopCode = "S2" },      // Direct match
-            new() { Id = 3, StopId = "S3", StopName = "Stop 3 Modified", StopLat = 38.6, StopLon = 27.3, StopCode = "S3" }, // Name mismatch
-            new() { Id = 4, StopId = "S4", StopName = "Stop 4", StopLat = 38.7001, StopLon = 27.4001, StopCode = "S4" }, // Coordinate mismatch
-            new() { Id = 5, StopId = "S7", StopName = "Stop 7", StopLat = 38.9, StopLon = 27.7, StopCode = "S7" },      // Missing in Stops
-            new() { Id = 6, StopId = "S8", StopName = "Stop 8", StopLat = 39.0, StopLon = 27.8, StopCode = "S8" },      // Missing in Stops
+            new() { GtfsImportRunId = 1, Id = 1, StopId = "S1", StopName = "Stop 1", StopLat = 38.4, StopLon = 27.1, StopCode = "S1" },      // Direct match
+            new() { GtfsImportRunId = 1, Id = 2, StopId = "S2", StopName = "Stop 2", StopLat = 38.5, StopLon = 27.2, StopCode = "S2" },      // Direct match
+            new() { GtfsImportRunId = 1, Id = 3, StopId = "S3", StopName = "Stop 3 Modified", StopLat = 38.6, StopLon = 27.3, StopCode = "S3" }, // Name mismatch
+            new() { GtfsImportRunId = 1, Id = 4, StopId = "S4", StopName = "Stop 4", StopLat = 38.7001, StopLon = 27.4001, StopCode = "S4" }, // Coordinate mismatch
+            new() { GtfsImportRunId = 1, Id = 5, StopId = "S7", StopName = "Stop 7", StopLat = 38.9, StopLon = 27.7, StopCode = "S7" },      // Missing in Stops
+            new() { GtfsImportRunId = 1, Id = 6, StopId = "S8", StopName = "Stop 8", StopLat = 39.0, StopLon = 27.8, StopCode = "S8" },      // Missing in Stops
         };
 
         _context.Stops.AddRange(stops);

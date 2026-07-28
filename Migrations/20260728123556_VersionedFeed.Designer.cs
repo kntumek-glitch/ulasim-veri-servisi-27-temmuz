@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 using TransportDataService;
@@ -11,9 +12,11 @@ using TransportDataService;
 namespace ulasım_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260728123556_VersionedFeed")]
+    partial class VersionedFeed
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -176,43 +179,6 @@ namespace ulasım_veri_servisi.Migrations
                     b.HasIndex("GtfsImportRunId");
 
                     b.ToTable("GtfsCalendarDates");
-                });
-
-            modelBuilder.Entity("TransportDataService.Domain.GtfsImportPhase", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<string>("ErrorMessage")
-                        .HasColumnType("text");
-
-                    b.Property<DateTime?>("FinishedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.Property<int>("GtfsImportRunId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("PhaseName")
-                        .IsRequired()
-                        .HasColumnType("text");
-
-                    b.Property<int>("ProcessedRecordCount")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("ProgressPercentage")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime>("StartedAt")
-                        .HasColumnType("timestamp with time zone");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("GtfsImportRunId");
-
-                    b.ToTable("GtfsImportPhases");
                 });
 
             modelBuilder.Entity("TransportDataService.Domain.GtfsImportRun", b =>
@@ -663,17 +629,6 @@ namespace ulasım_veri_servisi.Migrations
                     b.Navigation("GtfsImportRun");
                 });
 
-            modelBuilder.Entity("TransportDataService.Domain.GtfsImportPhase", b =>
-                {
-                    b.HasOne("TransportDataService.Domain.GtfsImportRun", "GtfsImportRun")
-                        .WithMany("Phases")
-                        .HasForeignKey("GtfsImportRunId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("GtfsImportRun");
-                });
-
             modelBuilder.Entity("TransportDataService.Domain.GtfsRoute", b =>
                 {
                     b.HasOne("TransportDataService.Domain.GtfsImportRun", "GtfsImportRun")
@@ -762,11 +717,6 @@ namespace ulasım_veri_servisi.Migrations
                         .IsRequired();
 
                     b.Navigation("Stop");
-                });
-
-            modelBuilder.Entity("TransportDataService.Domain.GtfsImportRun", b =>
-                {
-                    b.Navigation("Phases");
                 });
 
             modelBuilder.Entity("TransportDataService.Domain.GtfsRoute", b =>

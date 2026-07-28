@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TransportDataService.Domain;
 
 namespace TransportDataService;
@@ -36,6 +36,8 @@ public class AppDbContext : DbContext
     public DbSet<GtfsShapePoint> GtfsShapePoints { get; set; }
 
     public DbSet<GtfsImportRun> GtfsImportRuns { get; set; }
+    
+    public DbSet<GtfsImportPhase> GtfsImportPhases { get; set; }
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -53,12 +55,14 @@ public class AppDbContext : DbContext
             .IsUnique();
 
         modelBuilder.Entity<GtfsImportRun>()
-    .HasIndex(x => x.FileHash)
-    .IsUnique(false);
+            .HasIndex(x => x.FileHash)
+            .IsUnique(false);
 
-     
-
-
+        modelBuilder.Entity<GtfsImportPhase>()
+            .HasOne(x => x.GtfsImportRun)
+            .WithMany(x => x.Phases)
+            .HasForeignKey(x => x.GtfsImportRunId)
+            .OnDelete(DeleteBehavior.Cascade);
         modelBuilder.Entity<GtfsTrip>()
             .HasMany(x => x.StopTimes)
             .WithOne(x => x.Trip)
@@ -77,19 +81,28 @@ public class AppDbContext : DbContext
             .HasForeignKey(x => x.GtfsStopId);
 
         modelBuilder.Entity<GtfsAgency>()
-    .HasIndex(x => x.AgencyId)
-    .IsUnique();
+            .HasIndex(x => new { x.AgencyId, x.GtfsImportRunId })
+            .IsUnique();
 
         modelBuilder.Entity<GtfsRoute>()
-            .HasIndex(x => x.RouteId)
+            .HasIndex(x => new { x.RouteId, x.GtfsImportRunId })
             .IsUnique();
 
         modelBuilder.Entity<GtfsStop>()
-            .HasIndex(x => x.StopId)
+            .HasIndex(x => new { x.StopId, x.GtfsImportRunId })
             .IsUnique();
 
         modelBuilder.Entity<GtfsTrip>()
-            .HasIndex(x => x.TripId)
+            .HasIndex(x => new { x.TripId, x.GtfsImportRunId })
             .IsUnique();
+
+        modelBuilder.Entity<GtfsAgency>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsRoute>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsStop>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsTrip>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsStopTime>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsCalendar>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsCalendarDate>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsShapePoint>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
     }
 }

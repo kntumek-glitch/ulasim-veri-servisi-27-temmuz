@@ -1,4 +1,4 @@
-﻿using TransportDataService.Domain;
+using TransportDataService.Domain;
 namespace TransportDataService.Domain;
 
 public class GtfsImportRun
@@ -44,4 +44,6 @@ public class GtfsImportRun
     public string? ErrorMessage { get; set; }
 
     public bool IsActive { get; set; }
+
+    public ICollection<GtfsImportPhase> Phases { get; set; } = new List<GtfsImportPhase>();
 }

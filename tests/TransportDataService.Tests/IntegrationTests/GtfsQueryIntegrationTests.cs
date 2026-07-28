@@ -29,13 +29,13 @@ public class GtfsQueryIntegrationTests
 
         // Seed data
         context.GtfsImportRuns.Add(new GtfsImportRun { Id = 1, Status = "Completed", IsActive = true, FinishedAt = DateTime.UtcNow });
-        context.GtfsStops.Add(new GtfsStop { Id = 1, StopId = "stop_1", StopName = "Konak", StopCode = "1001", StopLat = 1.0, StopLon = 1.0 });
-        context.GtfsRoutes.Add(new GtfsRoute { Id = 1, RouteId = "route_1", RouteShortName = "123", RouteType = 3 });
-        context.GtfsTrips.Add(new GtfsTrip { Id = 1, TripId = "trip_1", RouteId = "route_1", GtfsRouteId = 1, DirectionId = 0, ServiceId = "service_1", ShapeId = "shape_1" });
-        context.GtfsStopTimes.Add(new GtfsStopTime { TripId = "trip_1", GtfsTripId = 1, StopId = "stop_1", GtfsStopId = 1, StopSequence = 1, ArrivalSeconds = 3600, DepartureSeconds = 3660 });
+        context.GtfsStops.Add(new GtfsStop { GtfsImportRunId = 1, Id = 1, StopId = "stop_1", StopName = "Konak", StopCode = "1001", StopLat = 1.0, StopLon = 1.0 });
+        context.GtfsRoutes.Add(new GtfsRoute { GtfsImportRunId = 1, Id = 1, RouteId = "route_1", RouteShortName = "123", RouteType = 3 });
+        context.GtfsTrips.Add(new GtfsTrip { GtfsImportRunId = 1, Id = 1, TripId = "trip_1", RouteId = "route_1", GtfsRouteId = 1, DirectionId = 0, ServiceId = "service_1", ShapeId = "shape_1" });
+        context.GtfsStopTimes.Add(new GtfsStopTime { GtfsImportRunId = 1, TripId = "trip_1", GtfsTripId = 1, StopId = "stop_1", GtfsStopId = 1, StopSequence = 1, ArrivalSeconds = 3600, DepartureSeconds = 3660 });
         
-        context.GtfsCalendars.Add(new GtfsCalendar { ServiceId = "service_1", Monday = true, Tuesday = true, Wednesday = true, Thursday = true, Friday = true, Saturday = true, Sunday = true, StartDate = new DateOnly(2020, 1, 1), EndDate = new DateOnly(2030, 12, 31) });
-        context.GtfsShapePoints.Add(new GtfsShapePoint { ShapeId = "shape_1", Latitude = 1.0, Longitude = 1.0, Sequence = 1 });
+        context.GtfsCalendars.Add(new GtfsCalendar { GtfsImportRunId = 1, ServiceId = "service_1", Monday = true, Tuesday = true, Wednesday = true, Thursday = true, Friday = true, Saturday = true, Sunday = true, StartDate = new DateOnly(2020, 1, 1), EndDate = new DateOnly(2030, 12, 31) });
+        context.GtfsShapePoints.Add(new GtfsShapePoint { GtfsImportRunId = 1, ShapeId = "shape_1", Latitude = 1.0, Longitude = 1.0, Sequence = 1 });
         
         context.SaveChanges();
     }

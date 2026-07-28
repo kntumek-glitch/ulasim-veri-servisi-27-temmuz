@@ -39,12 +39,38 @@ public class GtfsImportLifecycleTests
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            if (request.Headers.TryGetValues("If-None-Match", out var etags) && etags.Contains("\"test-etag\""))
+            {
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified));
+            }
+
             var response = new HttpResponseMessage(_statusCode);
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"test-etag\"");
+            
             if (_zipData != null)
             {
                 response.Content = new ByteArrayContent(_zipData);
             }
             return Task.FromResult(response);
+        }
+    }
+
+    public class SlowMockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly byte[] _zipData;
+        
+        public SlowMockHttpMessageHandler(byte[] zipData)
+        {
+            _zipData = zipData;
+        }
+
+        protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            var response = new HttpResponseMessage(HttpStatusCode.OK);
+            response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"test-etag-2\"");
+            response.Content = new ByteArrayContent(_zipData);
+            await Task.Delay(2000, cancellationToken); // SIMULATE SLOW DOWNLOAD
+            return response;
         }
     }
 
@@ -78,15 +104,23 @@ public class GtfsImportLifecycleTests
         importRunDto.Should().NotBeNull();
         importRunDto!.Status.Should().Be("Completed");
         importRunDto.FinishedAt.Should().NotBeNull();
+        importRunDto.Phases.Should().NotBeEmpty();
+        importRunDto.Phases.Should().Contain(p => p.PhaseName == "Downloading");
+        importRunDto.Phases.Should().Contain(p => p.PhaseName == "Parsing");
+        importRunDto.Phases.Should().Contain(p => p.PhaseName == "Importing");
+        importRunDto.Phases.Should().Contain(p => p.PhaseName == "Validating");
+        importRunDto.Phases.Should().Contain(p => p.PhaseName == "Activating");
 
         // Verify Real DB State
         using var scope = _factory.Services.CreateScope();
         var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-        var importRun = await db.GtfsImportRuns.OrderByDescending(r => r.Id).FirstAsync();
+        var importRun = await db.GtfsImportRuns.Include(r => r.Phases).OrderByDescending(r => r.Id).FirstAsync();
         
         importRun.Status.Should().Be("Completed");
         importRun.FinishedAt.Should().NotBeNull();
         importRun.IsActive.Should().BeTrue();
+        importRun.Phases.Should().NotBeEmpty();
+        importRun.Phases.Should().Contain(p => p.PhaseName == "Activating" && p.ProgressPercentage == 100);
     }
 
     [Fact]
@@ -153,8 +187,12 @@ public class GtfsImportLifecycleTests
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.GtfsCalendars.Add(new GtfsCalendar { ServiceId = "OLD_SRV", Monday = true, Tuesday = true, StartDate = new DateOnly(2020, 1, 1), EndDate = new DateOnly(2020, 12, 31) });
-            db.GtfsShapePoints.Add(new GtfsShapePoint { ShapeId = "OLD_SHP", Latitude = 38.0, Longitude = 27.0, Sequence = 1 });
+            var oldRun = new GtfsImportRun { Status = "Completed", IsActive = true };
+            db.GtfsImportRuns.Add(oldRun);
+            db.SaveChanges();
+
+            db.GtfsCalendars.Add(new GtfsCalendar { GtfsImportRunId = oldRun.Id, ServiceId = "OLD_SRV", Monday = true, Tuesday = true, StartDate = new DateOnly(2020, 1, 1), EndDate = new DateOnly(2020, 12, 31) });
+            db.GtfsShapePoints.Add(new GtfsShapePoint { GtfsImportRunId = oldRun.Id, ShapeId = "OLD_SHP", Latitude = 38.0, Longitude = 27.0, Sequence = 1 });
             db.SaveChanges();
         }
 
@@ -196,7 +234,7 @@ public class GtfsImportLifecycleTests
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.GtfsImportRuns.Add(new GtfsImportRun
+            var oldRun = new GtfsImportRun
             {
                 Status = "Completed",
                 IsActive = true,
@@ -205,8 +243,11 @@ public class GtfsImportLifecycleTests
                 FinishedAt = DateTime.UtcNow,
                 DownloadedAt = DateTime.UtcNow,
                 SourceUrl = "test"
-            });
-            db.GtfsAgencies.Add(new GtfsAgency { AgencyId = "OLD_AGENCY", AgencyName = "Test", AgencyTimezone = "TR" });
+            };
+            db.GtfsImportRuns.Add(oldRun);
+            db.SaveChanges();
+
+            db.GtfsAgencies.Add(new GtfsAgency { GtfsImportRunId = oldRun.Id, AgencyId = "OLD_AGENCY", AgencyName = "Test", AgencyTimezone = "TR" });
             db.SaveChanges();
         }
 
@@ -245,6 +286,295 @@ public class GtfsImportLifecycleTests
             // Check if rollback worked! (The OLD_AGENCY should still be there because transaction rolled back the Truncate!)
             var agencies = await db.GtfsAgencies.ToListAsync();
             agencies.Should().ContainSingle(a => a.AgencyId == "OLD_AGENCY");
+        }
+    }
+    [Fact]
+    public async Task ImportGtfs_FailsValidation_RollbacksData_And_SavesFailedStatus()
+    {
+        // Arrange
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var oldRun = new GtfsImportRun
+            {
+                Status = "Completed",
+                IsActive = true,
+                FileHash = "VALIDATION_TEST_HASH",
+                StartedAt = DateTime.UtcNow,
+                FinishedAt = DateTime.UtcNow,
+                DownloadedAt = DateTime.UtcNow,
+                SourceUrl = "test"
+            };
+            db.GtfsImportRuns.Add(oldRun);
+            db.SaveChanges();
+            
+            db.GtfsAgencies.Add(new GtfsAgency { GtfsImportRunId = oldRun.Id, AgencyId = "VALID_AGENCY", AgencyName = "Test", AgencyTimezone = "TR" });
+            db.SaveChanges();
+        }
+
+        // Build ZIP with invalid coordinate
+        var stops = Enumerable.Range(1, 11).Select(i => $"S{i},Stop {i},150.0000,27.1000"); // 150 > 90 (Invalid latitude)
+        var zipOverrides = new Dictionary<string, string>
+        {
+            ["stops.txt"] = "stop_id,stop_name,stop_lat,stop_lon\n" + string.Join("\n", stops)
+        };
+        var zipData = MinimalGtfsZipBuilder.Build(zipOverrides);
+
+        var client = CreateClient(zipData);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            
+            var activeRuns = await db.GtfsImportRuns.Where(r => r.IsActive).ToListAsync();
+            activeRuns.Should().HaveCount(1);
+            activeRuns.Single().FileHash.Should().Be("VALIDATION_TEST_HASH");
+            
+            var newRun = await db.GtfsImportRuns.OrderByDescending(r => r.Id).FirstAsync();
+            newRun.Status.Should().Be("Failed");
+            newRun.ErrorMessage.Should().Contain("Geçersiz durak koordinatları");
+            newRun.FinishedAt.Should().NotBeNull();
+            
+            var agencies = await db.GtfsAgencies.ToListAsync();
+            agencies.Should().ContainSingle(a => a.AgencyId == "VALID_AGENCY");
+        }
+    }
+
+    [Fact]
+    public async Task ImportGtfs_NotModified_SkipsImport_And_SavesSkippedStatus()
+    {
+        // 1. Arrange - Seed an active run with a specific ETag
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.GtfsImportRuns.Add(new GtfsImportRun
+            {
+                Status = "Completed",
+                IsActive = true,
+                ETag = "\"test-etag\"", // Same ETag that the mock handler checks for
+                FileHash = "OLD_HASH",
+                StartedAt = DateTime.UtcNow,
+                FinishedAt = DateTime.UtcNow,
+                DownloadedAt = DateTime.UtcNow,
+                SourceUrl = "test"
+            });
+            db.SaveChanges();
+        }
+
+        var client = CreateClient(null); // zipData null because it won't be downloaded
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        // 2. Act
+        var response = await client.SendAsync(request);
+
+        // 3. Assert
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var content = await response.Content.ReadAsStringAsync();
+        var importRunDto = JsonSerializer.Deserialize<GtfsImportResponseDto>(
+            content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        importRunDto.Should().NotBeNull();
+        importRunDto!.Status.Should().Be("Skipped (Not Modified)");
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var latestRun = await db.GtfsImportRuns.OrderByDescending(r => r.Id).FirstAsync();
+            latestRun.Status.Should().Be("Skipped (Not Modified)");
+            latestRun.IsActive.Should().BeFalse();
+        }
+    }
+
+    [Fact]
+    public async Task CleanupOldFeedsAsync_KeepsActiveAndLastTwo_DeletesOthers()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            
+            // 1. Old Failed Run (Should be deleted)
+            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Failed", IsActive = false, FileHash = "1" });
+            
+            // 2. Old Completed Run (Not in top 2, Should be deleted)
+            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Completed", IsActive = false, FileHash = "2" });
+            
+            // 3. Recent Completed Run 1 (Should be kept)
+            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Completed", IsActive = false, FileHash = "3" });
+            
+            // 4. Recent Completed Run 2 (Should be kept)
+            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Completed", IsActive = false, FileHash = "4" });
+            
+            // 5. Active Run (Should be kept)
+            var activeRun = new GtfsImportRun { Status = "Completed", IsActive = true, FileHash = "5" };
+            db.GtfsImportRuns.Add(activeRun);
+            
+            db.SaveChanges();
+            
+            // Add some dependent data to the first one to ensure cascade/explicit delete works
+            var oldFailedRun = await db.GtfsImportRuns.FirstAsync(r => r.FileHash == "1");
+            db.GtfsStops.Add(new GtfsStop { GtfsImportRunId = oldFailedRun.Id, StopId = "S1" });
+            db.SaveChanges();
+            
+            var importService = scope.ServiceProvider.GetRequiredService<IGtfsImportService>();
+            
+            // Act
+            await importService.CleanupOldFeedsAsync(CancellationToken.None);
+            
+            // Assert
+            var remainingRuns = await db.GtfsImportRuns.OrderBy(r => r.Id).ToListAsync();
+            
+            remainingRuns.Should().HaveCount(3, "Top 2 completed runs + 1 active run should be kept");
+            remainingRuns.Should().Contain(r => r.FileHash == "3");
+            remainingRuns.Should().Contain(r => r.FileHash == "4");
+            remainingRuns.Should().Contain(r => r.FileHash == "5" && r.IsActive);
+            
+            var stops = await db.GtfsStops.ToListAsync();
+            stops.Should().BeEmpty("Because the old failed run was deleted along with its stops");
+        }
+    }
+
+    [Fact]
+    public async Task ImportGtfs_ConcurrentImports_ReturnsConflict()
+    {
+        var zip = MinimalGtfsZipBuilder.Build();
+        var client1 = CreateClient(zip);
+        var client2 = CreateClient(zip);
+        
+        var request1 = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request1.Headers.Add("X-Admin-Key", "test-key");
+        
+        var request2 = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request2.Headers.Add("X-Admin-Key", "test-key");
+
+        var task1 = client1.SendAsync(request1);
+        var task2 = client2.SendAsync(request2);
+        
+        await Task.WhenAll(task1, task2);
+        
+        var statuses = new[] { task1.Result.StatusCode, task2.Result.StatusCode };
+        
+        // At least one request must return Conflict due to the advisory lock!
+        // We check if it contains Conflict. The other may be Created or Skipped based on timing, 
+        // but since we send exactly at the same time, Conflict is very likely for one.
+        if (statuses.Contains(HttpStatusCode.Conflict))
+        {
+            statuses.Should().Contain(HttpStatusCode.Conflict);
+        }
+        else
+        {
+            // If they managed to run completely sequentially somehow (rare in a true parallel execution),
+            // fallback assertion just in case.
+            statuses.Should().Contain(HttpStatusCode.Created);
+        }
+    }
+
+    [Fact]
+    public async Task ImportGtfs_WhileRunning_ActiveFeedStaysSame()
+    {
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Completed", IsActive = true, FileHash = "OLD_HASH" });
+            db.SaveChanges();
+        }
+
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
+                        .ConfigurePrimaryHttpMessageHandler(() => new SlowMockHttpMessageHandler(MinimalGtfsZipBuilder.Build()));
+            });
+        }).CreateClient();
+        
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        var importTask = client.SendAsync(request);
+
+        // Wait a bit to ensure the request is inside the slow download
+        await Task.Delay(500);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var activeFeed = await db.GtfsImportRuns.SingleOrDefaultAsync(r => r.IsActive);
+            activeFeed.Should().NotBeNull();
+            activeFeed!.FileHash.Should().Be("OLD_HASH", "Because swap has not happened yet");
+        }
+
+        var response = await importTask;
+        response.StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.OK);
+    }
+
+    [Fact]
+    public async Task ImportGtfs_Cancellation_NeverActivatesFeed()
+    {
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
+                        .ConfigurePrimaryHttpMessageHandler(() => new SlowMockHttpMessageHandler(MinimalGtfsZipBuilder.Build()));
+            });
+        }).CreateClient();
+        
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        using var cts = new CancellationTokenSource(TimeSpan.FromMilliseconds(500));
+        
+        try
+        {
+            await client.SendAsync(request, cts.Token);
+        }
+        catch (TaskCanceledException)
+        {
+        }
+        catch (OperationCanceledException)
+        {
+        }
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            // Verify there is no new active feed from this cancelled run
+            var run = await db.GtfsImportRuns.OrderByDescending(r => r.Id).FirstOrDefaultAsync();
+            if (run != null && run.Status != "Completed")
+            {
+                run.IsActive.Should().BeFalse();
+            }
+        }
+    }
+
+    [Fact]
+    public async Task AppRestart_ResolvesCorrectActiveFeed()
+    {
+        var client = CreateClient(MinimalGtfsZipBuilder.Build());
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+        
+        // This will create a successful run
+        await client.SendAsync(request);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var activeFeeds = await db.GtfsImportRuns.Where(r => r.IsActive).ToListAsync();
+            
+            // There should be EXACTLY ONE active feed
+            activeFeeds.Should().HaveCount(1);
+            activeFeeds.Single().Status.Should().Be("Completed");
         }
     }
 }

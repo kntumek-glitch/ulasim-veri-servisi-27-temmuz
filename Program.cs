@@ -11,6 +11,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using ulasım_veri_servisi.HealthChecks;
+using ulasım_veri_servisi.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine("ContentRoot: " + builder.Environment.ContentRootPath);
@@ -98,6 +99,8 @@ builder.Services.AddScoped<ITripStopsService, TripStopsService>();
 builder.Services.AddScoped<IRouteDeparturesService, RouteDeparturesService>();
 builder.Services.AddScoped<ulasım_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
 builder.Services.AddScoped<ulasım_veri_servisi.Filters.AdminKeyAuthAttribute>();
+
+builder.Services.AddHostedService<GtfsAutoUpdateWorker>();
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" })

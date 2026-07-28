@@ -24,6 +24,7 @@ public class GtfsImportResponseDto
     public DateTime StartedAt { get; set; }
     public DateTime? FinishedAt { get; set; }
     public string? Reason { get; set; }
+    public ICollection<GtfsImportPhaseResponse> Phases { get; set; } = new List<GtfsImportPhaseResponse>();
 
     public static GtfsImportResponseDto FromRun(GtfsImportRun run, int? previousSuccessfulId = null)
     {
@@ -46,7 +47,8 @@ public class GtfsImportResponseDto
             },
             StartedAt = run.StartedAt,
             FinishedAt = run.FinishedAt,
-            Reason = run.ErrorMessage
+            Reason = run.ErrorMessage,
+            Phases = run.Phases?.Select(GtfsImportPhaseResponse.From).ToList() ?? new List<GtfsImportPhaseResponse>()
         };
     }
 }
