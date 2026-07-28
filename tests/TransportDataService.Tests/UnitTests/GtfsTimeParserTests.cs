@@ -27,7 +27,7 @@ public class GtfsTimeParserTests
     [InlineData("25:30")] // Missing seconds
     [InlineData("25:30:45:10")] // Too many parts
     [InlineData("xx:yy:zz")] // Not numbers
-    public void ParseToSeconds_InvalidGtfsTime_ReturnsNull(string input)
+    public void ParseToSeconds_InvalidGtfsTime_ReturnsNull(string? input)
     {
         // Act
         var result = GtfsTimeParser.ParseToSeconds(input);

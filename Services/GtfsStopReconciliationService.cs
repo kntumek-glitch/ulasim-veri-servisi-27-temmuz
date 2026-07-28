@@ -58,18 +58,13 @@ namespace ulasım_veri_servisi.Services
                         x => x.Key,
                         x => x.First());
 
-            int totalMatches = 0;
-
-            int stopCodeMatches = 0;
-
-            int missingInStops = 0;
-
-            int missingInGtfs = 0;
-
-            int nameMismatch = 0;
-
-            int coordinateMismatch = 0;
-
+            int exactMatches = 0;
+            int stopIdMatchesOnly = 0;
+            int stopCodeMatchesOnly = 0;
+            int onlyInGtfs = 0;
+            int onlyInStops = 0;
+            int nameMismatches = 0;
+            int coordinateMismatches = 0;
             int manualReview = 0;
 
             var manualReviewStops = new List<string>();
@@ -78,148 +73,107 @@ namespace ulasım_veri_servisi.Services
             {
                 Stop? stop = null;
 
-                stopIdDictionary.TryGetValue(
-                    gtfsStop.StopId,
-                    out stop);
+                stopIdDictionary.TryGetValue(gtfsStop.StopId, out stop);
                 if (stop != null)
-            {
-                totalMatches++;
-                    if (!string.Equals(
-    stop.Name?.Trim(),
-    gtfsStop.StopName?.Trim(),
-    StringComparison.OrdinalIgnoreCase))
+                {
+                    bool hasNameMismatch = false;
+                    bool hasCoordMismatch = false;
+
+                    if (!string.Equals(stop.Name?.Trim(), gtfsStop.StopName?.Trim(), StringComparison.OrdinalIgnoreCase))
                     {
-                        nameMismatch++;
+                        nameMismatches++;
+                        hasNameMismatch = true;
                     }
-                    if (stop.Latitude.HasValue &&
-     stop.Longitude.HasValue)
+
+                    if (stop.Latitude.HasValue && stop.Longitude.HasValue)
                     {
-                        var latitudeDifference =
-                            Math.Abs(stop.Latitude.Value - gtfsStop.StopLat);
+                        var latitudeDifference = Math.Abs(stop.Latitude.Value - gtfsStop.StopLat);
+                        var longitudeDifference = Math.Abs(stop.Longitude.Value - gtfsStop.StopLon);
 
-                        var longitudeDifference =
-                            Math.Abs(stop.Longitude.Value - gtfsStop.StopLon);
-
-                        if (latitudeDifference > 0.0001 ||
-                            longitudeDifference > 0.0001)
+                        if (latitudeDifference > 0.0001 || longitudeDifference > 0.0001)
                         {
-                            coordinateMismatch++;
+                            coordinateMismatches++;
+                            hasCoordMismatch = true;
                         }
+                    }
+
+                    if (!hasNameMismatch && !hasCoordMismatch)
+                    {
+                        exactMatches++;
+                    }
+                    else
+                    {
+                        stopIdMatchesOnly++;
                     }
                 }
                 else
                 {
-                    stopIdDictionary.TryGetValue(
-     gtfsStop.StopCode,
-     out stop);
+                    stopIdDictionary.TryGetValue(gtfsStop.StopCode, out stop);
 
                     if (stop != null)
                     {
-                        stopCodeMatches++;
+                        stopCodeMatchesOnly++;
                     }
                     else
                     {
-                        missingInStops++;
+                        onlyInGtfs++;
 
                         Stop? similarStop = null;
-
                         var normalizedName = gtfsStop.StopName?.Trim().ToLower() ?? string.Empty;
-                        stopNameDictionary.TryGetValue(
-                            normalizedName,
-                            out similarStop);
+                        stopNameDictionary.TryGetValue(normalizedName, out similarStop);
 
                         if (similarStop != null)
                         {
                             manualReview++;
-
-                            manualReviewStops.Add(
-     $"GTFS StopId={gtfsStop.StopId}, " +
-     $"StopCode={gtfsStop.StopCode}, " +
-     $"Name='{gtfsStop.StopName}' <-> " +
-     $"Stops ExternalStopId={similarStop.ExternalStopId}, " +
-     $"Name='{similarStop.Name}'");
+                            manualReviewStops.Add($"GTFS StopId={gtfsStop.StopId}, StopCode={gtfsStop.StopCode}, Name='{gtfsStop.StopName}' <-> Stops ExternalStopId={similarStop.ExternalStopId}, Name='{similarStop.Name}'");
                         }
                     }
                 }
             }
+
             foreach (var stop in stops)
             {
-                if (string.IsNullOrWhiteSpace(stop.ExternalStopId))
-                {
-                    continue;
-                }
+                if (string.IsNullOrWhiteSpace(stop.ExternalStopId)) continue;
 
-                var exists =
-                    gtfsStopDictionary.ContainsKey(stop.ExternalStopId)
-                    || gtfsStopCodeDictionary.ContainsKey(stop.ExternalStopId);
-
+                var exists = gtfsStopDictionary.ContainsKey(stop.ExternalStopId) || gtfsStopCodeDictionary.ContainsKey(stop.ExternalStopId);
                 if (!exists)
                 {
-                    missingInGtfs++;
+                    onlyInStops++;
                 }
             }
           
             var report = $"""
-# GTFS Stop Reconciliation
+# GTFS Stop Reconciliation (Güncel Metrikler)
                   
-Generated At
-{ DateTime.UtcNow:u}
+Oluşturulma Zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
 
-## Total Matches
+- **Doğrudan eşleşenler:** {exactMatches}
+- **Yalnızca Stop ID ile eşleşenler:** {stopIdMatchesOnly}
+- **Yalnızca Stop Code ile eşleşenler:** {stopCodeMatchesOnly}
+- **Yalnızca GTFS'te bulunanlar:** {onlyInGtfs}
+- **Yalnızca eski Stops tablosunda bulunanlar:** {onlyInStops}
+- **İsim farkı bulunanlar:** {nameMismatches}
+- **Koordinat farkı bulunanlar:** {coordinateMismatches}
+- **Manuel inceleme gerekenler:** {manualReview}
 
-{totalMatches}
-
-## StopCode Matches
-
-{stopCodeMatches}
-
-## Missing In Stops
-
-{missingInStops}
-
-## Missing In GTFS
-
-{missingInGtfs}
-
-## Name Mismatch
-
-{nameMismatch}
-
-## Coordinate Mismatch
-
-{coordinateMismatch}
-
-## Manual Review
-
-{manualReview}
-
-### Records
+### Manuel İnceleme Gereken Kayıtlar
 
 {string.Join(Environment.NewLine, manualReviewStops)}
 """; 
-            var docsFolder =
-    Path.Combine(
-        Directory.GetCurrentDirectory(),
-        "docs");
-
+            var docsFolder = Path.Combine(Directory.GetCurrentDirectory(), "docs");
             Directory.CreateDirectory(docsFolder);
-            var reportPath =
-    Path.Combine(
-        docsFolder,
-        "gtfs-stop-reconciliation.md");
-            await File.WriteAllTextAsync(
-    reportPath,
-    report,
-    cancellationToken);
+            var reportPath = Path.Combine(docsFolder, "gtfs-stop-reconciliation.md");
+            await File.WriteAllTextAsync(reportPath, report, cancellationToken);
 
             return new ulasım_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult
             {
-                TotalMatches = totalMatches,
-                StopCodeMatches = stopCodeMatches,
-                MissingInStops = missingInStops,
-                MissingInGtfs = missingInGtfs,
-                NameMismatches = nameMismatch,
-                CoordinateMismatches = coordinateMismatch,
+                ExactMatches = exactMatches,
+                StopIdMatchesOnly = stopIdMatchesOnly,
+                StopCodeMatchesOnly = stopCodeMatchesOnly,
+                OnlyInGtfs = onlyInGtfs,
+                OnlyInStops = onlyInStops,
+                NameMismatches = nameMismatches,
+                CoordinateMismatches = coordinateMismatches,
                 ManualReview = manualReview
             };
         }

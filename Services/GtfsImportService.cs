@@ -166,6 +166,17 @@ namespace ulasım_veri_servisi.Services
                 transaction =
     await _context.Database.BeginTransactionAsync(
         cancellationToken);
+
+                // Delete all old data upfront in correct FK order
+                await _context.GtfsStopTimes.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsTrips.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsRoutes.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsShapePoints.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsCalendarDates.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsCalendars.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsStops.ExecuteDeleteAsync(cancellationToken);
+                await _context.GtfsAgencies.ExecuteDeleteAsync(cancellationToken);
+
                 var agencyEntry = archive.GetEntry("agency.txt");
                 if (agencyEntry != null)
                 {
@@ -193,8 +204,7 @@ namespace ulasım_veri_servisi.Services
         AgencyLang = x.agency_lang,
         AgencyPhone = x.agency_phone
     }).ToList();
-                    _context.GtfsAgencies.RemoveRange(
-    _context.GtfsAgencies);
+
                     _context.GtfsAgencies.AddRange(
     agencyEntities);
 
@@ -233,8 +243,7 @@ namespace ulasım_veri_servisi.Services
           RouteTextColor = string.IsNullOrWhiteSpace(x.route_text_color) ? null : x.route_text_color
       }).ToList();
 
-                    _context.GtfsRoutes.RemoveRange(
-                        _context.GtfsRoutes);
+
 
                     _context.GtfsRoutes.AddRange(
                         routeEntities);
@@ -281,8 +290,7 @@ namespace ulasım_veri_servisi.Services
          PlatformCode = x.platform_code
      }).ToList();
 
-                    _context.GtfsStops.RemoveRange(
-                        _context.GtfsStops);
+
 
                     _context.GtfsStops.AddRange(
                         stopEntities);
@@ -333,7 +341,7 @@ namespace ulasım_veri_servisi.Services
     })
     .ToList();
                     
-                    _context.GtfsTrips.RemoveRange(_context.GtfsTrips);
+
                    
                     await _context.SaveChangesAsync(cancellationToken);
 
@@ -380,7 +388,7 @@ namespace ulasım_veri_servisi.Services
                             x => x.TripId,
                             x => x.Id,
                             cancellationToken);
-                    _context.GtfsStopTimes.RemoveRange(_context.GtfsStopTimes);
+
                     await _context.SaveChangesAsync(cancellationToken);
 
                     const int batchSize = 500;
@@ -483,8 +491,7 @@ namespace ulasım_veri_servisi.Services
         "yyyyMMdd"),
     }).ToList();
 
-                    _context.GtfsCalendars.RemoveRange(
-      _context.GtfsCalendars);
+
 
                     _context.GtfsCalendars.AddRange(
                         calendarEntities);
@@ -512,7 +519,7 @@ namespace ulasım_veri_servisi.Services
                         ExceptionType = x.exception_type
                     }).ToList();
 
-                    _context.GtfsCalendarDates.RemoveRange(_context.GtfsCalendarDates);
+
                     _context.GtfsCalendarDates.AddRange(calendarDateEntities);
 
                     await _context.SaveChangesAsync(cancellationToken);
@@ -534,7 +541,7 @@ namespace ulasım_veri_servisi.Services
 
               
 
-                    _context.GtfsShapePoints.RemoveRange(_context.GtfsShapePoints);
+
 
                     await _context.SaveChangesAsync(cancellationToken);
 
@@ -688,7 +695,8 @@ namespace ulasım_veri_servisi.Services
             {
                 if (transaction != null)
                 {
-                    await transaction.RollbackAsync(cancellationToken);
+                    await transaction.RollbackAsync(CancellationToken.None);
+                    await transaction.DisposeAsync();
                 }
 
                 if (importRun != null)
@@ -698,20 +706,21 @@ namespace ulasım_veri_servisi.Services
                         Directory.Delete(tempFolder, true);
                     }
 
-                    // The context can still track inserts/deletes from the rolled
-                    // back transaction. Clear it before writing the history row so
-                    // a failed import cannot accidentally persist partial feed data.
-                    _context.ChangeTracker.Clear();
+                    // Ayrı bir scope açarak rollback'ten etkilenmeden log yazıyoruz
+                    await using var errorScope = _scopeFactory.CreateAsyncScope();
+                    var errorContext = errorScope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-                    var failedRun = await _context.GtfsImportRuns
+                    var failedRun = await errorContext.GtfsImportRuns
                         .SingleAsync(x => x.Id == importRun.Id, CancellationToken.None);
+                    
                     failedRun.Status = "Failed";
                     failedRun.ErrorMessage = "İçe aktarım sırasında beklenmeyen bir hata oluştu. Lütfen sistem loglarını kontrol edin.";
-                    _logger.LogError(ex, "GTFS import failed for run {RunId}", importRun.Id);
                     failedRun.FinishedAt = DateTime.UtcNow;
                     failedRun.IsActive = false;
 
-                    await _context.SaveChangesAsync(CancellationToken.None);
+                    await errorContext.SaveChangesAsync(CancellationToken.None);
+
+                    _logger.LogError(ex, "GTFS import failed for run {RunId}", importRun.Id);
                 }
 
                 throw;

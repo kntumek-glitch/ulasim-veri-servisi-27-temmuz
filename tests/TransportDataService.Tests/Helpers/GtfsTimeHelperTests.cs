@@ -27,7 +27,7 @@ namespace TransportDataService.Tests.Helpers
         [InlineData("25-30-00")]
         [InlineData("InvalidTime")]
         [InlineData("25:30")] // Eksik saniye alanı
-        public void ParseGtfsTimeToSeconds_ShouldReturnNull_WhenFormatIsInvalid(string invalidTimeStr)
+        public void ParseGtfsTimeToSeconds_ShouldReturnNull_WhenFormatIsInvalid(string? invalidTimeStr)
         {
             // Act
             var result = GtfsTimeHelper.ParseGtfsTimeToSeconds(invalidTimeStr);

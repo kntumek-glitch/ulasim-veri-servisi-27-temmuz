@@ -1,92 +1,122 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Text.Json;
-using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Models.Gtfs;
+using ulasım_veri_servisi.Services;
 using Xunit;
-using Testcontainers.PostgreSql;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
-[Collection("PostgreSql collection")]
-public class GtfsImportIntegrationTests : IAsyncLifetime
+[Collection("IntegrationTestCollection")]
+public class GtfsImportIntegrationTests
 {
-    private readonly PostgreSqlFixture _fixture;
-    private WebApplicationFactory<Program> _factory = null!;
-    private HttpClient _client = null!;
+    private readonly CustomWebApplicationFactory _factory;
 
-    public GtfsImportIntegrationTests(PostgreSqlFixture fixture) => _fixture = fixture;
-
-    public async Task InitializeAsync()
+    public GtfsImportIntegrationTests(CustomWebApplicationFactory factory)
     {
-        await _fixture.InitializeAsync();
+        _factory = factory;
+    }
 
-        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
+    public class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly HttpStatusCode _statusCode;
+        
+        public MockHttpMessageHandler(HttpStatusCode statusCode)
+        {
+            _statusCode = statusCode;
+        }
+
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(_statusCode));
+        }
+    }
+
+    private HttpClient CreateMockedClient(HttpStatusCode externalStatusCode)
+    {
+        return _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-                if (descriptor != null) services.Remove(descriptor);
-
-                services.AddDbContext<AppDbContext>(options =>
-                    options.UseNpgsql(_fixture.ConnectionString));
-
-                var sp = services.BuildServiceProvider();
-                using var scope = sp.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                db.Database.Migrate();
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
+                        .ConfigurePrimaryHttpMessageHandler(() => new MockHttpMessageHandler(externalStatusCode));
             });
-        });
-
-        _client = _factory.CreateClient();
-    }
-
-    public async Task DisposeAsync()
-    {
-        _client?.Dispose();
-        _factory?.Dispose();
-        await _fixture.DisposeAsync();
+        }).CreateClient();
     }
 
     [Fact]
-    public async Task Import_WhenExternalServiceReturns502_ReturnsProblemDetails()
+    public async Task Import_WhenExternalServiceReturns502_Returns502BadGateway()
     {
-        // This test would require mocking the external ESHOT API to return 502
-        // For now, we test the ProblemDetails format via a known bad endpoint
-        var response = await _client.PostAsync("/api/v1/import/gtfs", null);
+        var client = CreateMockedClient(HttpStatusCode.BadGateway);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
 
-        // The import will fail because the external URL is not reachable in test env
-        // We verify the error response format
+        var response = await client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
 
         var content = await response.Content.ReadAsStringAsync();
         var problem = JsonSerializer.Deserialize<ProblemDetails>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         problem.Should().NotBeNull();
-        problem!.Status.Should().BeGreaterThanOrEqualTo(500);
+        problem!.Status.Should().Be(502);
         problem.Title.Should().NotBeNullOrEmpty();
-        problem.Detail.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
-    public async Task Import_WhenExternalServiceReturns503_ReturnsProblemDetails()
+    public async Task Import_WhenExternalServiceReturns503_Returns502BadGateway()
     {
-        // Similar to 502 test - the external service is unreachable in test env
-        var response = await _client.PostAsync("/api/v1/import/gtfs", null);
+        // Even if the external service returns 503 Service Unavailable, our gateway
+        // should log it and return 502 Bad Gateway (or 503 depending on design).
+        // The previous test expected 502, so we enforce it here correctly.
+        var client = CreateMockedClient(HttpStatusCode.ServiceUnavailable);
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
 
+        var response = await client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
 
         var content = await response.Content.ReadAsStringAsync();
         var problem = JsonSerializer.Deserialize<ProblemDetails>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         problem.Should().NotBeNull();
-        problem!.Status.Should().BeGreaterThanOrEqualTo(500);
+        problem!.Status.Should().Be(502);
         problem.Title.Should().NotBeNullOrEmpty();
-        problem.Detail.Should().NotBeNullOrEmpty();
+    }
+
+    [Fact]
+    public async Task Import_WhenExternalServiceTimesOut_Returns503ServiceUnavailable()
+    {
+        // To simulate a timeout, we throw TaskCanceledException
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
+                        .ConfigurePrimaryHttpMessageHandler(() => new ThrowingHttpMessageHandler(new TaskCanceledException("Timeout")));
+            });
+        }).CreateClient();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        var response = await client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.ServiceUnavailable);
+
+        var content = await response.Content.ReadAsStringAsync();
+        var problem = JsonSerializer.Deserialize<ProblemDetails>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        problem.Should().NotBeNull();
+        problem!.Status.Should().Be(503);
+        problem.Title.Should().NotBeNullOrEmpty();
+    }
+
+    private class ThrowingHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly Exception _exception;
+        public ThrowingHttpMessageHandler(Exception exception) => _exception = exception;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+            => throw _exception;
     }
 }

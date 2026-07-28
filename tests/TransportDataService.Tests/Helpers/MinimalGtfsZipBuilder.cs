@@ -28,6 +28,7 @@ public static class MinimalGtfsZipBuilder
         {
             foreach (var (name, content) in files)
             {
+                if (content == null) continue;
                 var entry = archive.CreateEntry(name);
                 using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
                 writer.Write(content);

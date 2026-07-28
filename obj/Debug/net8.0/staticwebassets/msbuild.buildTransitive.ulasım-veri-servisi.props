@@ -1,3 +1,0 @@
-﻿<Project>
-  <Import Project="..\buildMultiTargeting\ulasım-veri-servisi.props" />
-</Project>

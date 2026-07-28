@@ -63,11 +63,11 @@ public class GtfsImportController : ControllerBase
         }
         catch (TaskCanceledException)
         {
-            return StatusCode(StatusCodes.Status504GatewayTimeout, new ProblemDetails 
+            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails 
             { 
-                Title = "Gateway Timeout", 
+                Title = "Service Unavailable", 
                 Detail = "Dış kaynak zaman aşımına uğradı.", 
-                Status = StatusCodes.Status504GatewayTimeout 
+                Status = StatusCodes.Status503ServiceUnavailable 
             });
         }
         catch (Exception)

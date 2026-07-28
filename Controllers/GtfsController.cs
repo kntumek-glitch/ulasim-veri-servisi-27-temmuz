@@ -587,7 +587,7 @@ public class GtfsController : ControllerBase
             .ToListAsync(cancellationToken);
 
         if (shapePoints.Count == 0)
-            return NotFound(new { Message = "ShapeId veritabanında mevcut, ancak koordinat verisi bulunamadı." });
+            return Problem(detail: "ShapeId veritabanında mevcut, ancak koordinat verisi bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak Bulunamadı");
 
         var response = new GeoJsonShapeResponseDto
         {

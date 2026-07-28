@@ -11,49 +11,23 @@ using Xunit;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
-[Collection("PostgreSql collection")]
-public class ReconciliationIntegrationTests : IAsyncLifetime
+[Collection("IntegrationTestCollection")]
+public class ReconciliationIntegrationTests
 {
-    private readonly PostgreSqlFixture _fixture;
-    private WebApplicationFactory<Program> _factory = null!;
-    private HttpClient _client = null!;
-    private AppDbContext _context = null!;
+    private readonly CustomWebApplicationFactory _factory;
+    private readonly HttpClient _client;
+    private readonly AppDbContext _context;
 
-    public ReconciliationIntegrationTests(PostgreSqlFixture fixture) => _fixture = fixture;
-
-    public async Task InitializeAsync()
+    public ReconciliationIntegrationTests(CustomWebApplicationFactory factory)
     {
-        await _fixture.InitializeAsync();
-
-        _factory = new WebApplicationFactory<Program>().WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-                if (descriptor != null) services.Remove(descriptor);
-
-                services.AddDbContext<AppDbContext>(options =>
-                    options.UseNpgsql(_fixture.ConnectionString));
-
-                var sp = services.BuildServiceProvider();
-                using var scope = sp.CreateScope();
-                _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                _context.Database.Migrate();
-            });
-        });
-
+        _factory = factory;
         _client = _factory.CreateClient();
 
-        // Seed test data for reconciliation
-        await SeedReconciliationDataAsync();
-    }
+        var scope = _factory.Services.CreateScope();
+        _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
-    public async Task DisposeAsync()
-    {
-        _client?.Dispose();
-        _factory?.Dispose();
-        _context?.Dispose();
-        await _fixture.DisposeAsync();
+        // Seed test data for reconciliation
+        SeedReconciliationDataAsync().GetAwaiter().GetResult();
     }
 
     private async Task SeedReconciliationDataAsync()

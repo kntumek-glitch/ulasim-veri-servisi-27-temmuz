@@ -1,7 +1,5 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Mvc.Testing;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Text.Json;
@@ -9,61 +7,23 @@ using TransportDataService;
 using TransportDataService.Domain;
 using ulasım_veri_servisi.Models.Gtfs;
 using Xunit;
-using Testcontainers.PostgreSql;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
-public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+[Collection("IntegrationTestCollection")]
+public class ApiIntegrationTests
 {
-    private readonly WebApplicationFactory<Program> _factory;
-    private HttpClient _client = default!;
+    private readonly CustomWebApplicationFactory _factory;
+    private readonly HttpClient _client;
 
-    private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder("postgres:15-alpine")
-        .WithDatabase("transport_test_db")
-        .WithUsername("postgres")
-        .WithPassword("postgres123")
-        .Build();
-
-    public ApiIntegrationTests(WebApplicationFactory<Program> factory)
+    public ApiIntegrationTests(CustomWebApplicationFactory factory)
     {
         _factory = factory;
-    }
-
-    public async Task InitializeAsync()
-    {
-        await _dbContainer.StartAsync();
-
-        _client = _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                // Remove existing DbContext
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-                if (descriptor != null)
-                {
-                    services.Remove(descriptor);
-                }
-
-                // Add Npgsql DbContext
-                services.AddDbContext<AppDbContext>(options =>
-                {
-                    options.UseNpgsql(_dbContainer.GetConnectionString());
-                });
-
-                // Build the service provider and seed data
-                var sp = services.BuildServiceProvider();
-                using var scope = sp.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                db.Database.Migrate();
-                
-                SeedTestData(db);
-            });
-        }).CreateClient();
-    }
-
-    public async Task DisposeAsync()
-    {
-        await _dbContainer.DisposeAsync().AsTask();
+        _client = _factory.CreateClient();
+        
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        SeedTestData(db);
     }
 
     private void SeedTestData(AppDbContext db)
@@ -89,10 +49,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetRoutes_ReturnsPaginatedResponse()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/gtfs/routes?page=1&pageSize=10");
-
-        // Assert
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         
@@ -107,10 +64,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetRouteStops_ValidRoute_ReturnsOrderedStops()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/gtfs/routes/R1/stops?directionId=0");
-
-        // Assert
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
         
@@ -126,27 +80,17 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetRouteStops_InvalidRouteId_ReturnsNotFound()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/gtfs/routes/INVALID_ROUTE/stops");
-
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
     }
 
     [Fact]
     public async Task InvalidParameters_ReturnsProblemDetails()
     {
-        // Act - Trigger validation error by passing invalid parameter type if possible, 
-        // or let's test a non-existent endpoint to check if standard error handling works.
-        // E.g., page size is invalid but it corrects it. 
-        // We can test a completely invalid stop endpoint that throws an exception or uses bad params.
         var response = await _client.GetAsync("/api/v1/gtfs/routes/R1/stops?directionId=invalid_int");
-
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var content = await response.Content.ReadAsStringAsync();
         
-        // ASP.NET Core should return ProblemDetails by default
         content.Should().Contain("\"title\"");
         content.Should().Contain("\"status\"");
         content.Should().Contain("\"traceId\"");
@@ -155,10 +99,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetStops_InvalidPage_ReturnsProblemDetails400()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/stops?page=-1");
-
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.BadRequest);
         var content = await response.Content.ReadAsStringAsync();
         
@@ -173,10 +114,7 @@ public class ApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>
     [Fact]
     public async Task GetStopById_InvalidId_ReturnsProblemDetails404()
     {
-        // Act
         var response = await _client.GetAsync("/api/v1/stops/9999");
-
-        // Assert
         response.StatusCode.Should().Be(HttpStatusCode.NotFound);
         var content = await response.Content.ReadAsStringAsync();
         

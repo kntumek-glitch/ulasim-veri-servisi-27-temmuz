@@ -9,7 +9,6 @@ using Moq;
 using Moq.Protected;
 using System.Net;
 using System.Text.Json;
-using Testcontainers.PostgreSql;
 using TransportDataService;
 using TransportDataService.Domain;
 using ulasım_veri_servisi.Exceptions;
@@ -18,64 +17,28 @@ using Xunit;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
-public class ExternalApiIntegrationTests : IClassFixture<WebApplicationFactory<Program>>, IAsyncLifetime
+[Collection("IntegrationTestCollection")]
+public class ExternalApiIntegrationTests
 {
-    private readonly PostgreSqlContainer _db = new PostgreSqlBuilder("postgres:15-alpine")
-        .WithDatabase("transport_test_db").WithUsername("postgres").WithPassword("postgres123").Build();
+    private readonly CustomWebApplicationFactory _factory;
 
-    private WebApplicationFactory<Program> _factory = null!;
-    private HttpClient _client = null!;
-
-    public async Task InitializeAsync()
+    public ExternalApiIntegrationTests(CustomWebApplicationFactory factory)
     {
-        await _db.StartAsync();
-        _factory = new WebApplicationFactory<Program>();
-        _client = CreateClient(_ => { });
+        _factory = factory;
     }
 
-    public async Task DisposeAsync() => await _db.DisposeAsync().AsTask();
-
-    private HttpClient CreateClient(Action<IServiceCollection> configureServices)
+    private HttpClient CreateClientWithEshot(Func<IServiceProvider, IExternalEshotService> factoryMethod)
     {
         return _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                RemoveDbContext(services);
-                services.AddDbContext<AppDbContext>(o => o.UseNpgsql(_db.GetConnectionString()));
-                var sp = services.BuildServiceProvider();
-                using var scope = sp.CreateScope();
-                scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
-                configureServices(services);
-            });
-        }).CreateClient();
-    }
-
-    private HttpClient CreateClientWithEshot(Func<IServiceProvider, IExternalEshotService> factory)
-    {
-        return _factory.WithWebHostBuilder(builder =>
-        {
-            builder.ConfigureServices(services =>
-            {
-                RemoveDbContext(services);
-                services.AddDbContext<AppDbContext>(o => o.UseNpgsql(_db.GetConnectionString()));
-
                 foreach (var d in services.Where(d => d.ServiceType == typeof(IExternalEshotService)).ToList())
                     services.Remove(d);
 
-                services.AddScoped(factory);
-
-                var sp = services.BuildServiceProvider();
-                using var scope = sp.CreateScope();
-                scope.ServiceProvider.GetRequiredService<AppDbContext>().Database.Migrate();
+                services.AddScoped(factoryMethod);
             });
         }).CreateClient();
-    }
-
-    private static void RemoveDbContext(IServiceCollection services)
-    {
-        var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-        if (descriptor != null) services.Remove(descriptor);
     }
 
     private static async Task<ProblemDetails> ReadProblem(HttpResponseMessage response)

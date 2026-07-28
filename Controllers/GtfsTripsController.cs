@@ -19,12 +19,12 @@ namespace ulasım_veri_servisi.Controllers
         public async Task<IActionResult> GetTripStops(string tripId)
         {
             if (string.IsNullOrWhiteSpace(tripId))
-                return BadRequest(new { Message = "TripId boş olamaz." });
+                return Problem(detail: "TripId boş olamaz.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz İstek");
 
             var result = await _tripStopsService.GetTripStopsAsync(tripId);
 
             if (result == null)
-                return NotFound(new { Message = $"Belirtilen tripId ({tripId}) bulunamadı." });
+                return Problem(detail: $"Belirtilen tripId ({tripId}) bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak Bulunamadı");
 
             return Ok(result);
         }

@@ -24,11 +24,11 @@ namespace ulasım_veri_servisi.Controllers
             [FromQuery] int pageSize = 20)
         {
             if (string.IsNullOrWhiteSpace(routeId))
-                return BadRequest(new { Message = "RouteId boş olamaz." });
+                return Problem(detail: "RouteId boş olamaz.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz İstek");
 
             if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
             {
-                return BadRequest(new { Message = "Geçersiz tarih formatı. Lütfen tam olarak YYYY-MM-DD formatında (örneğin: 2024-01-01) gönderin." });
+                return Problem(detail: "Geçersiz tarih formatı. Lütfen tam olarak YYYY-MM-DD formatında (örneğin: 2024-01-01) gönderin.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz İstek");
             }
 
             if (page < 1) page = 1;
@@ -39,7 +39,7 @@ namespace ulasım_veri_servisi.Controllers
 
             if (result == null)
             {
-                return NotFound(new { Message = $"Belirtilen routeId ({routeId}) bulunamadı." });
+                return Problem(detail: $"Belirtilen routeId ({routeId}) bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak Bulunamadı");
             }
 
             return Ok(result);

@@ -1,34 +1,16 @@
-# GTFS Stop Reconciliation
+# GTFS Stop Reconciliation (Güncel Metrikler)
                   
-Generated At
-2026-07-27 10:55:00Z
+Oluşturulma Zamanı: 2026-07-28 12:18:54 UTC
 
-## Total Matches
+- **Doğrudan eşleşenler:** 1
+- **Yalnızca Stop ID ile eşleşenler:** 3
+- **Yalnızca Stop Code ile eşleşenler:** 1
+- **Yalnızca GTFS'te bulunanlar:** 2
+- **Yalnızca eski Stops tablosunda bulunanlar:** 2
+- **İsim farkı bulunanlar:** 2
+- **Koordinat farkı bulunanlar:** 1
+- **Manuel inceleme gerekenler:** 1
 
-11540
+### Manuel İnceleme Gereken Kayıtlar
 
-## StopCode Matches
-
-42
-
-## Missing In Stops
-
-0
-
-## Missing In GTFS
-
-201
-
-## Name Mismatch
-
-15
-
-## Coordinate Mismatch
-
-3
-
-## Manual Review
-
-0
-
-### Records
+GTFS StopId=NEW-999, StopCode=C999, Name='Manual Review Stop' <-> Stops ExternalStopId=OLD-999, Name='Manual Review Stop'
