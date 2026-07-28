@@ -64,17 +64,33 @@ namespace ulasım_veri_servisi.Services
                 }
             }
 
+            var calendarValidityDict = calendarServices.ToDictionary(
+                c => c.ServiceId,
+                c => $"{c.StartDate:yyyy-MM-dd} / {c.EndDate:yyyy-MM-dd}"
+            );
+
             // 3. Departures Query
-            var departuresQuery = _context.GtfsStopTimes
+            var tripsQuery = _context.GtfsTrips
                 .AsNoTracking()
-                .Where(st => st.Trip.RouteId == routeId && 
-                             st.Trip.DirectionId == directionId && 
-                             st.StopSequence == 1)
-                .Where(st => activeServiceIds.Contains(st.Trip.ServiceId))
-                .Select(st => new RouteDepartureDataDto
+                .Where(t => t.RouteId == routeId && t.DirectionId == directionId)
+                .Where(t => activeServiceIds.Contains(t.ServiceId));
+
+            var departuresQuery = tripsQuery
+                .Select(t => new
                 {
-                    DepartureTime = st.DepartureTimeRaw,
-                    TripId = st.Trip.TripId
+                    Trip = t,
+                    FirstStop = t.StopTimes.OrderBy(st => st.StopSequence).FirstOrDefault()
+                })
+                .Where(x => x.FirstStop != null)
+                .Select(x => new RouteDepartureDataDto
+                {
+                    TripId = x.Trip.TripId,
+                    DirectionId = x.Trip.DirectionId,
+                    Headsign = x.Trip.TripHeadsign,
+                    DepartureTime = x.FirstStop!.DepartureTimeRaw,
+                    DepartureSeconds = x.FirstStop!.DepartureSeconds,
+                    ServiceId = x.Trip.ServiceId,
+                    IsFeedStale = isFeedExpired
                 });
 
             // Count total
@@ -89,10 +105,19 @@ namespace ulasım_veri_servisi.Services
             if (totalRecords > 0)
             {
                 data = await departuresQuery
-                    .OrderBy(d => d.DepartureTime)
+                    .OrderBy(d => d.DepartureSeconds)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
                     .ToListAsync();
+
+                // Map CalendarValidity in memory because dictionary lookup can't be translated by EF Core
+                foreach (var item in data)
+                {
+                    if (calendarValidityDict.TryGetValue(item.ServiceId, out var validity))
+                    {
+                        item.CalendarValidity = validity;
+                    }
+                }
             }
 
             return new RouteDeparturesResponseDto

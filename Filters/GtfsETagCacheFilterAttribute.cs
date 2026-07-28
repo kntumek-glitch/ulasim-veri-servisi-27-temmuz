@@ -33,44 +33,59 @@ namespace ulasım_veri_servisi.Filters
                 .FirstOrDefaultAsync();
 
             string currentHash = activeRun?.FileHash ?? "no-hash";
-            string eTag = $"\"{currentHash}\"";
             
-            context.HttpContext.Response.Headers.ETag = eTag;
-
-            // 1. ETag Check
-            if (context.HttpContext.Request.Headers.TryGetValue("If-None-Match", out var ifNoneMatch))
+            var requestPath = context.HttpContext.Request.Path;
+            var requestQueryString = context.HttpContext.Request.QueryString;
+            var acceptHeader = context.HttpContext.Request.Headers.Accept.ToString();
+            
+            string rawETagInput = $"{currentHash}|{requestPath}|{requestQueryString}|{acceptHeader}";
+            
+            using var sha = System.Security.Cryptography.SHA256.Create();
+            byte[] bytes = sha.ComputeHash(System.Text.Encoding.UTF8.GetBytes(rawETagInput));
+            string eTag = $"\"{Convert.ToBase64String(bytes)}\"";
+            
+            string cacheKey = $"gtfs:{currentHash}:{requestPath}{requestQueryString}";
+            
+            // Cache Check First
+            if (_cache.TryGetValue(cacheKey, out object? cachedData) && cachedData != null)
             {
-                if (ifNoneMatch == eTag || ifNoneMatch == "*")
+                // Verify ETag
+                if (context.HttpContext.Request.Headers.TryGetValue("If-None-Match", out var ifNoneMatch) && 
+                    (ifNoneMatch == eTag || ifNoneMatch == "*"))
                 {
                     context.Result = new StatusCodeResult(StatusCodes.Status304NotModified);
                     return;
                 }
-            }
 
-            // 2. Cache Check
-            var requestPath = context.HttpContext.Request.Path;
-            var requestQueryString = context.HttpContext.Request.QueryString;
-            string cacheKey = $"gtfs:{currentHash}:{requestPath}{requestQueryString}";
-
-            if (_cache.TryGetValue(cacheKey, out IActionResult? cachedResult) && cachedResult != null)
-            {
-                context.Result = cachedResult;
+                context.HttpContext.Response.Headers.ETag = eTag;
+                context.Result = new OkObjectResult(cachedData);
                 return;
             }
 
-            // Execute the action
+            // Execute the action if not in cache (so we can determine if it's 404 or 200)
             var executedContext = await next();
 
-            // Cache the result if successful
+            // Cache the result if successful and has data
             if (executedContext.Result is ObjectResult objectResult && 
-                (objectResult.StatusCode == StatusCodes.Status200OK || objectResult.StatusCode == null))
+                (objectResult.StatusCode == StatusCodes.Status200OK || objectResult.StatusCode == null) &&
+                objectResult.Value != null)
             {
+                context.HttpContext.Response.Headers.ETag = eTag;
+                
+                // If client somehow sent the correct ETag (e.g. from an expired cache), return 304
+                if (context.HttpContext.Request.Headers.TryGetValue("If-None-Match", out var ifNoneMatchAction) && 
+                    (ifNoneMatchAction == eTag || ifNoneMatchAction == "*"))
+                {
+                    executedContext.Result = new StatusCodeResult(StatusCodes.Status304NotModified);
+                }
+
                 var cacheOptions = new MemoryCacheEntryOptions
                 {
-                    AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(24)
+                    AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                    Size = 1
                 };
                 
-                _cache.Set(cacheKey, executedContext.Result, cacheOptions);
+                _cache.Set(cacheKey, objectResult.Value, cacheOptions);
             }
         }
     }

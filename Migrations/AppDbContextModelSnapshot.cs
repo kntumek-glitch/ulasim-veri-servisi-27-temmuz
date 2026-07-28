@@ -201,6 +201,9 @@ namespace ulasım_veri_servisi.Migrations
                     b.Property<DateTime?>("FinishedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime?>("LastModified")
                         .HasColumnType("timestamp with time zone");
 
@@ -244,6 +247,10 @@ namespace ulasım_veri_servisi.Migrations
                         .HasColumnType("integer");
 
                     NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<string>("AgencyId")
+                        .IsRequired()
+                        .HasColumnType("text");
 
                     b.Property<string>("RouteColor")
                         .HasColumnType("text");

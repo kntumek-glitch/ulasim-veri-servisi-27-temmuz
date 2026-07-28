@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TransportDataService;
 using TransportDataService.Domain;
 
@@ -15,7 +15,7 @@ namespace ulasım_veri_servisi.Services
             _context = context;
         }
 
-        public async Task ReconcileAsync(
+        public async Task<ulasım_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult> ReconcileAsync(
             CancellationToken cancellationToken)
         {
             var stops =
@@ -58,9 +58,7 @@ namespace ulasım_veri_servisi.Services
                         x => x.Key,
                         x => x.First());
 
-            int directMatches = 0;
-
-            int stopIdMatches = 0;
+            int totalMatches = 0;
 
             int stopCodeMatches = 0;
 
@@ -85,8 +83,7 @@ namespace ulasım_veri_servisi.Services
                     out stop);
                 if (stop != null)
             {
-                directMatches++;
-                stopIdMatches++;
+                totalMatches++;
                     if (!string.Equals(
     stop.Name?.Trim(),
     gtfsStop.StopName?.Trim(),
@@ -126,8 +123,9 @@ namespace ulasım_veri_servisi.Services
 
                         Stop? similarStop = null;
 
+                        var normalizedName = gtfsStop.StopName?.Trim().ToLower() ?? string.Empty;
                         stopNameDictionary.TryGetValue(
-                            gtfsStop.StopName.Trim().ToLower(),
+                            normalizedName,
                             out similarStop);
 
                         if (similarStop != null)
@@ -167,13 +165,9 @@ namespace ulasım_veri_servisi.Services
 Generated At
 { DateTime.UtcNow:u}
 
-## Direct Matches
+## Total Matches
 
-{directMatches}
-
-## StopId Matches
-
-{stopIdMatches}
+{totalMatches}
 
 ## StopCode Matches
 
@@ -217,6 +211,17 @@ Generated At
     reportPath,
     report,
     cancellationToken);
+
+            return new ulasım_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult
+            {
+                TotalMatches = totalMatches,
+                StopCodeMatches = stopCodeMatches,
+                MissingInStops = missingInStops,
+                MissingInGtfs = missingInGtfs,
+                NameMismatches = nameMismatch,
+                CoordinateMismatches = coordinateMismatch,
+                ManualReview = manualReview
+            };
         }
     }
 }

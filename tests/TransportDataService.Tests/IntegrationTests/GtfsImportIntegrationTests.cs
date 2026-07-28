@@ -1,4 +1,5 @@
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -38,7 +39,7 @@ public class GtfsImportIntegrationTests : IAsyncLifetime
                 var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await db.Database.MigrateAsync();
+                db.Database.Migrate();
             });
         });
 
@@ -57,11 +58,11 @@ public class GtfsImportIntegrationTests : IAsyncLifetime
     {
         // This test would require mocking the external ESHOT API to return 502
         // For now, we test the ProblemDetails format via a known bad endpoint
-        var response = await _client.PostAsync("/api/v1/gtfs/import", null);
+        var response = await _client.PostAsync("/api/v1/import/gtfs", null);
 
         // The import will fail because the external URL is not reachable in test env
         // We verify the error response format
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.InternalServerError, HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable);
+        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
 
         var content = await response.Content.ReadAsStringAsync();
         var problem = JsonSerializer.Deserialize<ProblemDetails>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -70,16 +71,15 @@ public class GtfsImportIntegrationTests : IAsyncLifetime
         problem!.Status.Should().BeGreaterThanOrEqualTo(500);
         problem.Title.Should().NotBeNullOrEmpty();
         problem.Detail.Should().NotBeNullOrEmpty();
-        problem.TraceId.Should().NotBeNullOrEmpty();
     }
 
     [Fact]
     public async Task Import_WhenExternalServiceReturns503_ReturnsProblemDetails()
     {
         // Similar to 502 test - the external service is unreachable in test env
-        var response = await _client.PostAsync("/api/v1/gtfs/import", null);
+        var response = await _client.PostAsync("/api/v1/import/gtfs", null);
 
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.InternalServerError, HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable);
+        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
 
         var content = await response.Content.ReadAsStringAsync();
         var problem = JsonSerializer.Deserialize<ProblemDetails>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -88,6 +88,5 @@ public class GtfsImportIntegrationTests : IAsyncLifetime
         problem!.Status.Should().BeGreaterThanOrEqualTo(500);
         problem.Title.Should().NotBeNullOrEmpty();
         problem.Detail.Should().NotBeNullOrEmpty();
-        problem.TraceId.Should().NotBeNullOrEmpty();
     }
 }

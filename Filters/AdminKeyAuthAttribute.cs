@@ -17,7 +17,13 @@ namespace ulasım_veri_servisi.Filters
         {
             if (!context.HttpContext.Request.Headers.TryGetValue(ApiKeyHeaderName, out var extractedApiKey))
             {
-                context.Result = new UnauthorizedObjectResult(new { Message = "Invalid or missing admin key" });
+                context.Result = new ObjectResult(new ProblemDetails 
+                { 
+                    Status = StatusCodes.Status401Unauthorized, 
+                    Title = "Yetkisiz Erişim", 
+                    Detail = "Geçersiz veya eksik admin anahtarı" 
+                }) 
+                { StatusCode = StatusCodes.Status401Unauthorized };
                 return;
             }
 
@@ -26,19 +32,25 @@ namespace ulasım_veri_servisi.Filters
             if (string.IsNullOrEmpty(apiKey))
             {
                 // In production, if key is not configured, deny all requests for safety.
-                context.Result = new ObjectResult(new { Message = "Server configuration error: Admin key is not configured." })
-                {
-                    StatusCode = StatusCodes.Status500InternalServerError
-                };
+                context.Result = new ObjectResult(new ProblemDetails 
+                { 
+                    Status = StatusCodes.Status500InternalServerError, 
+                    Title = "Sunucu Yapılandırma Hatası", 
+                    Detail = "Sistem yöneticisi anahtarı (admin key) yapılandırılmamış." 
+                }) 
+                { StatusCode = StatusCodes.Status500InternalServerError };
                 return;
             }
 
             if (!apiKey.Equals(extractedApiKey))
             {
-                context.Result = new ObjectResult(new { Message = "Invalid or missing admin key" })
-                {
-                    StatusCode = StatusCodes.Status403Forbidden
-                };
+                context.Result = new ObjectResult(new ProblemDetails 
+                { 
+                    Status = StatusCodes.Status403Forbidden, 
+                    Title = "Erişim Reddedildi", 
+                    Detail = "Geçersiz admin anahtarı" 
+                }) 
+                { StatusCode = StatusCodes.Status403Forbidden };
                 return;
             }
 

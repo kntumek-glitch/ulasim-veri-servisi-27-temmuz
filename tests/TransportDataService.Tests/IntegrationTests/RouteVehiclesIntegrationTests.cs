@@ -7,6 +7,7 @@ using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
 using ulasım_veri_servisi.Models.Gtfs;
+using ulasım_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.IntegrationTests;
@@ -37,7 +38,7 @@ public class RouteVehiclesIntegrationTests : IAsyncLifetime
                 var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();
                 var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await db.Database.MigrateAsync();
+                db.Database.Migrate();
             });
         });
 
@@ -58,7 +59,7 @@ public class RouteVehiclesIntegrationTests : IAsyncLifetime
         var response = await _client.GetAsync("/api/v1/routes/100/vehicles");
 
         // Assert
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable);
+        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
 
         var content = await response.Content.ReadAsStringAsync();
         var result = JsonSerializer.Deserialize<RouteVehiclesResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
@@ -79,7 +80,7 @@ public class RouteVehiclesIntegrationTests : IAsyncLifetime
         var response = await _client.GetAsync("/api/v1/routes/100/vehicles");
 
         // Assert
-        response.StatusCode.Should().BeOneOf(HttpStatusCode.OK, HttpStatusCode.BadGateway, HttpStatusCode.ServiceUnavailable);
+        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
 
         var content = await response.Content.ReadAsStringAsync();
         var result = JsonSerializer.Deserialize<RouteVehiclesResponse>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });

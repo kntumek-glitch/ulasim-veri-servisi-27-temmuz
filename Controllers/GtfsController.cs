@@ -271,9 +271,12 @@ public class GtfsController : ControllerBase
                 var patternHash = Convert.ToHexString(SHA256.HashData(
                     Encoding.UTF8.GetBytes($"{routeId}|{directionId}|{group.Key}")));
 
+                var rawPatternId = $"{routeId}|{directionId}|{patternHash[..16]}";
+                var encodedPatternId = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(rawPatternId));
+
                 return new GtfsRoutePatternResponse
                 {
-                    PatternId = $"{routeId}-{directionId}-{patternHash[..16]}",
+                    PatternId = encodedPatternId,
                     RouteId = routeId,
                     DirectionId = directionId,
                     RepresentativeTripId = representative.TripId,
@@ -318,9 +321,13 @@ public class GtfsController : ControllerBase
             .Select(r => new RouteDto
             {
                 RouteId = r.RouteId,
+                AgencyId = r.AgencyId,
                 RouteShortName = r.RouteShortName,
                 RouteLongName = r.RouteLongName,
-                RouteType = r.RouteType
+                RouteDesc = r.RouteDesc,
+                RouteType = r.RouteType,
+                RouteColor = r.RouteColor,
+                RouteTextColor = r.RouteTextColor
             })
             .ToListAsync();
 
@@ -341,9 +348,13 @@ public class GtfsController : ControllerBase
             .Select(r => new RouteDto
             {
                 RouteId = r.RouteId,
+                AgencyId = r.AgencyId,
                 RouteShortName = r.RouteShortName,
                 RouteLongName = r.RouteLongName,
-                RouteType = r.RouteType
+                RouteDesc = r.RouteDesc,
+                RouteType = r.RouteType,
+                RouteColor = r.RouteColor,
+                RouteTextColor = r.RouteTextColor
             })
             .FirstOrDefaultAsync();
 
@@ -473,7 +484,7 @@ public class GtfsController : ControllerBase
     {
         if (string.IsNullOrWhiteSpace(tripId) && string.IsNullOrWhiteSpace(patternId))
         {
-            return BadRequest(new { Message = "Lütfen tripId veya patternId parametrelerinden en az birini gönderiniz." });
+            return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Bad Request", Detail = "Lütfen tripId veya patternId parametrelerinden en az birini gönderiniz." });
         }
 
         string? targetShapeId = null;
@@ -486,20 +497,29 @@ public class GtfsController : ControllerBase
                 .FirstOrDefaultAsync(t => t.TripId == tripId, cancellationToken);
 
             if (trip == null)
-                return NotFound(new { Message = "Belirtilen tripId sistemde bulunamadı." });
+                return NotFound(new ProblemDetails { Status = StatusCodes.Status404NotFound, Title = "Not Found", Detail = "Belirtilen tripId sistemde bulunamadı." });
 
             targetShapeId = trip.ShapeId;
         }
         else if (!string.IsNullOrWhiteSpace(patternId))
         {
-            // patternId format: {routeId}-{directionId}-{hash}
-            var parts = patternId.Split('-');
+            string rawPatternId;
+            try
+            {
+                rawPatternId = Encoding.UTF8.GetString(Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlDecode(patternId));
+            }
+            catch (FormatException)
+            {
+                return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Invalid PatternId", Detail = "Geçersiz patternId formatı." });
+            }
+
+            var parts = rawPatternId.Split('|');
             if (parts.Length < 3)
-                return BadRequest(new { Message = "Geçersiz patternId formatı." });
+                return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Invalid PatternId", Detail = "Geçersiz patternId formatı." });
 
             var routeId = parts[0];
             if (!int.TryParse(parts[1], out int directionId))
-                return BadRequest(new { Message = "Geçersiz patternId (directionId okunamadı)." });
+                return BadRequest(new ProblemDetails { Status = StatusCodes.Status400BadRequest, Title = "Invalid DirectionId", Detail = "Geçersiz patternId (directionId okunamadı)." });
 
             // Generate patterns for this route and direction to find the matching one
             var stopTimes = await _context.GtfsStopTimes
@@ -536,21 +556,23 @@ public class GtfsController : ControllerBase
                     var representative = group.OrderBy(trip => trip.TripId).First();
                     var patternHash = Convert.ToHexString(SHA256.HashData(
                         Encoding.UTF8.GetBytes($"{routeId}|{directionId}|{group.Key}")));
-                    var calculatedPatternId = $"{routeId}-{directionId}-{patternHash[..16]}";
+                    
+                    var calcRaw = $"{routeId}|{directionId}|{patternHash[..16]}";
+                    var calculatedPatternId = Microsoft.AspNetCore.WebUtilities.WebEncoders.Base64UrlEncode(Encoding.UTF8.GetBytes(calcRaw));
                     
                     return new { PatternId = calculatedPatternId, representative.ShapeId, representative.TripId };
                 })
                 .FirstOrDefault(p => p.PatternId == patternId);
 
             if (patternFound == null)
-                return NotFound(new { Message = "Belirtilen patternId sistemde bulunamadı." });
+                return NotFound(new ProblemDetails { Status = StatusCodes.Status404NotFound, Title = "Not Found", Detail = "Belirtilen patternId sistemde bulunamadı." });
 
             targetShapeId = patternFound.ShapeId;
             matchedTripId = patternFound.TripId;
         }
 
         if (string.IsNullOrWhiteSpace(targetShapeId))
-            return NotFound(new { Message = "İlgili sefer veya pattern için Shape verisi (ShapeId) bulunamadı." });
+            return NotFound(new ProblemDetails { Status = StatusCodes.Status404NotFound, Title = "Not Found", Detail = "İlgili sefer veya pattern için Shape verisi (ShapeId) bulunamadı." });
 
         var shapePoints = await _context.GtfsShapePoints
             .AsNoTracking()

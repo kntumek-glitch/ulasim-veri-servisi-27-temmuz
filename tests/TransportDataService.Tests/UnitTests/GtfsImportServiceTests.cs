@@ -1,5 +1,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Moq;
 using Moq.Protected;
 using System.Net;
@@ -19,6 +20,7 @@ public class GtfsImportServiceTests : IAsyncLifetime
     private AppDbContext _context = null!;
     private Mock<HttpMessageHandler> _handlerMock = null!;
     private HttpClient _httpClient = null!;
+    private IServiceScopeFactory _scopeFactory = null!;
     private GtfsImportService _service = null!;
 
     public GtfsImportServiceTests(PostgreSqlFixture fixture) => _fixture = fixture;
@@ -34,7 +36,19 @@ public class GtfsImportServiceTests : IAsyncLifetime
 
         _handlerMock = new Mock<HttpMessageHandler>();
         _httpClient = new HttpClient(_handlerMock.Object);
-        _service = new GtfsImportService(_context, _httpClient);
+
+        var services = new ServiceCollection();
+        services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(_fixture.ConnectionString));
+        services.AddLogging();
+        services.AddMemoryCache();
+        
+        var sp = services.BuildServiceProvider();
+        _scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();
+
+        var logger = sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<GtfsImportService>>();
+        var cache = sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+        
+        _service = new GtfsImportService(_scopeFactory, _httpClient, logger, cache);
     }
 
     public Task DisposeAsync()
@@ -133,14 +147,13 @@ public class GtfsImportServiceTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task ImportAsync_InvalidZip_SetsFailedAndRollsBack()
+    public async Task ImportAsync_InvalidZip_SetsFailed()
     {
-        SetupZipResponse(new byte[] { 0x50, 0x4B, 0x03, 0x04, 0x00 });
-        var result = await _service.ImportAsync(CancellationToken.None);
+        SetupZipResponse(new byte[] { 0x00, 0x01, 0x02 }); // Geçersiz ZIP
 
-        result.Status.Should().Be("Failed");
-        result.FinishedAt.Should().NotBeNull();
-        result.ErrorMessage.Should().NotBeNullOrEmpty();
+        var act = async () => await _service.ImportAsync(CancellationToken.None);
+
+        await act.Should().ThrowAsync<Exception>();
 
         var dbRun = await _context.GtfsImportRuns.SingleAsync();
         dbRun.Status.Should().Be("Failed");
@@ -159,10 +172,10 @@ public class GtfsImportServiceTests : IAsyncLifetime
                 ItExpr.IsAny<CancellationToken>())
             .ReturnsAsync(new HttpResponseMessage { StatusCode = HttpStatusCode.InternalServerError });
 
-        var result = await _service.ImportAsync(CancellationToken.None);
+        var act = async () => await _service.ImportAsync(CancellationToken.None);
 
-        result.Status.Should().Be("Failed");
-        result.FinishedAt.Should().NotBeNull();
+        await act.Should().ThrowAsync<HttpRequestException>();
+
         (await _context.GtfsImportRuns.SingleAsync()).Status.Should().Be("Failed");
     }
 
@@ -170,11 +183,53 @@ public class GtfsImportServiceTests : IAsyncLifetime
     public async Task ImportAsync_ConcurrentCalls_DoNotCorruptData()
     {
         SetupZipResponse(MinimalGtfsZipBuilder.Build());
-        var tasks = Enumerable.Range(0, 3).Select(_ => _service.ImportAsync(CancellationToken.None));
+        var tasks = Enumerable.Range(0, 2).Select(async _ => 
+        {
+            try
+            {
+                return await _service.ImportAsync(CancellationToken.None);
+            }
+            catch (ConcurrentImportException)
+            {
+                return null;
+            }
+        });
         var results = await Task.WhenAll(tasks);
 
-        results.Should().Contain(r => r.Status is "Completed" or "Skipped" or "Failed");
-        (await _context.GtfsImportRuns.CountAsync(r => r.Status == "Completed")).Should().BeLessThanOrEqualTo(1);
-        (await _context.GtfsStops.CountAsync()).Should().BeLessThanOrEqualTo(1);
+        var successfulRuns = results.Count(r => r != null && r.Status == "Completed");
+        var failedDueToConcurrency = results.Count(r => r == null);
+
+        successfulRuns.Should().Be(1, "Sadece bir import işlemi başarılı olmalıdır.");
+        failedDueToConcurrency.Should().Be(1, "Diğer işlem ConcurrentImportException fırlatmalıdır.");
+
+        (await _context.GtfsImportRuns.CountAsync(r => r.Status == "Completed")).Should().Be(1);
+        (await _context.GtfsStops.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ImportAsync_StuckRuns_AreCleanedUpBeforeNewImport()
+    {
+        // Arrange
+        var stuckRun = new GtfsImportRun
+        {
+            SourceUrl = "http://test",
+            StartedAt = DateTime.UtcNow.AddHours(-1),
+            Status = "Running"
+        };
+        _context.GtfsImportRuns.Add(stuckRun);
+        await _context.SaveChangesAsync();
+
+        SetupZipResponse(MinimalGtfsZipBuilder.Build());
+
+        // Act
+        var result = await _service.ImportAsync(CancellationToken.None);
+
+        // Assert
+        result.Status.Should().Be("Completed");
+
+        var dbStuckRun = await _context.GtfsImportRuns.AsNoTracking().SingleAsync(r => r.Id == stuckRun.Id);
+        dbStuckRun.Status.Should().Be("Failed");
+        dbStuckRun.FinishedAt.Should().NotBeNull();
+        dbStuckRun.ErrorMessage.Should().Contain("Automatically marked as Failed");
     }
 }

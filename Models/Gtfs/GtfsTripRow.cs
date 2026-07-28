@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+namespace ulasım_veri_servisi.Models.Gtfs;
 
 public class GtfsTripRow
 {
@@ -9,4 +9,5 @@ public class GtfsTripRow
     public int? wheelchair_accessible { get; set; }
     public int? bikes_allowed { get; set; }
     public string? shape_id { get; set; }
+    public string? trip_headsign { get; set; }
 }

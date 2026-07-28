@@ -7,6 +7,8 @@ using CsvHelper;
 using System.Globalization;
 using ulasım_veri_servisi.Models.Gtfs;
 using CsvHelper.Configuration;
+using Microsoft.Extensions.Caching.Memory;
+using ulasım_veri_servisi.Exceptions;
 
 
   
@@ -15,41 +17,66 @@ namespace ulasım_veri_servisi.Services
 
     public class GtfsImportService : IGtfsImportService
     {  
-        private readonly AppDbContext _context;
+        private readonly IServiceScopeFactory _scopeFactory;
         private readonly HttpClient _httpClient;
+        private readonly ILogger<GtfsImportService> _logger;
+        private readonly IMemoryCache _cache;
         private const string GtfsUrl =
     "https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip";
 
         public GtfsImportService(
-            AppDbContext context,
-            HttpClient httpClient)
+            IServiceScopeFactory scopeFactory,
+            HttpClient httpClient,
+            ILogger<GtfsImportService> logger,
+            IMemoryCache cache)
         {
-            _context = context;
+            _scopeFactory = scopeFactory;
             _httpClient = httpClient;
+            _logger = logger;
+            _cache = cache;
         }
 
         public async Task<GtfsImportRun> ImportAsync(CancellationToken cancellationToken)
         {
+            await using var scope = _scopeFactory.CreateAsyncScope();
+            var _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             
+            bool lockAcquired = false;
             GtfsImportRun? importRun = null;
               Microsoft.EntityFrameworkCore.Storage.IDbContextTransaction? transaction = null;
            
             string? tempFolder = null;
             try
             {
-          
+                await _context.Database.OpenConnectionAsync(cancellationToken);
+                lockAcquired = await _context.Database.SqlQueryRaw<bool>("SELECT pg_try_advisory_lock(123456) AS \"Value\"").SingleAsync(cancellationToken);
+                
+                if (!lockAcquired)
+                {
+                    throw new ConcurrentImportException("Sistemde zaten aktif olarak çalışan bir GTFS import işlemi mevcut.");
+                }
 
+                var stuckRuns = await _context.GtfsImportRuns.Where(x => x.Status == "Running").ToListAsync(cancellationToken);
+                if (stuckRuns.Any())
+                {
+                    foreach (var stuckRun in stuckRuns)
+                    {
+                        stuckRun.Status = "Failed";
+                        stuckRun.FinishedAt = DateTime.UtcNow;
+                        stuckRun.ErrorMessage = "Automatically marked as Failed (Abandoned)";
+                    }
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
 
                 importRun = new GtfsImportRun
                 {
-                     SourceUrl = GtfsUrl,
-                     DownloadedAt = DateTime.UtcNow,
+                    SourceUrl = GtfsUrl,
+                    DownloadedAt = DateTime.UtcNow,
                     StartedAt = DateTime.UtcNow,
                     Status = "Running"
                 };
 
                 _context.GtfsImportRuns.Add(importRun);
-
                 await _context.SaveChangesAsync(cancellationToken);
 
                 var response = await _httpClient.GetAsync(
@@ -119,6 +146,23 @@ namespace ulasım_veri_servisi.Services
 
                 using var archive =
                  ZipFile.OpenRead(zipPath);
+
+                var requiredFiles = new[] { "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt" };
+                var missingFiles = requiredFiles.Where(f => archive.GetEntry(f) == null).ToList();
+
+                var hasCalendar = archive.GetEntry("calendar.txt") != null;
+                var hasCalendarDates = archive.GetEntry("calendar_dates.txt") != null;
+
+                if (!hasCalendar && !hasCalendarDates)
+                {
+                    missingFiles.Add("calendar.txt veya calendar_dates.txt");
+                }
+
+                if (missingFiles.Any())
+                {
+                    throw new InvalidDataException($"Eksik GTFS dosyaları: {string.Join(", ", missingFiles)}");
+                }
+
                 transaction =
     await _context.Database.BeginTransactionAsync(
         cancellationToken);
@@ -180,9 +224,13 @@ namespace ulasım_veri_servisi.Services
       routes.Select(x => new GtfsRoute
       {
           RouteId = x.route_id,
+          AgencyId = x.agency_id ?? "",
           RouteShortName = x.route_short_name,
           RouteLongName = x.route_long_name,
-          RouteType = x.route_type
+          RouteDesc = x.route_desc,
+          RouteType = x.route_type,
+          RouteColor = string.IsNullOrWhiteSpace(x.route_color) ? null : x.route_color,
+          RouteTextColor = string.IsNullOrWhiteSpace(x.route_text_color) ? null : x.route_text_color
       }).ToList();
 
                     _context.GtfsRoutes.RemoveRange(
@@ -280,7 +328,8 @@ namespace ulasım_veri_servisi.Services
         GtfsRouteId = routeLookup[x.route_id],
         ServiceId = x.service_id,
         DirectionId = x.direction_id,
-        ShapeId = x.shape_id
+        ShapeId = x.shape_id,
+        TripHeadsign = x.trip_headsign
     })
     .ToList();
                     
@@ -445,7 +494,30 @@ namespace ulasım_veri_servisi.Services
 
                 }
 
-               
+                var calendarDatesEntry = archive.GetEntry("calendar_dates.txt");
+
+                if (calendarDatesEntry != null)
+                {
+                    using var stream = calendarDatesEntry.Open();
+
+                    using var reader = new StreamReader(stream);
+                    using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+                    
+                    var calendarDates = csv.GetRecords<GtfsCalendarDateRow>().ToList();
+                    
+                    var calendarDateEntities = calendarDates.Select(x => new GtfsCalendarDate
+                    {
+                        ServiceId = x.service_id,
+                        Date = DateOnly.ParseExact(x.date, "yyyyMMdd"),
+                        ExceptionType = x.exception_type
+                    }).ToList();
+
+                    _context.GtfsCalendarDates.RemoveRange(_context.GtfsCalendarDates);
+                    _context.GtfsCalendarDates.AddRange(calendarDateEntities);
+
+                    await _context.SaveChangesAsync(cancellationToken);
+                }
+
                 var shapesEntry = archive.GetEntry("shapes.txt");
 
                 if (shapesEntry != null)
@@ -550,9 +622,43 @@ namespace ulasım_veri_servisi.Services
                         }
                     }
                 }
+
+                if (importRun.FeedStartDate == null || importRun.FeedEndDate == null)
+                {
+                    var calendarMinDate = await _context.GtfsCalendars.MinAsync(c => (DateOnly?)c.StartDate, cancellationToken);
+                    var calendarMaxDate = await _context.GtfsCalendars.MaxAsync(c => (DateOnly?)c.EndDate, cancellationToken);
+                    
+                    var exceptionMinDate = await _context.GtfsCalendarDates.MinAsync(c => (DateOnly?)c.Date, cancellationToken);
+                    var exceptionMaxDate = await _context.GtfsCalendarDates.MaxAsync(c => (DateOnly?)c.Date, cancellationToken);
+
+                    var minDates = new List<DateOnly>();
+                    if (calendarMinDate.HasValue) minDates.Add(calendarMinDate.Value);
+                    if (exceptionMinDate.HasValue) minDates.Add(exceptionMinDate.Value);
+
+                    var maxDates = new List<DateOnly>();
+                    if (calendarMaxDate.HasValue) maxDates.Add(calendarMaxDate.Value);
+                    if (exceptionMaxDate.HasValue) maxDates.Add(exceptionMaxDate.Value);
+
+                    if (minDates.Any())
+                        importRun.FeedStartDate = minDates.Min();
+                    
+                    if (maxDates.Any())
+                        importRun.FeedEndDate = maxDates.Max();
+
+                    if (string.IsNullOrWhiteSpace(importRun.FeedVersion))
+                    {
+                        importRun.FeedVersion = "unavailable (derived from calendar)";
+                    }
+                }
                 importRun.Status = "Completed";
                 importRun.FinishedAt = DateTime.UtcNow;
                 importRun.IsActive = true;
+
+                // Agresif olarak eski tüm önbellek kalıntılarını siler.
+                if (_cache is MemoryCache memoryCache)
+                {
+                    memoryCache.Clear();
+                }
 
                 // The feed data and its active marker are committed as one unit.
                 // A failed import rolls this transaction back, leaving the prior
@@ -600,17 +706,24 @@ namespace ulasım_veri_servisi.Services
                     var failedRun = await _context.GtfsImportRuns
                         .SingleAsync(x => x.Id == importRun.Id, CancellationToken.None);
                     failedRun.Status = "Failed";
-                    failedRun.ErrorMessage = ex.ToString();
+                    failedRun.ErrorMessage = "İçe aktarım sırasında beklenmeyen bir hata oluştu. Lütfen sistem loglarını kontrol edin.";
+                    _logger.LogError(ex, "GTFS import failed for run {RunId}", importRun.Id);
                     failedRun.FinishedAt = DateTime.UtcNow;
                     failedRun.IsActive = false;
 
                     await _context.SaveChangesAsync(CancellationToken.None);
-                    return failedRun;
                 }
 
                 throw;
             }
-
+            finally
+            {
+                if (lockAcquired)
+                {
+                    await _context.Database.ExecuteSqlRawAsync("SELECT pg_advisory_unlock(123456)");
+                }
+                await _context.Database.CloseConnectionAsync();
+            }
           
         }
 

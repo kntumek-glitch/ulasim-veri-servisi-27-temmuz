@@ -22,13 +22,9 @@ public class GtfsReconciliationController : ControllerBase
     public async Task<IActionResult> Reconcile(
         CancellationToken cancellationToken)
     {
-        await _service.ReconcileAsync(
+        var result = await _service.ReconcileAsync(
             cancellationToken);
 
-        return Ok(new
-        {
-            status = "Completed",
-            message = "GTFS stop reconciliation report created."
-        });
+        return Ok(result);
     }
 }

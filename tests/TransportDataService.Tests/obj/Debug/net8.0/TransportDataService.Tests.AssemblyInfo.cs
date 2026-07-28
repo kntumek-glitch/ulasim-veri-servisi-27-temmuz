@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("TransportDataService.Tests")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+0959de39abc91bd5c98053c4eed69f25a21ef018")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+2f2247577b620aa4564f7f59e3d3d618f8fd07fa")]
 [assembly: System.Reflection.AssemblyProductAttribute("TransportDataService.Tests")]
 [assembly: System.Reflection.AssemblyTitleAttribute("TransportDataService.Tests")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

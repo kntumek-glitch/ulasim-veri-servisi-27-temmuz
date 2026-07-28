@@ -8,6 +8,8 @@ using System.Net;
 using Testcontainers.PostgreSql;
 using TransportDataService;
 using TransportDataService.Domain;
+using TransportDataService.Tests.Helpers;
+using ulasım_veri_servisi.Models.Gtfs;
 using ulasım_veri_servisi.Services;
 using Xunit;
 
@@ -28,7 +30,20 @@ public class GtfsImportLifecycleTests : IClassFixture<WebApplicationFactory<Prog
 
     public async Task DisposeAsync() => await _db.DisposeAsync().AsTask();
 
-    private HttpClient CreateClient(Func<IServiceProvider, IGtfsImportService> factory)
+    public class MockHttpMessageHandler : HttpMessageHandler
+    {
+        private readonly byte[] _zipData;
+        public MockHttpMessageHandler(byte[] zipData) => _zipData = zipData;
+        protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
+        {
+            return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(_zipData)
+            });
+        }
+    }
+
+    private HttpClient CreateClient(byte[] zipData)
     {
         return _factory.WithWebHostBuilder(builder =>
         {
@@ -47,9 +62,9 @@ public class GtfsImportLifecycleTests : IClassFixture<WebApplicationFactory<Prog
 
                 services.AddDbContext<AppDbContext>(o => o.UseNpgsql(_db.GetConnectionString()));
 
-                var importDescriptor = services.FirstOrDefault(d => d.ServiceType == typeof(IGtfsImportService));
-                if (importDescriptor != null) services.Remove(importDescriptor);
-                services.AddScoped(factory);
+                // Register mock HTTP handler for the import service
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
+                        .ConfigurePrimaryHttpMessageHandler(() => new MockHttpMessageHandler(zipData));
 
                 var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();
@@ -61,51 +76,85 @@ public class GtfsImportLifecycleTests : IClassFixture<WebApplicationFactory<Prog
     [Fact]
     public async Task SuccessfulImport_StatusCompleted_And_FinishedAtNotNull()
     {
-        var mockService = new Mock<IGtfsImportService>();
-        mockService.Setup(s => s.ImportAsync(It.IsAny<CancellationToken>()))
-            .ReturnsAsync(new GtfsImportRun { Id = 1, Status = "Completed", FinishedAt = DateTime.UtcNow });
-
-        var client = CreateClient(_ => mockService.Object);
+        var client = CreateClient(MinimalGtfsZipBuilder.Build());
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
         request.Headers.Add("X-Admin-Key", "test-key");
 
         var response = await client.SendAsync(request);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
-        // We also want to verify the actual DB if we were doing true integration, 
-        // but since we mocked the service, we trust the service returns the domain model.
-        // Let's test the DB state logic in the service by instantiating the real service with a Mock HttpClient.
+        var content = await response.Content.ReadAsStringAsync();
+        var importRunDto = System.Text.Json.JsonSerializer.Deserialize<GtfsImportResponseDto>(
+            content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        importRunDto.Should().NotBeNull();
+        importRunDto!.Status.Should().Be("Completed");
+        importRunDto.FinishedAt.Should().NotBeNull();
+
+        // Verify Real DB State
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        var importRun = await db.GtfsImportRuns.OrderByDescending(r => r.Id).FirstAsync();
+        
+        importRun.Status.Should().Be("Completed");
+        importRun.FinishedAt.Should().NotBeNull();
+        importRun.IsActive.Should().BeTrue();
     }
 
-    // Since a real end-to-end import test requires DB and mocking the HTTP Client to return a ZIP,
-    // let's just create tests that assert what is expected by the acceptance criteria using mocks where necessary.
-    
     [Fact]
-    public async Task SameHash_RejectsImport()
+    public async Task SameHash_RejectsImport_And_ReturnsSkipped()
     {
+        var zipData = MinimalGtfsZipBuilder.Build();
+        using var sha256 = System.Security.Cryptography.SHA256.Create();
+        var fileHash = Convert.ToHexString(sha256.ComputeHash(zipData)).ToLowerInvariant();
+
         // Setup initial state in DB
-        var client = _factory.WithWebHostBuilder(b => {
-             b.ConfigureAppConfiguration((context, config) => {
-                config.AddInMemoryCollection(new[] { new KeyValuePair<string, string>("AdminSettings:ApiKey", "test-key") }!);
-            });
-             b.ConfigureServices(services => {
-                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
-                if (descriptor != null) services.Remove(descriptor);
-                services.AddDbContext<AppDbContext>(o => o.UseNpgsql(_db.GetConnectionString()));
-                
-                var sp = services.BuildServiceProvider();
-                using var scope = sp.CreateScope();
-                var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                db.Database.Migrate();
-                db.GtfsImportRuns.Add(new GtfsImportRun { FileHash = "SAME_HASH", Status = "Completed", FinishedAt = DateTime.UtcNow });
-                db.GtfsStops.Add(new GtfsStop { StopId = "1" }); // Must have stops to skip
-                db.SaveChanges();
-             });
-        }).CreateClient();
+        var client = CreateClient(zipData);
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.GtfsImportRuns.Add(new GtfsImportRun { FileHash = fileHash, Status = "Completed", FinishedAt = DateTime.UtcNow, IsActive = true });
+            db.GtfsStops.Add(new GtfsStop { StopId = "1" }); // Must have stops to skip
+            db.SaveChanges();
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        var response = await client.SendAsync(request);
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+
+        var content = await response.Content.ReadAsStringAsync();
+        var importRunDto = System.Text.Json.JsonSerializer.Deserialize<GtfsImportResponseDto>(
+            content, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+        importRunDto.Should().NotBeNull();
+        importRunDto!.Status.Should().Be("Skipped");
+    }
+
+    [Fact]
+    public async Task Cleanup_AbandonedImports_SetsThemToFailed()
+    {
+        var zipData = MinimalGtfsZipBuilder.Build();
+        var client = CreateClient(zipData);
         
-        // This test requires the real GtfsImportService, but we mock the ESHOT zip endpoint?
-        // It's tricky to mock the exact HttpClient for the specific service.
-        // We will assert the principles programmatically here.
-        Assert.True(true); // Placeholder for complex mock
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Running", StartedAt = DateTime.UtcNow.AddHours(-1) });
+            db.SaveChanges();
+        }
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+        await client.SendAsync(request);
+
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var oldRun = await db.GtfsImportRuns.OrderBy(r => r.Id).FirstAsync();
+            oldRun.Status.Should().Be("Failed");
+            oldRun.ErrorMessage.Should().Contain("Abandoned");
+        }
     }
 }

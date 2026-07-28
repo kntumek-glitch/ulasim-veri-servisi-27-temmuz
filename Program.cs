@@ -18,7 +18,28 @@ Console.WriteLine("ContentRoot: " + builder.Environment.ContentRootPath);
 // Add services to the container.
 
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(options =>
+    {
+        options.JsonSerializerOptions.DefaultIgnoreCondition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull;
+    });
+
+builder.Services.AddRouting(options => options.LowercaseUrls = true);
+
+builder.Services.AddResponseCompression(options =>
+{
+    options.EnableForHttps = true;
+});
+
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy =>
+    {
+        policy.AllowAnyOrigin()
+              .AllowAnyMethod()
+              .AllowAnyHeader();
+    });
+});
 
 
 builder.Services
@@ -65,7 +86,7 @@ builder.Services.AddHttpClient<IExternalEshotService, ExternalEshotService>(clie
 {
     client.Timeout = TimeSpan.FromSeconds(10);
 });
-builder.Services.AddMemoryCache();
+builder.Services.AddMemoryCache(options => { options.SizeLimit = 10000; });
 builder.Services.AddScoped<ApproachingBusService>();
 builder.Services.AddScoped<RouteVehiclesService>();
 builder.Services.AddScoped<
@@ -84,17 +105,20 @@ builder.Services.AddHealthChecks()
     .AddCheck<GtfsDataHealthCheck>("gtfs_data", tags: new[] { "dependencies" });
 
 var app = builder.Build();
-app.UseDeveloperExceptionPage();
 
 app.UseMiddleware<ExceptionMiddleware>();
 
 if (app.Environment.IsDevelopment())
 {
+    app.UseDeveloperExceptionPage();
     app.UseSwagger();
     app.UseSwaggerUI();
 }
 
 app.UseHttpsRedirection();
+
+app.UseResponseCompression();
+app.UseCors("AllowAll");
 
 app.UseAuthorization();
 

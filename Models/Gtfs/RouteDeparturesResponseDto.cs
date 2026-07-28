@@ -2,8 +2,14 @@ namespace ulasım_veri_servisi.Models.Gtfs
 {
     public class RouteDepartureDataDto
     {
-        public string DepartureTime { get; set; } = string.Empty;
         public string TripId { get; set; } = string.Empty;
+        public int? DirectionId { get; set; }
+        public string? Headsign { get; set; }
+        public string DepartureTime { get; set; } = string.Empty;
+        public int? DepartureSeconds { get; set; }
+        public string ServiceId { get; set; } = string.Empty;
+        public string? CalendarValidity { get; set; }
+        public bool IsFeedStale { get; set; }
     }
 
     public class PaginationDto

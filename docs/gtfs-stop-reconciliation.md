@@ -1,19 +1,15 @@
 # GTFS Stop Reconciliation
                   
 Generated At
-2026-07-20 11:10:14Z
+2026-07-27 10:55:00Z
 
-## Direct Matches
+## Total Matches
 
-0
-
-## StopId Matches
-
-0
+11540
 
 ## StopCode Matches
 
-0
+42
 
 ## Missing In Stops
 
@@ -21,19 +17,18 @@ Generated At
 
 ## Missing In GTFS
 
-11783
+201
 
 ## Name Mismatch
 
-0
+15
 
 ## Coordinate Mismatch
 
-0
+3
 
 ## Manual Review
 
 0
 
 ### Records
-

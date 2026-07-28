@@ -17,8 +17,8 @@ public class ExternalApiLoggerTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
     private AppDbContext _context = null!;
-    private readonly Mock<ILogger<ExternalEshotService>> _loggerMock;
-    private readonly IMemoryCache _cache;
+    private Mock<ILogger<ExternalEshotService>> _loggerMock;
+    private IMemoryCache _cache;
 
     public ExternalApiLoggerTests(PostgreSqlFixture fixture) => _fixture = fixture;
 

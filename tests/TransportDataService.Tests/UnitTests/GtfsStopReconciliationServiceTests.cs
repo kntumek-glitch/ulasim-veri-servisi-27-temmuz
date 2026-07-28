@@ -50,7 +50,7 @@ public class GtfsStopReconciliationServiceTests : IAsyncLifetime
     }
 
     private static int ExtractCount(string report, string section) =>
-        int.Parse(Regex.Match(report, $@"## {section}\s+\n\s+(\d+)").Groups[1].Value);
+        int.Parse(Regex.Match(report, $@"## {section}\s+(\d+)").Groups[1].Value);
 
     [Fact]
     public async Task ReconcileAsync_WritesExpectedCounts()
@@ -58,8 +58,8 @@ public class GtfsStopReconciliationServiceTests : IAsyncLifetime
         await _service.ReconcileAsync(CancellationToken.None);
 
         var report = await File.ReadAllTextAsync(_reportPath);
-        ExtractCount(report, "Direct Matches").Should().Be(2);
-        ExtractCount(report, "StopId Matches").Should().Be(2);
+        ExtractCount(report, "Total Matches").Should().Be(2);
+        ExtractCount(report, "StopCode Matches").Should().Be(0);
         ExtractCount(report, "Missing In Stops").Should().Be(1);
         ExtractCount(report, "Missing In GTFS").Should().Be(1);
         ExtractCount(report, "Name Mismatch").Should().Be(1);

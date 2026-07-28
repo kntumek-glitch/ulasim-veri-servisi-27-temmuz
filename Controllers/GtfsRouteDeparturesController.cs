@@ -26,9 +26,9 @@ namespace ulasım_veri_servisi.Controllers
             if (string.IsNullOrWhiteSpace(routeId))
                 return BadRequest(new { Message = "RouteId boş olamaz." });
 
-            if (!DateOnly.TryParse(date, out var parsedDate))
+            if (!DateOnly.TryParseExact(date, "yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var parsedDate))
             {
-                return BadRequest(new { Message = "Geçersiz tarih formatı. Lütfen YYYY-MM-DD formatında gönderin." });
+                return BadRequest(new { Message = "Geçersiz tarih formatı. Lütfen tam olarak YYYY-MM-DD formatında (örneğin: 2024-01-01) gönderin." });
             }
 
             if (page < 1) page = 1;

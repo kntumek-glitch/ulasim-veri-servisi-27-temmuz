@@ -1,8 +1,8 @@
 {
   "version": 2,
-  "dgSpecHash": "WJ36UOC8cbI=",
+  "dgSpecHash": "+KJgtIzK8Tc=",
   "success": true,
-  "projectFilePath": "c:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\tests\\TransportDataService.Tests\\TransportDataService.Tests.csproj",
+  "projectFilePath": "C:\\Users\\HP\\source\\repos\\ulasım-veri-servisi\\ulasım-veri-servisi\\tests\\TransportDataService.Tests\\TransportDataService.Tests.csproj",
   "expectedPackageFiles": [
     "C:\\Users\\HP\\.nuget\\packages\\bouncycastle.cryptography\\2.6.2\\bouncycastle.cryptography.2.6.2.nupkg.sha512",
     "C:\\Users\\HP\\.nuget\\packages\\castle.core\\5.1.1\\castle.core.5.1.1.nupkg.sha512",

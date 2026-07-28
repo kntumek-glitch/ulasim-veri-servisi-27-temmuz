@@ -1,10 +1,12 @@
-﻿namespace TransportDataService.Domain;
+namespace TransportDataService.Domain;
 
 public class GtfsRoute
 {
     public int Id { get; set; }
 
     public string RouteId { get; set; } = string.Empty;
+
+    public string AgencyId { get; set; } = string.Empty;
 
     public string RouteShortName { get; set; } = string.Empty;
 

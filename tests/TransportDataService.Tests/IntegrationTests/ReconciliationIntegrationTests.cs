@@ -38,7 +38,7 @@ public class ReconciliationIntegrationTests : IAsyncLifetime
                 var sp = services.BuildServiceProvider();
                 using var scope = sp.CreateScope();
                 _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-                await _context.Database.MigrateAsync();
+                _context.Database.Migrate();
             });
         });
 
@@ -94,7 +94,7 @@ public class ReconciliationIntegrationTests : IAsyncLifetime
     public async Task Reconcile_GeneratesReportWithCorrectCounts()
     {
         // Act - Call the reconciliation endpoint
-        var response = await _client.PostAsync("/api/v1/gtfs/reconcile", null);
+        var response = await _client.PostAsync("/api/v1/reconciliation/gtfs-stops", null);
 
         // Assert
         response.EnsureSuccessStatusCode();
@@ -103,8 +103,7 @@ public class ReconciliationIntegrationTests : IAsyncLifetime
         var result = JsonSerializer.Deserialize<ReconciliationResult>(content, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
         result.Should().NotBeNull();
-        result!.DirectMatches.Should().Be(2);      // S1, S2
-        result.StopIdMatches.Should().Be(2);       // S1, S2
+        result!.TotalMatches.Should().Be(2);       // S1, S2
         result.StopCodeMatches.Should().Be(0);     // No additional StopCode matches
         result.MissingInStops.Should().Be(2);      // S7, S8
         result.MissingInGtfs.Should().Be(1);       // S5, S6 (but S6 has no ExternalStopId? Wait, all have ExternalStopId)
@@ -117,7 +116,7 @@ public class ReconciliationIntegrationTests : IAsyncLifetime
     public async Task Reconcile_GeneratesMarkdownReportFile()
     {
         // Act
-        var response = await _client.PostAsync("/api/v1/gtfs/reconcile", null);
+        var response = await _client.PostAsync("/api/v1/reconciliation/gtfs-stops", null);
         response.EnsureSuccessStatusCode();
 
         // Assert - Check report file exists
@@ -126,15 +125,14 @@ public class ReconciliationIntegrationTests : IAsyncLifetime
 
         var reportContent = await File.ReadAllTextAsync(reportPath);
         reportContent.Should().Contain("# GTFS Stop Reconciliation");
-        reportContent.Should().Contain("Direct Matches");
-        reportContent.Should().Contain("2"); // Direct matches count
+        reportContent.Should().Contain("Total Matches");
+        reportContent.Should().Contain("2"); // Total matches count
     }
 }
 
 public class ReconciliationResult
 {
-    public int DirectMatches { get; set; }
-    public int StopIdMatches { get; set; }
+    public int TotalMatches { get; set; }
     public int StopCodeMatches { get; set; }
     public int MissingInStops { get; set; }
     public int MissingInGtfs { get; set; }
