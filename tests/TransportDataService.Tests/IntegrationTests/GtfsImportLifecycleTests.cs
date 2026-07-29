@@ -17,7 +17,7 @@ using Microsoft.AspNetCore.Mvc;
 namespace TransportDataService.Tests.IntegrationTests;
 
 [Collection("IntegrationTestCollection")]
-public class GtfsImportLifecycleTests
+public class GtfsImportLifecycleTests : IAsyncLifetime
 {
     private readonly CustomWebApplicationFactory _factory;
 
@@ -26,30 +26,52 @@ public class GtfsImportLifecycleTests
         _factory = factory;
     }
 
+    public async Task InitializeAsync()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+        
+        // Disable any existing active runs so unique index IX_GtfsImportRuns_IsActive doesn't throw DuplicateKey
+        var activeRuns = await db.GtfsImportRuns.Where(r => r.IsActive).ToListAsync();
+        foreach (var r in activeRuns) r.IsActive = false;
+        await db.SaveChangesAsync();
+    }
+
+    public Task DisposeAsync() => Task.CompletedTask;
+
+    public static readonly System.Collections.Concurrent.ConcurrentDictionary<string, byte[]> ZipDataStore = new();
+
     public class MockHttpMessageHandler : HttpMessageHandler
     {
-        private readonly byte[]? _zipData;
-        private readonly HttpStatusCode _statusCode;
-        
-        public MockHttpMessageHandler(byte[]? zipData, HttpStatusCode statusCode = HttpStatusCode.OK)
+        public MockHttpMessageHandler()
         {
-            _zipData = zipData;
-            _statusCode = statusCode;
         }
 
         protected override Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            var testId = request.Headers.Contains("X-Test-Id") ? request.Headers.GetValues("X-Test-Id").FirstOrDefault() : null;
+            byte[]? zipData = testId != null && ZipDataStore.TryGetValue(testId, out var data) ? data : null;
+            
+            if (zipData == null && !request.Headers.TryGetValues("If-None-Match", out _)) 
+            {
+                throw new InvalidOperationException($"zipData is null! testId: {testId}, headers: {string.Join(", ", request.Headers.Select(h => h.Key))}");
+            }
+
             if (request.Headers.TryGetValues("If-None-Match", out var etags) && etags.Contains("\"test-etag\""))
             {
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotModified));
             }
 
-            var response = new HttpResponseMessage(_statusCode);
+            var statusCode = request.Headers.Contains("X-Test-StatusCode") 
+                ? Enum.Parse<HttpStatusCode>(request.Headers.GetValues("X-Test-StatusCode").First()) 
+                : HttpStatusCode.OK;
+
+            var response = new HttpResponseMessage(statusCode);
             response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"test-etag\"");
             
-            if (_zipData != null)
+            if (zipData != null)
             {
-                response.Content = new ByteArrayContent(_zipData);
+                response.Content = new ByteArrayContent(zipData);
             }
             return Task.FromResult(response);
         }
@@ -57,18 +79,21 @@ public class GtfsImportLifecycleTests
 
     public class SlowMockHttpMessageHandler : HttpMessageHandler
     {
-        private readonly byte[] _zipData;
-        
-        public SlowMockHttpMessageHandler(byte[] zipData)
+        public SlowMockHttpMessageHandler()
         {
-            _zipData = zipData;
         }
 
         protected override async Task<HttpResponseMessage> SendAsync(HttpRequestMessage request, CancellationToken cancellationToken)
         {
+            var testId = request.Headers.Contains("X-Test-Id") ? request.Headers.GetValues("X-Test-Id").FirstOrDefault() : null;
+            byte[]? zipData = testId != null && ZipDataStore.TryGetValue(testId, out var data) ? data : null;
+
             var response = new HttpResponseMessage(HttpStatusCode.OK);
             response.Headers.ETag = new System.Net.Http.Headers.EntityTagHeaderValue("\"test-etag-2\"");
-            response.Content = new ByteArrayContent(_zipData);
+            if (zipData != null) 
+            {
+                response.Content = new ByteArrayContent(zipData);
+            }
             await Task.Delay(2000, cancellationToken); // SIMULATE SLOW DOWNLOAD
             return response;
         }
@@ -76,15 +101,23 @@ public class GtfsImportLifecycleTests
 
     private HttpClient CreateClient(byte[]? zipData, HttpStatusCode statusCode = HttpStatusCode.OK)
     {
-        return _factory.WithWebHostBuilder(builder =>
+        var testId = Guid.NewGuid().ToString();
+        if (zipData != null) ZipDataStore[testId] = zipData;
+
+        var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
                 // Register mock HTTP handler for the import service
-                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
-                        .ConfigurePrimaryHttpMessageHandler(() => new MockHttpMessageHandler(zipData, statusCode));
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>(c =>
+                {
+                    c.DefaultRequestHeaders.Add("X-Test-Id", testId);
+                    c.DefaultRequestHeaders.Add("X-Test-StatusCode", statusCode.ToString());
+                })
+                .ConfigurePrimaryHttpMessageHandler(() => new MockHttpMessageHandler());
             });
         }).CreateClient();
+        return client;
     }
 
     [Fact]
@@ -135,8 +168,9 @@ public class GtfsImportLifecycleTests
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.GtfsImportRuns.Add(new GtfsImportRun { FileHash = fileHash, Status = "Completed", FinishedAt = DateTime.UtcNow, IsActive = true });
-            db.GtfsStops.Add(new GtfsStop { StopId = "1" }); // Must have stops to skip
+            var run = new GtfsImportRun { FileHash = fileHash, Status = "Completed", FinishedAt = DateTime.UtcNow, IsActive = true };
+            db.GtfsImportRuns.Add(run);
+            db.GtfsStops.Add(new GtfsStop { GtfsImportRunId = run.Id, GtfsImportRun = run, StopId = "1" }); // Must have stops to skip
             db.SaveChanges();
         }
 
@@ -160,11 +194,14 @@ public class GtfsImportLifecycleTests
         var zipData = MinimalGtfsZipBuilder.Build();
         var client = CreateClient(zipData);
         
+        int oldRunId;
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            db.GtfsImportRuns.Add(new GtfsImportRun { Status = "Running", StartedAt = DateTime.UtcNow.AddHours(-1) });
+            var run = new GtfsImportRun { Status = "Running", StartedAt = DateTime.UtcNow.AddHours(-1) };
+            db.GtfsImportRuns.Add(run);
             db.SaveChanges();
+            oldRunId = run.Id;
         }
 
         var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
@@ -174,7 +211,7 @@ public class GtfsImportLifecycleTests
         using (var scope = _factory.Services.CreateScope())
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var oldRun = await db.GtfsImportRuns.OrderBy(r => r.Id).FirstAsync();
+            var oldRun = await db.GtfsImportRuns.FindAsync(oldRunId);
             oldRun.Status.Should().Be("Failed");
             oldRun.ErrorMessage.Should().Contain("Abandoned");
         }
@@ -211,6 +248,11 @@ public class GtfsImportLifecycleTests
 
         // 3. Act - Run import
         var response = await client.SendAsync(request);
+        if (!response.IsSuccessStatusCode)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Request failed with status {response.StatusCode}. Body: {content}");
+        }
         response.EnsureSuccessStatusCode();
 
         // 4. Assert - Old data should be gone!
@@ -488,12 +530,14 @@ public class GtfsImportLifecycleTests
             db.SaveChanges();
         }
 
+        var testId = Guid.NewGuid().ToString();
+        ZipDataStore[testId] = MinimalGtfsZipBuilder.Build();
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
-                        .ConfigurePrimaryHttpMessageHandler(() => new SlowMockHttpMessageHandler(MinimalGtfsZipBuilder.Build()));
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>(c => c.DefaultRequestHeaders.Add("X-Test-Id", testId))
+                        .ConfigurePrimaryHttpMessageHandler(() => new SlowMockHttpMessageHandler());
             });
         }).CreateClient();
         
@@ -514,18 +558,25 @@ public class GtfsImportLifecycleTests
         }
 
         var response = await importTask;
+        if (response.StatusCode == HttpStatusCode.InternalServerError)
+        {
+            var content = await response.Content.ReadAsStringAsync();
+            throw new Exception($"Request failed with 500. Body: {content}");
+        }
         response.StatusCode.Should().BeOneOf(HttpStatusCode.Created, HttpStatusCode.OK);
     }
 
     [Fact]
     public async Task ImportGtfs_Cancellation_NeverActivatesFeed()
     {
+        var testId = Guid.NewGuid().ToString();
+        ZipDataStore[testId] = MinimalGtfsZipBuilder.Build();
         var client = _factory.WithWebHostBuilder(builder =>
         {
             builder.ConfigureServices(services =>
             {
-                services.AddHttpClient<IGtfsImportService, GtfsImportService>()
-                        .ConfigurePrimaryHttpMessageHandler(() => new SlowMockHttpMessageHandler(MinimalGtfsZipBuilder.Build()));
+                services.AddHttpClient<IGtfsImportService, GtfsImportService>(c => c.DefaultRequestHeaders.Add("X-Test-Id", testId))
+                        .ConfigurePrimaryHttpMessageHandler(() => new SlowMockHttpMessageHandler());
             });
         }).CreateClient();
         

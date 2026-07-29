@@ -362,10 +362,12 @@ namespace ulasım_veri_servisi.Services
                    
 
                     var routeLookup = await _context.GtfsRoutes
-    .ToDictionaryAsync(
-        x => x.RouteId,
-        x => x.Id,
-        cancellationToken);
+                        .IgnoreQueryFilters()
+                        .Where(x => x.GtfsImportRunId == importRun.Id)
+                        .ToDictionaryAsync(
+                            x => x.RouteId,
+                            x => x.Id,
+                            cancellationToken);
 
                     var tripEntities =
     trips
@@ -420,12 +422,16 @@ namespace ulasım_veri_servisi.Services
 
                     var stopTimes = csv.GetRecords<GtfsStopTimeRow>();
                     var stopLookup = await _context.GtfsStops
-    .ToDictionaryAsync(
-        x => x.StopId,
-        x => x.Id,
-        cancellationToken);
+                        .IgnoreQueryFilters()
+                        .Where(x => x.GtfsImportRunId == importRun.Id)
+                        .ToDictionaryAsync(
+                            x => x.StopId,
+                            x => x.Id,
+                            cancellationToken);
 
                     var tripLookup = await _context.GtfsTrips
+                        .IgnoreQueryFilters()
+                        .Where(x => x.GtfsImportRunId == importRun.Id)
                         .ToDictionaryAsync(
                             x => x.TripId,
                             x => x.Id,
@@ -689,11 +695,11 @@ namespace ulasım_veri_servisi.Services
 
                 if (importRun.FeedStartDate == null || importRun.FeedEndDate == null)
                 {
-                    var calendarMinDate = await _context.GtfsCalendars.MinAsync(c => (DateOnly?)c.StartDate, cancellationToken);
-                    var calendarMaxDate = await _context.GtfsCalendars.MaxAsync(c => (DateOnly?)c.EndDate, cancellationToken);
+                    var calendarMinDate = await _context.GtfsCalendars.IgnoreQueryFilters().Where(x => x.GtfsImportRunId == importRun.Id).MinAsync(c => (DateOnly?)c.StartDate, cancellationToken);
+                    var calendarMaxDate = await _context.GtfsCalendars.IgnoreQueryFilters().Where(x => x.GtfsImportRunId == importRun.Id).MaxAsync(c => (DateOnly?)c.EndDate, cancellationToken);
                     
-                    var exceptionMinDate = await _context.GtfsCalendarDates.MinAsync(c => (DateOnly?)c.Date, cancellationToken);
-                    var exceptionMaxDate = await _context.GtfsCalendarDates.MaxAsync(c => (DateOnly?)c.Date, cancellationToken);
+                    var exceptionMinDate = await _context.GtfsCalendarDates.IgnoreQueryFilters().Where(x => x.GtfsImportRunId == importRun.Id).MinAsync(c => (DateOnly?)c.Date, cancellationToken);
+                    var exceptionMaxDate = await _context.GtfsCalendarDates.IgnoreQueryFilters().Where(x => x.GtfsImportRunId == importRun.Id).MaxAsync(c => (DateOnly?)c.Date, cancellationToken);
 
                     var minDates = new List<DateOnly>();
                     if (calendarMinDate.HasValue) minDates.Add(calendarMinDate.Value);
@@ -733,7 +739,6 @@ namespace ulasım_veri_servisi.Services
 
                 importRun.Status = "Completed";
                 importRun.FinishedAt = DateTime.UtcNow;
-                importRun.IsActive = true;
                 
                 await CompletePhaseAsync(_context, activePhase, cancellationToken);
                 activePhase = await StartPhaseAsync(_context, importRun.Id, "Activating", cancellationToken);
@@ -754,6 +759,7 @@ namespace ulasım_veri_servisi.Services
                         setters => setters.SetProperty(x => x.IsActive, false),
                         cancellationToken);
 
+                importRun.IsActive = true;
                 _context.GtfsImportRuns.Update(importRun);
 
                 await _context.SaveChangesAsync(cancellationToken);
@@ -841,7 +847,14 @@ namespace ulasım_veri_servisi.Services
                         .SingleAsync(x => x.Id == importRun.Id, CancellationToken.None);
                     
                     failedRun.Status = "Failed";
-                    failedRun.ErrorMessage = "İçe aktarım sırasında beklenmeyen bir hata oluştu. Lütfen sistem loglarını kontrol edin.";
+                    if (ex is Exceptions.InvalidGtfsFeedException || ex is InvalidDataException)
+                    {
+                        failedRun.ErrorMessage = ex.Message;
+                    }
+                    else
+                    {
+                        failedRun.ErrorMessage = "İçe aktarım sırasında beklenmeyen bir hata oluştu. Lütfen sistem loglarını kontrol edin.";
+                    }
                     failedRun.FinishedAt = DateTime.UtcNow;
                     failedRun.IsActive = false;
 
@@ -872,7 +885,7 @@ namespace ulasım_veri_servisi.Services
 
             // Kural: Son 2 başarılı (Completed) feed'i tut. Active feed'i mutlaka tut. Running feed'leri tut.
             var completedRuns = await context.GtfsImportRuns
-                .Where(x => x.Status == "Completed")
+                .Where(x => x.Status == "Completed" && !x.IsActive)
                 .OrderByDescending(x => x.Id)
                 .Select(x => x.Id)
                 .Take(2)

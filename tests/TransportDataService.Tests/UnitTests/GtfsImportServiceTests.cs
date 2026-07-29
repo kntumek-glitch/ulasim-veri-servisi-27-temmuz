@@ -98,8 +98,9 @@ public class GtfsImportServiceTests : IAsyncLifetime
         var zipBytes = MinimalGtfsZipBuilder.Build();
         var fileHash = Convert.ToHexString(SHA256.HashData(zipBytes));
 
-        _context.GtfsImportRuns.Add(new GtfsImportRun { FileHash = fileHash, Status = "Completed" });
-        _context.GtfsStops.Add(new GtfsStop { StopId = "existing" });
+        var run = new GtfsImportRun { FileHash = fileHash, Status = "Completed", IsActive = true };
+        _context.GtfsImportRuns.Add(run);
+        _context.GtfsStops.Add(new GtfsStop { GtfsImportRun = run, StopId = "existing" });
         await _context.SaveChangesAsync();
         var before = await GetTableCounts(_context);
 
@@ -124,15 +125,15 @@ public class GtfsImportServiceTests : IAsyncLifetime
         result.FinishedAt.Should().BeOnOrAfter(result.StartedAt);
         result.AgencyCount.Should().Be(1);
         result.RouteCount.Should().Be(1);
-        result.StopCount.Should().Be(1);
-        result.TripCount.Should().Be(1);
-        result.StopTimeCount.Should().Be(1);
+        result.StopCount.Should().Be(11);
+        result.TripCount.Should().Be(11);
+        result.StopTimeCount.Should().Be(101);
 
         (await _context.GtfsAgencies.CountAsync()).Should().Be(1);
         (await _context.GtfsRoutes.CountAsync()).Should().Be(1);
-        (await _context.GtfsStops.CountAsync()).Should().Be(1);
-        (await _context.GtfsTrips.CountAsync()).Should().Be(1);
-        (await _context.GtfsStopTimes.CountAsync()).Should().Be(1);
+        (await _context.GtfsStops.CountAsync()).Should().Be(11);
+        (await _context.GtfsTrips.CountAsync()).Should().Be(11);
+        (await _context.GtfsStopTimes.CountAsync()).Should().Be(101);
     }
 
     [Fact]
@@ -141,7 +142,7 @@ public class GtfsImportServiceTests : IAsyncLifetime
         SetupZipResponse(MinimalGtfsZipBuilder.Build());
         await _service.ImportAsync(CancellationToken.None);
 
-        var stopTime = await _context.GtfsStopTimes.SingleAsync();
+        var stopTime = await _context.GtfsStopTimes.FirstAsync();
         stopTime.ArrivalSeconds.Should().Be(91845); // 25:30:45
         stopTime.DepartureSeconds.Should().Be(91860); // 25:31:00
     }
@@ -203,7 +204,7 @@ public class GtfsImportServiceTests : IAsyncLifetime
         failedDueToConcurrency.Should().Be(1, "Diğer işlem ConcurrentImportException fırlatmalıdır.");
 
         (await _context.GtfsImportRuns.CountAsync(r => r.Status == "Completed")).Should().Be(1);
-        (await _context.GtfsStops.CountAsync()).Should().Be(1);
+        (await _context.GtfsStops.CountAsync()).Should().Be(11);
     }
 
     [Fact]

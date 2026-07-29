@@ -100,8 +100,15 @@ public class ExternalApiIntegrationTests
             return new ExternalEshotService(httpClient, context, cache, logger);
         });
 
-        var first = JsonDocument.Parse(await (await client.GetAsync("/api/v1/routes/99/vehicles")).Content.ReadAsStringAsync());
-        var second = JsonDocument.Parse(await (await client.GetAsync("/api/v1/routes/99/vehicles")).Content.ReadAsStringAsync());
+        var firstResponse = await client.GetAsync("/api/v1/routes/99/vehicles");
+        var firstBody = await firstResponse.Content.ReadAsStringAsync();
+        if (!firstResponse.IsSuccessStatusCode) throw new Exception(firstBody);
+        var first = JsonDocument.Parse(firstBody);
+
+        var secondResponse = await client.GetAsync("/api/v1/routes/99/vehicles");
+        var secondBody = await secondResponse.Content.ReadAsStringAsync();
+        if (!secondResponse.IsSuccessStatusCode) throw new Exception(secondBody);
+        var second = JsonDocument.Parse(secondBody);
 
         first.RootElement.GetProperty("fromCache").GetBoolean().Should().BeFalse();
         second.RootElement.GetProperty("fromCache").GetBoolean().Should().BeTrue();

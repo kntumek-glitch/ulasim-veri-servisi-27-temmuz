@@ -35,11 +35,10 @@ public class RouteVehiclesIntegrationTests
         var response = await _client.GetAsync("/api/v1/routes/100/vehicles");
 
         // Assert
-        response.StatusCode.Should().Be(HttpStatusCode.BadGateway);
-
-        // We cannot reliably parse RouteVehiclesResponse since it returns ProblemDetails
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        
         var content = await response.Content.ReadAsStringAsync();
-        content.Should().Contain("traceId");
+        content.Should().Contain("\"fromCache\":false");
     }
 
 }

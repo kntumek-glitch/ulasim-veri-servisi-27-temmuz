@@ -36,7 +36,7 @@ public class GtfsImportController : ControllerBase
 
             var dto = GtfsImportResponseDto.FromRun(result, previousSuccessful);
             
-            if (result.Status == "Skipped")
+            if (result.Status != null && result.Status.StartsWith("Skipped"))
             {
                 return Ok(dto);
             }
@@ -70,12 +70,12 @@ public class GtfsImportController : ControllerBase
                 Status = StatusCodes.Status503ServiceUnavailable 
             });
         }
-        catch (Exception)
+        catch (Exception ex)
         {
             return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails 
             { 
                 Title = "Internal Server Error", 
-                Detail = "Beklenmeyen bir hata oluştu veya dosya ayrıştırılamadı.", 
+                Detail = ex.ToString(), 
                 Status = StatusCodes.Status500InternalServerError 
             });
         }

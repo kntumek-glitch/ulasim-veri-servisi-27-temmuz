@@ -93,7 +93,8 @@ namespace ulasım_veri_servisi.Services
                     true,
                     null);
                     
-                _memoryCache.Set(cacheKey, buses, CacheDuration);
+                var cacheOptions = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheDuration, Size = 1 };
+                _memoryCache.Set(cacheKey, buses, cacheOptions);
                 
                 return new CachedResult<List<EshotBusDto>>
                 {
@@ -200,7 +201,8 @@ namespace ulasım_veri_servisi.Services
                        true,
                        null);
 
-                _memoryCache.Set(cacheKey, vehicles, CacheDuration);
+                var cacheOptions = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheDuration, Size = 1 };
+                _memoryCache.Set(cacheKey, vehicles, cacheOptions);
                
                 return new CachedResult<List<RouteVehicleDto>>
                 {

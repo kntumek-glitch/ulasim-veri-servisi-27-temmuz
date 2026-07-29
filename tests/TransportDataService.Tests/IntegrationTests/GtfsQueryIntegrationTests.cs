@@ -28,7 +28,7 @@ public class GtfsQueryIntegrationTests
         context.Database.ExecuteSqlRaw(@"TRUNCATE TABLE ""GtfsImportRuns"", ""GtfsStops"", ""GtfsRoutes"", ""GtfsTrips"", ""GtfsStopTimes"", ""GtfsCalendars"", ""GtfsShapePoints"" RESTART IDENTITY CASCADE");
 
         // Seed data
-        context.GtfsImportRuns.Add(new GtfsImportRun { Id = 1, Status = "Completed", IsActive = true, FinishedAt = DateTime.UtcNow });
+        context.GtfsImportRuns.Add(new GtfsImportRun { Id = 1, Status = "Completed", IsActive = true, FinishedAt = DateTime.UtcNow, FileHash = "ACTIVE_HASH" });
         context.GtfsStops.Add(new GtfsStop { GtfsImportRunId = 1, Id = 1, StopId = "stop_1", StopName = "Konak", StopCode = "1001", StopLat = 1.0, StopLon = 1.0 });
         context.GtfsRoutes.Add(new GtfsRoute { GtfsImportRunId = 1, Id = 1, RouteId = "route_1", RouteShortName = "123", RouteType = 3 });
         context.GtfsTrips.Add(new GtfsTrip { GtfsImportRunId = 1, Id = 1, TripId = "trip_1", RouteId = "route_1", GtfsRouteId = 1, DirectionId = 0, ServiceId = "service_1", ShapeId = "shape_1" });
@@ -65,8 +65,9 @@ public class GtfsQueryIntegrationTests
     {
         var response = await _client.GetAsync("/api/v1/gtfs/metadata");
         response.StatusCode.Should().Be(HttpStatusCode.OK);
-        var json = await response.Content.ReadAsStringAsync();
-        json.Should().Contain("ImportId");
+        var content = await response.Content.ReadAsStringAsync();
+        content.Should().Contain("\"importId\"");
+        content.Should().Contain("\"fileHash\":\"ACTIVE_HASH\"");
     }
 
     [Fact]
