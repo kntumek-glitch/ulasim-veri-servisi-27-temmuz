@@ -45,6 +45,12 @@ public class ExceptionMiddleware
                 problem.Status = StatusCodes.Status404NotFound;
                 break;
 
+            case ActiveFeedNotFoundException ex:
+                problem.Title = "Aktif GTFS Verisi Bulunamadı";
+                problem.Detail = ex.Message;
+                problem.Status = StatusCodes.Status404NotFound;
+                break;
+
             case BadGatewayException:
                 problem.Title = "Dış servis hatası";
                 problem.Detail = "ESHOT servisinden veri alınamadı.";

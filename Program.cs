@@ -97,6 +97,7 @@ builder.Services.AddHttpClient<CsvImportService>();
 builder.Services.AddScoped<ITripStopsRepository, TripStopsRepository>();
 builder.Services.AddScoped<ITripStopsService, TripStopsService>();
 builder.Services.AddScoped<IRouteDeparturesService, RouteDeparturesService>();
+builder.Services.AddScoped<ulasım_veri_servisi.Services.Interfaces.IJourneyPlanningService, ulasım_veri_servisi.Services.JourneyPlanningService>();
 builder.Services.AddScoped<ulasım_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
 builder.Services.AddScoped<ulasım_veri_servisi.Filters.AdminKeyAuthAttribute>();
 

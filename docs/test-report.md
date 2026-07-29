@@ -5,8 +5,8 @@ Bu doküman projenin test kapsamını (coverage) ve durumunu özetlemektedir.
 ## Genel Durum
 Projedeki Unit ve Integration testleri `dotnet test` komutuyla düzenli olarak koşturulmakta ve CI pipeline üzerinden takip edilmektedir.
 
-- **Toplam Test Sayısı:** 93
-- **Başarılı (Passed):** 93
+- **Toplam Test Sayısı:** 105
+- **Başarılı (Passed):** 105
 - **Başarısız (Failed):** 0
 - **Atlanan (Skipped):** 0
 
