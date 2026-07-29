@@ -30,7 +30,13 @@ public class ApiIntegrationTests
     {
         if (!db.GtfsRoutes.Any())
         {
-            var run = new GtfsImportRun { FileHash = "test", Status = "Completed", IsActive = true };
+            var run = db.GtfsImportRuns.FirstOrDefault(r => r.IsActive);
+            if (run == null)
+            {
+                run = new GtfsImportRun { FileHash = "test", Status = "Completed", IsActive = true };
+                db.GtfsImportRuns.Add(run);
+            }
+            
             var route = new GtfsRoute { GtfsImportRun = run, RouteId = "R1", RouteShortName = "TEST", RouteLongName = "Test Route" };
             var trip = new GtfsTrip { GtfsImportRun = run, TripId = "T1", RouteId = "R1", DirectionId = 0, Route = route };
             var stop1 = new GtfsStop { GtfsImportRun = run, StopId = "S1", StopName = "Stop 1" };
@@ -38,7 +44,6 @@ public class ApiIntegrationTests
             var st1 = new GtfsStopTime { GtfsImportRun = run, Trip = trip, Stop = stop1, StopSequence = 10 };
             var st2 = new GtfsStopTime { GtfsImportRun = run, Trip = trip, Stop = stop2, StopSequence = 20 };
 
-            db.GtfsImportRuns.Add(run);
             db.GtfsRoutes.Add(route);
             db.GtfsTrips.Add(trip);
             db.GtfsStops.AddRange(stop1, stop2);

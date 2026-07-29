@@ -3,6 +3,9 @@ using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using TransportDataService;
 using Xunit;
+using Moq;
+using Microsoft.Extensions.DependencyInjection;
+using ulasım_veri_servisi.Services;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
@@ -57,5 +60,49 @@ public class SecurityAndExceptionTests
         // It might be 400 or 500 depending on actual file, but it should NOT be 401 or 403
         response.StatusCode.Should().NotBe(HttpStatusCode.Unauthorized);
         response.StatusCode.Should().NotBe(HttpStatusCode.Forbidden);
+    }
+
+    [Fact]
+    public async Task ImportGtfs_WhenUnexpectedExceptionOccurs_DoesNotLeakStackTraceOrSensitiveDetails()
+    {
+        // Arrange: Replace the real service with a mock that throws an exception containing sensitive details
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureServices(services =>
+            {
+                var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IGtfsImportService));
+                if (descriptor != null)
+                {
+                    services.Remove(descriptor);
+                }
+
+                var mockService = new Mock<IGtfsImportService>();
+                var sensitiveException = new Exception("SECRET_SQL_DETAILS: SELECT * FROM Users; File: C:\\secret\\app\\secrets.json\n   at SomeMethod() in path\\file.cs:line 50");
+                mockService.Setup(x => x.ImportAsync(It.IsAny<CancellationToken>())).ThrowsAsync(sensitiveException);
+                
+                services.AddScoped<IGtfsImportService>(_ => mockService.Object);
+            });
+        }).CreateClient();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/import/gtfs");
+        request.Headers.Add("X-Admin-Key", "test-key");
+
+        // Act
+        var response = await client.SendAsync(request);
+
+        // Assert
+        response.StatusCode.Should().Be(HttpStatusCode.InternalServerError);
+
+        var content = await response.Content.ReadAsStringAsync();
+        
+        // Ensure no sensitive information is leaked
+        content.Should().NotContain("SECRET_SQL_DETAILS");
+        content.Should().NotContain("SELECT * FROM Users");
+        content.Should().NotContain("C:\\secret\\app\\secrets.json");
+        content.Should().NotContain("at SomeMethod()");
+        content.Should().NotContain("line 50");
+        
+        // Ensure the generic message is present
+        content.Should().Contain("Beklenmeyen bir sunucu hatası oluştu.");
     }
 }

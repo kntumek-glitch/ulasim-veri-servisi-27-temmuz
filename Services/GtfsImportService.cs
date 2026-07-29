@@ -22,6 +22,7 @@ namespace ulasım_veri_servisi.Services
         private readonly HttpClient _httpClient;
         private readonly ILogger<GtfsImportService> _logger;
         private readonly IMemoryCache _cache;
+        private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
         private const string GtfsUrl =
     "https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip";
 
@@ -29,12 +30,14 @@ namespace ulasım_veri_servisi.Services
             IServiceScopeFactory scopeFactory,
             HttpClient httpClient,
             ILogger<GtfsImportService> logger,
-            IMemoryCache cache)
+            IMemoryCache cache,
+            Microsoft.Extensions.Configuration.IConfiguration configuration)
         {
             _scopeFactory = scopeFactory;
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
+            _configuration = configuration;
         }
 
         public async Task<GtfsImportRun> ImportAsync(CancellationToken cancellationToken)
@@ -389,7 +392,7 @@ namespace ulasım_veri_servisi.Services
                    
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    const int batchSize = 500;
+                    const int batchSize = 5000;
 
                     for (int i = 0; i < tripEntities.Count; i += batchSize)
                     {
@@ -404,8 +407,6 @@ namespace ulasım_veri_servisi.Services
                       
 
                         _context.ChangeTracker.Clear();
-                        GC.Collect();
-                        GC.WaitForPendingFinalizers();
                     }
                 }
                 var stopTimesEntry = archive.GetEntry("stop_times.txt");
@@ -439,7 +440,7 @@ namespace ulasım_veri_servisi.Services
 
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    const int batchSize = 500;
+                    const int batchSize = 5000;
 
                     var batch = new List<GtfsStopTime>(batchSize);
 
@@ -480,13 +481,11 @@ namespace ulasım_veri_servisi.Services
                             await _context.SaveChangesAsync(cancellationToken);
 
                             _context.ChangeTracker.Clear();
-                            GC.Collect();
-                            GC.WaitForPendingFinalizers();
 
                             batch.Clear();
                             
                             // Update progress occasionally
-                            await UpdatePhaseAsync(_context, activePhase, Math.Min(100, (total * 100) / Math.Max(1, stopTimes.Count())), total, cancellationToken);
+                            await UpdatePhaseAsync(_context, activePhase, 0, total, cancellationToken);
                         }
                     }
 
@@ -599,7 +598,7 @@ namespace ulasım_veri_servisi.Services
 
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    const int batchSize = 500;
+                    const int batchSize = 5000;
 
                     var batch = new List<GtfsShapePoint>(batchSize);
 
@@ -634,7 +633,7 @@ namespace ulasım_veri_servisi.Services
                             batch.Clear();
                             
                             // Update progress occasionally
-                            await UpdatePhaseAsync(_context, activePhase, Math.Min(100, (total * 100) / Math.Max(1, shapes.Count())), total, cancellationToken);
+                            await UpdatePhaseAsync(_context, activePhase, 0, total, cancellationToken);
                         }
                     }
                     importRun.ShapePointCount = total;
@@ -846,21 +845,41 @@ namespace ulasım_veri_servisi.Services
                     var failedRun = await errorContext.GtfsImportRuns
                         .SingleAsync(x => x.Id == importRun.Id, CancellationToken.None);
                     
-                    failedRun.Status = "Failed";
-                    if (ex is Exceptions.InvalidGtfsFeedException || ex is InvalidDataException)
+                    if (ex is OperationCanceledException)
                     {
-                        failedRun.ErrorMessage = ex.Message;
+                        if (cancellationToken.IsCancellationRequested)
+                        {
+                            failedRun.Status = "Cancelled";
+                            failedRun.ErrorMessage = "İşlem kullanıcı veya sistem tarafından iptal edildi.";
+                        }
+                        else
+                        {
+                            failedRun.Status = "Failed";
+                            failedRun.ErrorMessage = "Dış kaynak zaman aşımına uğradı.";
+                        }
                     }
                     else
                     {
-                        failedRun.ErrorMessage = "İçe aktarım sırasında beklenmeyen bir hata oluştu. Lütfen sistem loglarını kontrol edin.";
+                        failedRun.Status = "Failed";
+                        if (ex is Exceptions.InvalidGtfsFeedException || ex is InvalidDataException)
+                        {
+                            failedRun.ErrorMessage = ex.Message;
+                        }
+                        else
+                        {
+                            failedRun.ErrorMessage = "İçe aktarım sırasında beklenmeyen bir hata oluştu. Lütfen sistem loglarını kontrol edin.";
+                        }
                     }
+
                     failedRun.FinishedAt = DateTime.UtcNow;
                     failedRun.IsActive = false;
 
                     await errorContext.SaveChangesAsync(CancellationToken.None);
 
-                    _logger.LogError(ex, "GTFS import failed for run {RunId}", importRun.Id);
+                    if (failedRun.Status == "Cancelled")
+                        _logger.LogWarning("GTFS import cancelled for run {RunId}", importRun.Id);
+                    else
+                        _logger.LogError(ex, "GTFS import failed for run {RunId}", importRun.Id);
                 }
 
                 throw;
@@ -883,38 +902,43 @@ namespace ulasım_veri_servisi.Services
 
             _logger.LogInformation("Starting background cleanup of old GTFS feeds...");
 
-            // Kural: Son 2 başarılı (Completed) feed'i tut. Active feed'i mutlaka tut. Running feed'leri tut.
+            int keepCompletedCount = _configuration.GetValue<int>("GtfsImport:KeepCompletedCount", 2);
+            int retentionDays = _configuration.GetValue<int>("GtfsImport:RetentionDays", 7);
+            var retentionCutoff = DateTime.UtcNow.AddDays(-retentionDays);
+
+            // Kural: Son başarılı (Completed) feed'leri tut
             var completedRuns = await context.GtfsImportRuns
                 .Where(x => x.Status == "Completed" && !x.IsActive)
                 .OrderByDescending(x => x.Id)
                 .Select(x => x.Id)
-                .Take(2)
+                .Take(keepCompletedCount)
                 .ToListAsync(cancellationToken);
 
+            // Aktif olanı mutlaka tut
             var activeRunId = await context.GtfsImportRuns
                 .Where(x => x.IsActive)
                 .Select(x => x.Id)
                 .FirstOrDefaultAsync(cancellationToken);
 
-            // Korunacak ID listesini birleştiriyoruz
-            var runsToKeep = new HashSet<int>(completedRuns);
-            if (activeRunId > 0)
-            {
-                runsToKeep.Add(activeRunId);
-            }
-
-            // Ayrıca "Running" statüsünde olan ve henüz bitmemiş importları koruyoruz.
-            // Fakat "Running" olup abandon olmuşları import işleminde Failed'a çekiyoruz zaten.
+            // "Running" statüsünde olanları tut
             var runningRuns = await context.GtfsImportRuns
                 .Where(x => x.Status == "Running")
                 .Select(x => x.Id)
                 .ToListAsync(cancellationToken);
-            
+
+            // Belirli bir günden daha yeni olan Failed, Skipped, Cancelled import geçmişlerini koru
+            var recentFailedRuns = await context.GtfsImportRuns
+                .Where(x => (x.Status == "Failed" || x.Status == "Cancelled" || x.Status == "Skipped") && x.FinishedAt >= retentionCutoff)
+                .Select(x => x.Id)
+                .ToListAsync(cancellationToken);
+
+            var runsToKeep = new HashSet<int>(completedRuns);
+            if (activeRunId > 0) runsToKeep.Add(activeRunId);
             foreach (var id in runningRuns) runsToKeep.Add(id);
+            foreach (var id in recentFailedRuns) runsToKeep.Add(id);
 
             var keepList = runsToKeep.ToList();
 
-            // Silineceklerin listesini çıkar (Loglama için)
             var runsToDelete = await context.GtfsImportRuns
                 .Where(x => !keepList.Contains(x.Id))
                 .Select(x => x.Id)
@@ -928,7 +952,6 @@ namespace ulasım_veri_servisi.Services
 
             _logger.LogInformation("Cleaning up {Count} old GTFS feeds (IDs: {Ids})", runsToDelete.Count, string.Join(",", runsToDelete));
 
-            // Silme işlemi
             await context.GtfsStopTimes.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsTrips.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsRoutes.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
@@ -938,11 +961,25 @@ namespace ulasım_veri_servisi.Services
             await context.GtfsStops.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsAgencies.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             
+            var deletedPhasesCount = await context.GtfsImportPhases
+                .Where(x => runsToDelete.Contains(x.GtfsImportRunId))
+                .ExecuteDeleteAsync(cancellationToken);
+
             var deletedRunsCount = await context.GtfsImportRuns
                 .Where(x => runsToDelete.Contains(x.Id))
                 .ExecuteDeleteAsync(cancellationToken);
 
-            _logger.LogInformation("Successfully deleted {Count} old GtfsImportRun records and their associated data.", deletedRunsCount);
+            var metrics = new
+            {
+                DeletedRuns = deletedRunsCount,
+                DeletedPhases = deletedPhasesCount,
+                KeptCompleted = completedRuns.Count,
+                KeptRecentFailed = recentFailedRuns.Count,
+                KeptRunning = runningRuns.Count,
+                RetentionDays = retentionDays
+            };
+
+            _logger.LogInformation("Retention cleanup completed. Metrics: {@Metrics}", metrics);
         }
 
         private async Task<GtfsImportPhase> StartPhaseAsync(AppDbContext context, int runId, string phaseName, CancellationToken cancellationToken)

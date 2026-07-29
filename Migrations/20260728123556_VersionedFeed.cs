@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore.Migrations;
+using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
@@ -30,57 +30,87 @@ namespace ulasım_veri_servisi.Migrations
                 name: "GtfsImportRunId",
                 table: "GtfsTrips",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsStopTimes",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsStops",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsShapePoints",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsRoutes",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsCalendars",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsCalendarDates",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
 
             migrationBuilder.AddColumn<int>(
                 name: "GtfsImportRunId",
                 table: "GtfsAgencies",
                 type: "integer",
-                nullable: false,
-                defaultValue: 0);
+                nullable: true);
+
+            // Backfill existing data
+            migrationBuilder.Sql(@"
+                DO $$
+                DECLARE
+                    runId int;
+                BEGIN
+                    SELECT ""Id"" INTO runId FROM ""GtfsImportRuns"" WHERE ""Status"" = 'Completed' ORDER BY ""Id"" DESC LIMIT 1;
+                    IF runId IS NULL THEN
+                        INSERT INTO ""GtfsImportRuns"" (""SourceUrl"", ""DownloadedAt"", ""StartedAt"", ""Status"", ""FileHash"", ""AgencyCount"", ""RouteCount"", ""StopCount"", ""TripCount"", ""StopTimeCount"", ""ShapePointCount"", ""FailedRecordCount"", ""IsActive"") 
+                        VALUES ('http://dummy.url', NOW(), NOW(), 'Completed', 'dummy-hash', 0, 0, 0, 0, 0, 0, 0, true) RETURNING ""Id"" INTO runId;
+                    END IF;
+
+                    UPDATE ""GtfsTrips"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsStopTimes"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsStops"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsShapePoints"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsRoutes"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsCalendars"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsCalendarDates"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                    UPDATE ""GtfsAgencies"" SET ""GtfsImportRunId"" = runId WHERE ""GtfsImportRunId"" IS NULL;
+                END $$;
+            ");
+
+            // Make columns non-nullable
+            var tables = new[] { "GtfsTrips", "GtfsStopTimes", "GtfsStops", "GtfsShapePoints", "GtfsRoutes", "GtfsCalendars", "GtfsCalendarDates", "GtfsAgencies" };
+            foreach (var table in tables)
+            {
+                migrationBuilder.AlterColumn<int>(
+                    name: "GtfsImportRunId",
+                    table: table,
+                    type: "integer",
+                    nullable: false,
+                    defaultValue: 0,
+                    oldClrType: typeof(int),
+                    oldType: "integer",
+                    oldNullable: true);
+            }
 
             migrationBuilder.CreateIndex(
                 name: "IX_GtfsTrips_GtfsImportRunId",

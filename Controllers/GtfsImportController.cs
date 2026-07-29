@@ -13,11 +13,13 @@ public class GtfsImportController : ControllerBase
 {
     private readonly IGtfsImportService _gtfsImportService;
     private readonly AppDbContext _context;
+    private readonly ILogger<GtfsImportController> _logger;
 
-    public GtfsImportController(IGtfsImportService gtfsImportService, AppDbContext context)
+    public GtfsImportController(IGtfsImportService gtfsImportService, AppDbContext context, ILogger<GtfsImportController> logger)
     {
         _gtfsImportService = gtfsImportService;
         _context = context;
+        _logger = logger;
     }
 
     [HttpPost("gtfs")]
@@ -61,21 +63,36 @@ public class GtfsImportController : ControllerBase
                 Status = StatusCodes.Status502BadGateway 
             });
         }
-        catch (TaskCanceledException)
+        catch (OperationCanceledException ex)
         {
-            return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails 
-            { 
-                Title = "Service Unavailable", 
-                Detail = "Dış kaynak zaman aşımına uğradı.", 
-                Status = StatusCodes.Status503ServiceUnavailable 
-            });
+            if (cancellationToken.IsCancellationRequested)
+            {
+                _logger.LogWarning("Import işlemi istemci tarafından iptal edildi.");
+                return StatusCode(499, new ProblemDetails 
+                { 
+                    Title = "Client Closed Request", 
+                    Detail = "İşlem iptal edildi.", 
+                    Status = 499 
+                });
+            }
+            else
+            {
+                _logger.LogError(ex, "Dış kaynak zaman aşımına uğradı.");
+                return StatusCode(StatusCodes.Status503ServiceUnavailable, new ProblemDetails 
+                { 
+                    Title = "Service Unavailable", 
+                    Detail = "Dış kaynak zaman aşımına uğradı.", 
+                    Status = StatusCodes.Status503ServiceUnavailable 
+                });
+            }
         }
         catch (Exception ex)
         {
+            _logger.LogError(ex, "Beklenmeyen bir sunucu hatası oluştu.");
             return StatusCode(StatusCodes.Status500InternalServerError, new ProblemDetails 
             { 
                 Title = "Internal Server Error", 
-                Detail = ex.ToString(), 
+                Detail = "Beklenmeyen bir sunucu hatası oluştu.", 
                 Status = StatusCodes.Status500InternalServerError 
             });
         }
