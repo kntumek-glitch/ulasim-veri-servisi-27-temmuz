@@ -1,9 +1,9 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using System.Text.RegularExpressions;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -65,3 +65,4 @@ public class GtfsStopReconciliationServiceTests : IAsyncLifetime
         result.NameMismatches.Should().Be(1);
     }
 }
+

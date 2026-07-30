@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsShapePointRow
 {
@@ -7,3 +7,4 @@ public class GtfsShapePointRow
     public double shape_pt_lon { get; set; }
     public int shape_pt_sequence { get; set; }
 }
+

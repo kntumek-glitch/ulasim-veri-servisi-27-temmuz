@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsStopTimeRow
 {
@@ -9,3 +9,4 @@ public class GtfsStopTimeRow
     public int stop_sequence { get; set; }
     public int? timepoint { get; set; }
 }
+

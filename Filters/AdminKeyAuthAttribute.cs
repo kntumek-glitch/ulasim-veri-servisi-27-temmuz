@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 
-namespace ulasım_veri_servisi.Filters
+namespace ulasim_veri_servisi.Filters
 {
     public class AdminKeyAuthAttribute : IAsyncActionFilter
     {
@@ -58,3 +58,4 @@ namespace ulasım_veri_servisi.Filters
         }
     }
 }
+

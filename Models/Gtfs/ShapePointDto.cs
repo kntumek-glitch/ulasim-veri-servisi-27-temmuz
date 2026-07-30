@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class ShapePointDto
 {
@@ -6,3 +6,4 @@ public class ShapePointDto
     public double Longitude { get; set; }
     public int Sequence { get; set; }
 }
+

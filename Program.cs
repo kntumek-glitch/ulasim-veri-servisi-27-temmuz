@@ -1,17 +1,17 @@
-
+﻿
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
-using ulasım_veri_servisi.Middleware;
+using ulasim_veri_servisi.Middleware;
 using Microsoft.Extensions.Caching.Memory;
 using TransportDataService;
-using ulasım_veri_servisi.Services;
-using ulasım_veri_servisi.Services.Interfaces;
+using ulasim_veri_servisi.Services;
+using ulasim_veri_servisi.Services.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using ulasım_veri_servisi.HealthChecks;
-using ulasım_veri_servisi.Workers;
+using ulasim_veri_servisi.HealthChecks;
+using ulasim_veri_servisi.Workers;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine("ContentRoot: " + builder.Environment.ContentRootPath);
@@ -76,7 +76,7 @@ builder.Services.AddSwaggerGen(c =>
 {
     c.SwaggerDoc("v1", new OpenApiInfo
     {
-        Title = "ulasım-veri-servisi",
+        Title = "ulasim-veri-servisi",
         Version = "1.0",
         Description = "Transport data service API"
     });
@@ -97,9 +97,9 @@ builder.Services.AddHttpClient<CsvImportService>();
 builder.Services.AddScoped<ITripStopsRepository, TripStopsRepository>();
 builder.Services.AddScoped<ITripStopsService, TripStopsService>();
 builder.Services.AddScoped<IRouteDeparturesService, RouteDeparturesService>();
-builder.Services.AddScoped<ulasım_veri_servisi.Services.Interfaces.IJourneyPlanningService, ulasım_veri_servisi.Services.JourneyPlanningService>();
-builder.Services.AddScoped<ulasım_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
-builder.Services.AddScoped<ulasım_veri_servisi.Filters.AdminKeyAuthAttribute>();
+builder.Services.AddScoped<ulasim_veri_servisi.Services.Interfaces.IJourneyPlanningService, ulasim_veri_servisi.Services.JourneyPlanningService>();
+builder.Services.AddScoped<ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
+builder.Services.AddScoped<ulasim_veri_servisi.Filters.AdminKeyAuthAttribute>();
 
 builder.Services.AddHostedService<GtfsAutoUpdateWorker>();
 

@@ -1,19 +1,19 @@
-using TransportDataService;
+﻿using TransportDataService;
 using TransportDataService.Domain;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
 using System.IO.Compression;
 using CsvHelper;
 using System.Globalization;
-using ulasım_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Models.Gtfs;
 using CsvHelper.Configuration;
 using Microsoft.Extensions.Caching.Memory;
-using ulasım_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Exceptions;
 using Npgsql;
 
 
   
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
 
     public class GtfsImportService : IGtfsImportService
@@ -1015,3 +1015,4 @@ namespace ulasım_veri_servisi.Services
 
     }
 }
+

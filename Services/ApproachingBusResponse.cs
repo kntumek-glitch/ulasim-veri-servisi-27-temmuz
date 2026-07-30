@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Services
+﻿namespace ulasim_veri_servisi.Services
 {
     public class ApproachingBusResponse
     {
@@ -13,3 +13,4 @@
         public List<ApproachingBusItem> Buses { get; set; } = [];
     }
 }
+

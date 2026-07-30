@@ -1,11 +1,11 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Helpers;
-using ulasım_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Helpers;
+using ulasim_veri_servisi.Exceptions;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class ApproachingBusService
     {
@@ -58,3 +58,4 @@ namespace ulasım_veri_servisi.Services
         }
     }
 }
+

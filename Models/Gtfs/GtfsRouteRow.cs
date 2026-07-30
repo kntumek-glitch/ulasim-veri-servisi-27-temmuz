@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsRouteRow
 {
@@ -18,3 +18,4 @@ public class GtfsRouteRow
 
     public int route_type { get; set; }
 }
+

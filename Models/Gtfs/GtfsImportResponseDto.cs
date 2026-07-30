@@ -1,6 +1,6 @@
-using TransportDataService.Domain;
+﻿using TransportDataService.Domain;
 
-namespace ulasım_veri_servisi.Models.Gtfs;
+namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsImportCountersDto
 {
@@ -52,3 +52,4 @@ public class GtfsImportResponseDto
         };
     }
 }
+

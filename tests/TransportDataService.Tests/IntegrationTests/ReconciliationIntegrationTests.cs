@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -6,7 +6,7 @@ using System.IO;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Models.Gtfs;
 using Xunit;
 
 namespace TransportDataService.Tests.IntegrationTests;
@@ -122,3 +122,4 @@ public class ReconciliationResult
     public int CoordinateMismatches { get; set; }
     public int ManualReview { get; set; }
 }
+

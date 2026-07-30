@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Collections.Generic;
@@ -6,8 +6,8 @@ using System.Linq;
 using System.Threading.Tasks;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Controllers;
-using ulasım_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Controllers;
+using ulasim_veri_servisi.Models.Gtfs;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -91,3 +91,4 @@ public class StopSequenceTests : IAsyncLifetime
         stops[2].StopId.Should().Be("stop_3");
     }
 }
+

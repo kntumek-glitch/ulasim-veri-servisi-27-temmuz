@@ -9,7 +9,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260728123556_VersionedFeed")]
@@ -742,3 +742,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

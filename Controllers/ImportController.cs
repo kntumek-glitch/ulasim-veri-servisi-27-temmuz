@@ -1,9 +1,9 @@
-using Swashbuckle.AspNetCore.Annotations;
+﻿using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.Mvc;
 using TransportDataService;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 
-namespace ulasım_veri_servisi.Controllers
+namespace ulasim_veri_servisi.Controllers
 {
     [ApiController]
     [Route("api/v1/import")]
@@ -22,7 +22,7 @@ namespace ulasım_veri_servisi.Controllers
 )]
         [ProducesResponseType(StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        [ServiceFilter(typeof(ulasım_veri_servisi.Filters.AdminKeyAuthAttribute))]
+        [ServiceFilter(typeof(ulasim_veri_servisi.Filters.AdminKeyAuthAttribute))]
         public async Task<IActionResult> ImportStops(
     CancellationToken cancellationToken)
         {
@@ -32,3 +32,4 @@ namespace ulasım_veri_servisi.Controllers
         }
     }
 }
+

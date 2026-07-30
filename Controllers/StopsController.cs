@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
 using TransportDataService;
-using ulasım_veri_servisi.Exceptions;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Services;
 
-namespace ulasım_veri_servisi.Controllers
+namespace ulasim_veri_servisi.Controllers
 {
     [ApiController]
     [Route("api/v1/stops")]

@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs
+﻿namespace ulasim_veri_servisi.Models.Gtfs
 {
     public class RouteDepartureDataDto
     {
@@ -32,3 +32,4 @@ namespace ulasım_veri_servisi.Models.Gtfs
         public RouteDeparturesMetadataDto Metadata { get; set; } = new();
     }
 }
+

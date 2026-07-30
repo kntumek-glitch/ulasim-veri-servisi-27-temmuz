@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,8 +9,8 @@ using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
 using TransportDataService.Tests.Helpers;
-using ulasım_veri_servisi.Models.Gtfs;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Services;
 using Xunit;
 using Microsoft.AspNetCore.Mvc;
 
@@ -676,3 +676,4 @@ public class GtfsImportLifecycleTests : IAsyncLifetime
         run.IsActive.Should().BeFalse();
     }
 }
+

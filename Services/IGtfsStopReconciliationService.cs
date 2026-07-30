@@ -1,9 +1,10 @@
-using System.Threading;
+﻿using System.Threading;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public interface IGtfsStopReconciliationService
     {
-        Task<ulasım_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult> ReconcileAsync(CancellationToken cancellationToken);
+        Task<ulasim_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult> ReconcileAsync(CancellationToken cancellationToken);
     }
 }
+

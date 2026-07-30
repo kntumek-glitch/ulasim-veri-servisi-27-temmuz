@@ -1,7 +1,7 @@
-using System;
+﻿using System;
 using System.Globalization;
 
-namespace ulasım_veri_servisi.Helpers;
+namespace ulasim_veri_servisi.Helpers;
 
 public static class CoordinateParser
 {
@@ -38,3 +38,4 @@ public static class CoordinateParser
         return null;
     }
 }
+

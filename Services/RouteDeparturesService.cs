@@ -1,9 +1,9 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TransportDataService;
-using ulasım_veri_servisi.Models.Gtfs;
-using ulasım_veri_servisi.Services.Interfaces;
+using ulasim_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Services.Interfaces;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class RouteDeparturesService : IRouteDeparturesService
     {
@@ -153,3 +153,4 @@ namespace ulasım_veri_servisi.Services
         }
     }
 }
+

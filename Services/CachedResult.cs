@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Services
+﻿namespace ulasim_veri_servisi.Services
 {
     public class CachedResult<T>
     {
@@ -7,3 +7,4 @@
         public bool FromCache { get; set; }
     }
 }
+

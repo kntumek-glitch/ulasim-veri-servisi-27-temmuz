@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using TransportDataService;
-using ulasım_veri_servisi.Models.Gtfs;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Services;
 using System.Net.Http;
 
-namespace ulasım_veri_servisi.Controllers;
+namespace ulasim_veri_servisi.Controllers;
 
 [ApiController]
 [Route("api/v1/import")]
@@ -23,7 +23,7 @@ public class GtfsImportController : ControllerBase
     }
 
     [HttpPost("gtfs")]
-    [ServiceFilter(typeof(ulasım_veri_servisi.Filters.AdminKeyAuthAttribute))]
+    [ServiceFilter(typeof(ulasim_veri_servisi.Filters.AdminKeyAuthAttribute))]
     public async Task<IActionResult> ImportGtfs(CancellationToken cancellationToken)
     {
         try
@@ -144,3 +144,4 @@ public class GtfsImportController : ControllerBase
         return Ok(GtfsImportRunResponse.From(run));
     }
 }
+

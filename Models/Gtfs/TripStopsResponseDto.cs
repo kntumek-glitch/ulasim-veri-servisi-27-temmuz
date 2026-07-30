@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs
+﻿namespace ulasim_veri_servisi.Models.Gtfs
 {
     public class StopDto
     {
@@ -22,3 +22,4 @@ namespace ulasım_veri_servisi.Models.Gtfs
         public List<StopDto> Stops { get; set; } = new List<StopDto>();
     }
 }
+

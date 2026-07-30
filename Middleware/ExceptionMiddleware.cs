@@ -1,8 +1,8 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
-using ulasım_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Exceptions;
 
-namespace ulasım_veri_servisi.Middleware;
+namespace ulasim_veri_servisi.Middleware;
 
 public class ExceptionMiddleware
 {
@@ -92,3 +92,4 @@ public class ExceptionMiddleware
             JsonSerializer.Serialize(problem));
     }
 }
+

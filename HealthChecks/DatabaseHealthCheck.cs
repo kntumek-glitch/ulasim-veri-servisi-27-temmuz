@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using TransportDataService;
 
-namespace ulasım_veri_servisi.HealthChecks;
+namespace ulasim_veri_servisi.HealthChecks;
 
 public class DatabaseHealthCheck : IHealthCheck
 {
@@ -42,3 +42,4 @@ public class DatabaseHealthCheck : IHealthCheck
         }
     }
 }
+

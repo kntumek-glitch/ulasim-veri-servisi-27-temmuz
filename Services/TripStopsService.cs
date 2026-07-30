@@ -1,8 +1,8 @@
-using ulasım_veri_servisi.Helpers;
-using ulasım_veri_servisi.Models.Gtfs;
-using ulasım_veri_servisi.Services.Interfaces;
+﻿using ulasim_veri_servisi.Helpers;
+using ulasim_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Services.Interfaces;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class TripStopsService : ITripStopsService
     {
@@ -37,3 +37,4 @@ namespace ulasım_veri_servisi.Services
         }
     }
 }
+

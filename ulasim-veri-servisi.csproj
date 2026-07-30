@@ -4,7 +4,7 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
-    <RootNamespace>ulasım_veri_servisi</RootNamespace>
+    <RootNamespace>ulasim_veri_servisi</RootNamespace>
     <UserSecretsId>bfa65326-c0c8-485f-ad41-ca9f51de87d3</UserSecretsId>
   </PropertyGroup>
 
@@ -37,3 +37,5 @@
   </ItemGroup>
 
 </Project>
+
+

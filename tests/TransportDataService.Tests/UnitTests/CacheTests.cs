@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -7,7 +7,7 @@ using Moq.Protected;
 using System.Net;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -166,3 +166,4 @@ public class CacheTests : IAsyncLifetime
             "SendAsync", Times.Never(), ItExpr.IsAny<HttpRequestMessage>(), ItExpr.IsAny<CancellationToken>());
     }
 }
+

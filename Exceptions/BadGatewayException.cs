@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Exceptions
+﻿namespace ulasim_veri_servisi.Exceptions
 {
     public class BadGatewayException : Exception
     {
@@ -9,3 +9,4 @@
         }
     }
 }
+

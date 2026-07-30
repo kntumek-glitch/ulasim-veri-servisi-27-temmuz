@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Helpers
+﻿namespace ulasim_veri_servisi.Helpers
 {
     public static class GtfsTimeHelper
     {
@@ -25,3 +25,4 @@ namespace ulasım_veri_servisi.Helpers
         }
     }
 }
+

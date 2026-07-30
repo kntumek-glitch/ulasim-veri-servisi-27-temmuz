@@ -9,7 +9,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260720062727_UpdateGtfsEntities")]
@@ -638,3 +638,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

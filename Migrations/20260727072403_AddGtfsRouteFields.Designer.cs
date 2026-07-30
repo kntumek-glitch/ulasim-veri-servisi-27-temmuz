@@ -9,7 +9,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260727072403_AddGtfsRouteFields")]
@@ -620,3 +620,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

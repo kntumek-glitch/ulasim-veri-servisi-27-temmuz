@@ -4,7 +4,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     /// <inheritdoc />
     public partial class AddGtfsImportRun : Migration
@@ -57,3 +57,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

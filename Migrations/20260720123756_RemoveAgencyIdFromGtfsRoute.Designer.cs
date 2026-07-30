@@ -9,7 +9,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260720123756_RemoveAgencyIdFromGtfsRoute")]
@@ -613,3 +613,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

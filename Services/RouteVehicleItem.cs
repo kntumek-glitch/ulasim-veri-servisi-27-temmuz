@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Services
+﻿namespace ulasim_veri_servisi.Services
 {
     public class RouteVehicleItem
     {
@@ -11,3 +11,4 @@ namespace ulasım_veri_servisi.Services
         public double? Longitude { get; set; }
     }
 }
+

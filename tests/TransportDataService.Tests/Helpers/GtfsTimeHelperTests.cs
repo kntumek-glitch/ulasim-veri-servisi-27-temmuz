@@ -1,4 +1,4 @@
-using ulasım_veri_servisi.Helpers;
+﻿using ulasim_veri_servisi.Helpers;
 using Xunit;
 
 namespace TransportDataService.Tests.Helpers
@@ -37,3 +37,4 @@ namespace TransportDataService.Tests.Helpers
         }
     }
 }
+

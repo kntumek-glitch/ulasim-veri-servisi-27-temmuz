@@ -2,7 +2,7 @@
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     /// <inheritdoc />
     public partial class RemoveAgencyIdFromGtfsRoute : Migration
@@ -80,3 +80,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

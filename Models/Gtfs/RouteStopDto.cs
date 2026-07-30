@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class RouteStopDto
 {
@@ -9,3 +9,4 @@ public class RouteStopDto
     public double Longitude { get; set; }
     public int StopSequence { get; set; }
 }
+

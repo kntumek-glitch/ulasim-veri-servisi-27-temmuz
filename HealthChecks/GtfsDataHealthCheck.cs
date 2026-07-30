@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using TransportDataService;
 
-namespace ulasım_veri_servisi.HealthChecks
+namespace ulasim_veri_servisi.HealthChecks
 {
     public class GtfsDataHealthCheck : IHealthCheck
     {
@@ -25,7 +25,7 @@ namespace ulasım_veri_servisi.HealthChecks
                 var data = new Dictionary<string, object>
                 {
                     { "is_gtfs_data_loaded", run != null },
-                    { "next_auto_import_time", ulasım_veri_servisi.Workers.GtfsAutoUpdateWorker.NextRunTime?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "Unknown" }
+                    { "next_auto_import_time", ulasim_veri_servisi.Workers.GtfsAutoUpdateWorker.NextRunTime?.ToString("yyyy-MM-ddTHH:mm:ssZ") ?? "Unknown" }
                 };
 
                 if (run != null)
@@ -68,3 +68,4 @@ namespace ulasım_veri_servisi.HealthChecks
         }
     }
 }
+

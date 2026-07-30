@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsTripRow
 {
@@ -11,3 +11,4 @@ public class GtfsTripRow
     public string? shape_id { get; set; }
     public string? trip_headsign { get; set; }
 }
+

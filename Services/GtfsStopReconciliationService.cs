@@ -1,8 +1,8 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using TransportDataService;
 using TransportDataService.Domain;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class GtfsStopReconciliationService
         : IGtfsStopReconciliationService
@@ -15,7 +15,7 @@ namespace ulasım_veri_servisi.Services
             _context = context;
         }
 
-        public async Task<ulasım_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult> ReconcileAsync(
+        public async Task<ulasim_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult> ReconcileAsync(
             CancellationToken cancellationToken)
         {
             var stops =
@@ -165,7 +165,7 @@ Oluşturulma Zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
             var reportPath = Path.Combine(docsFolder, "gtfs-stop-reconciliation.md");
             await File.WriteAllTextAsync(reportPath, report, cancellationToken);
 
-            return new ulasım_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult
+            return new ulasim_veri_servisi.Models.Gtfs.GtfsStopReconciliationResult
             {
                 ExactMatches = exactMatches,
                 StopIdMatchesOnly = stopIdMatchesOnly,
@@ -179,3 +179,4 @@ Oluşturulma Zamanı: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss} UTC
         }
     }
 }
+

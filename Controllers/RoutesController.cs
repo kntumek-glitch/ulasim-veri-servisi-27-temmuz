@@ -1,8 +1,8 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 
-namespace ulasım_veri_servisi.Controllers
+namespace ulasim_veri_servisi.Controllers
 {
     [ApiController]
     [Route("api/v1/routes")]

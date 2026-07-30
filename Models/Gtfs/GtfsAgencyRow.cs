@@ -1,5 +1,5 @@
-﻿using ulasım_veri_servisi.Models.Gtfs;
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿using ulasim_veri_servisi.Models.Gtfs;
+namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsAgencyRow
 {
@@ -15,3 +15,4 @@ public class GtfsAgencyRow
 
     public string? agency_phone { get; set; }
 }
+

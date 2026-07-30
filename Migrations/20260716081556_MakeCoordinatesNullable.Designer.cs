@@ -9,7 +9,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260716081556_MakeCoordinatesNullable")]
@@ -177,3 +177,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

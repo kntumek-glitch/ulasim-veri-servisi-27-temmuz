@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsCalendarDateRow
 {
@@ -8,3 +8,4 @@ public class GtfsCalendarDateRow
 
     public int exception_type { get; set; }
 }
+

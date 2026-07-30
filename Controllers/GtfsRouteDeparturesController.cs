@@ -1,11 +1,11 @@
-using Microsoft.AspNetCore.Mvc;
-using ulasım_veri_servisi.Services.Interfaces;
+﻿using Microsoft.AspNetCore.Mvc;
+using ulasim_veri_servisi.Services.Interfaces;
 
-namespace ulasım_veri_servisi.Controllers
+namespace ulasim_veri_servisi.Controllers
 {
     [ApiController]
     [Route("api/v1/gtfs/routes")]
-    [ServiceFilter(typeof(ulasım_veri_servisi.Filters.GtfsETagCacheFilterAttribute))]
+    [ServiceFilter(typeof(ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute))]
     public class GtfsRouteDeparturesController : ControllerBase
     {
         private readonly IRouteDeparturesService _routeDeparturesService;
@@ -46,3 +46,4 @@ namespace ulasım_veri_servisi.Controllers
         }
     }
 }
+

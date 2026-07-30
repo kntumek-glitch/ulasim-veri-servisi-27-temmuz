@@ -1,15 +1,15 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using TransportDataService;
 using TransportDataService.Domain;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Memory;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 
-using ulasım_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Exceptions;
 using System.Net;
 
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class ExternalEshotService : IExternalEshotService
     {

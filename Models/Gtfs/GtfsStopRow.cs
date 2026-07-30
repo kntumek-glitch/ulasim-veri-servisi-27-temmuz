@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsStopRow
 {
@@ -24,3 +24,4 @@ public class GtfsStopRow
 
     public string? stop_url { get; set; }
 }
+

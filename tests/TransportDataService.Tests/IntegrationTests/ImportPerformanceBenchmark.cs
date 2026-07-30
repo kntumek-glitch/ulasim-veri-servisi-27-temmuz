@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 using System.IO.Compression;
 using System.Net;
 using System.Text;
@@ -45,7 +45,7 @@ public class ImportPerformanceBenchmark : IAsyncLifetime
         {
             builder.ConfigureServices(services =>
             {
-                services.AddHttpClient<ulasım_veri_servisi.Services.IGtfsImportService, ulasım_veri_servisi.Services.GtfsImportService>(c =>
+                services.AddHttpClient<ulasim_veri_servisi.Services.IGtfsImportService, ulasim_veri_servisi.Services.GtfsImportService>(c =>
                 {
                     c.DefaultRequestHeaders.Add("X-Test-Id", testId);
                     c.DefaultRequestHeaders.Add("X-Test-StatusCode", HttpStatusCode.OK.ToString());
@@ -125,3 +125,4 @@ public class ImportPerformanceBenchmark : IAsyncLifetime
         count.Should().Be(50000); // 50K StopTimes
     }
 }
+

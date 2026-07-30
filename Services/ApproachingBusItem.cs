@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Services
+﻿namespace ulasim_veri_servisi.Services
 {
     public class ApproachingBusItem
     {
@@ -21,3 +21,4 @@ namespace ulasım_veri_servisi.Services
         public bool HasBicycleRack { get; set; }
     }
 }
+

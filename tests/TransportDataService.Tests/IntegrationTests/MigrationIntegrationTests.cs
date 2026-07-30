@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -79,3 +79,4 @@ public class MigrationIntegrationTests : IAsyncLifetime
         routeRunId.Should().Be(activeRunId);
     }
 }
+

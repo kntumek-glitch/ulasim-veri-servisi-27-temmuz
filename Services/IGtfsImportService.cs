@@ -1,6 +1,6 @@
-using TransportDataService.Domain;
+﻿using TransportDataService.Domain;
 
-namespace ulasım_veri_servisi.Services;
+namespace ulasim_veri_servisi.Services;
 
 public interface IGtfsImportService
 {

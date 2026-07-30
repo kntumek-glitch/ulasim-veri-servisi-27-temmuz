@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsStopResponse
 {
@@ -21,4 +21,6 @@ public class GtfsStopRouteResponse
     public int? DirectionId { get; init; }
     public string? TripHeadsign { get; init; }
 }
+
+
 

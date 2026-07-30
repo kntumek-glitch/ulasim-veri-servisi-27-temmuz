@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models;
+﻿namespace ulasim_veri_servisi.Models;
 
 public class GtfsImportResult
 {
@@ -22,3 +22,5 @@ public class GtfsImportResult
 
     public DateTime? FinishedAt { get; set; }
 }
+
+

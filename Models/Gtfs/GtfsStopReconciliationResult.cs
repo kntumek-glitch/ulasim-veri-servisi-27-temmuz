@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs
+﻿namespace ulasim_veri_servisi.Models.Gtfs
 {
     public class GtfsStopReconciliationResult
     {
@@ -12,3 +12,4 @@ namespace ulasım_veri_servisi.Models.Gtfs
         public int ManualReview { get; set; }
     }
 }
+

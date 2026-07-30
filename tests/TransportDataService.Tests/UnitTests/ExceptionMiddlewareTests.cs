@@ -1,11 +1,11 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
 using Moq;
 using System.Text.Json;
-using ulasım_veri_servisi.Exceptions;
-using ulasım_veri_servisi.Middleware;
+using ulasim_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Middleware;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -138,3 +138,4 @@ public class ExceptionMiddlewareTests
         responseBody.Should().NotContain("StackTrace");
     }
 }
+

@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsCalendarRow
 {
@@ -13,3 +13,4 @@ public class GtfsCalendarRow
     public string start_date { get; set; } = "";
     public string end_date { get; set; } = "";
 }
+

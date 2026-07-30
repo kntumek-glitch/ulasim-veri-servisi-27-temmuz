@@ -8,7 +8,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     partial class AppDbContextModelSnapshot : ModelSnapshot
@@ -794,3 +794,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

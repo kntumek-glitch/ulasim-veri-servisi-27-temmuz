@@ -1,15 +1,15 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
 using TransportDataService;
-using ulasım_veri_servisi.Models.Gtfs;
+using ulasim_veri_servisi.Models.Gtfs;
 
-namespace ulasım_veri_servisi.Controllers;
+namespace ulasim_veri_servisi.Controllers;
 
 [ApiController]
 [Route("api/v1/gtfs")]
-[ServiceFilter(typeof(ulasım_veri_servisi.Filters.GtfsETagCacheFilterAttribute))]
+[ServiceFilter(typeof(ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute))]
 public class GtfsController : ControllerBase
 {
     private readonly AppDbContext _context;
@@ -610,3 +610,4 @@ public class GtfsController : ControllerBase
         return Ok(response);
     }
 }
+

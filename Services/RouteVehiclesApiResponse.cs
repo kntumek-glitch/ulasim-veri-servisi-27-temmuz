@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class RouteVehiclesApiResponse
     {
@@ -14,3 +14,4 @@ namespace ulasım_veri_servisi.Services
         public List<RouteVehicleDto> HatOtobusKonumlari { get; set; } = new();
     }
 }
+

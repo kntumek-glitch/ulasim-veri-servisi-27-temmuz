@@ -9,7 +9,7 @@ using TransportDataService;
 
 #nullable disable
 
-namespace ulasım_veri_servisi.Migrations
+namespace ulasim_veri_servisi.Migrations
 {
     [DbContext(typeof(AppDbContext))]
     [Migration("20260728130548_AddGtfsImportPhases")]
@@ -795,3 +795,5 @@ namespace ulasım_veri_servisi.Migrations
         }
     }
 }
+
+

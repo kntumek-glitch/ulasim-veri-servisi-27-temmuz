@@ -1,7 +1,7 @@
-using Microsoft.AspNetCore.Mvc;
-using ulasım_veri_servisi.Services;
+﻿using Microsoft.AspNetCore.Mvc;
+using ulasim_veri_servisi.Services;
 
-namespace ulasım_veri_servisi.Controllers;
+namespace ulasim_veri_servisi.Controllers;
 
 [ApiController]
 [Route("api/v1/reconciliation")]
@@ -18,7 +18,7 @@ public class GtfsReconciliationController : ControllerBase
 
 
     [HttpPost("gtfs-stops")]
-    [ServiceFilter(typeof(ulasım_veri_servisi.Filters.AdminKeyAuthAttribute))]
+    [ServiceFilter(typeof(ulasim_veri_servisi.Filters.AdminKeyAuthAttribute))]
     public async Task<IActionResult> Reconcile(
         CancellationToken cancellationToken)
     {
@@ -28,3 +28,4 @@ public class GtfsReconciliationController : ControllerBase
         return Ok(result);
     }
 }
+

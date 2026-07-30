@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -8,7 +8,7 @@ using System.Security.Cryptography;
 using TransportDataService;
 using TransportDataService.Domain;
 using TransportDataService.Tests.Helpers;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -235,3 +235,4 @@ public class GtfsImportServiceTests : IAsyncLifetime
         dbStuckRun.ErrorMessage.Should().Contain("Automatically marked as Failed");
     }
 }
+

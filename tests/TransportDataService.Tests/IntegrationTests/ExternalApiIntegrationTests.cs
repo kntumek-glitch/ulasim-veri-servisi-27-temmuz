@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
@@ -11,8 +11,8 @@ using System.Net;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Exceptions;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.IntegrationTests;
@@ -127,3 +127,4 @@ public class ExternalApiIntegrationTests
             => Task.FromException<CachedResult<List<RouteVehicleDto>>>(_ex);
     }
 }
+

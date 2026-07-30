@@ -1,10 +1,10 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Filters;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using TransportDataService;
 
-namespace ulasım_veri_servisi.Filters
+namespace ulasim_veri_servisi.Filters
 {
     public class GtfsETagCacheFilterAttribute : IAsyncActionFilter
     {
@@ -90,3 +90,4 @@ namespace ulasım_veri_servisi.Filters
         }
     }
 }
+

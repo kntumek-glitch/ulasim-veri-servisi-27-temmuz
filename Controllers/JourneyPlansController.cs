@@ -1,12 +1,12 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
 using TransportDataService.Models.Gtfs.JourneyPlan;
-using ulasım_veri_servisi.Services.Interfaces;
+using ulasim_veri_servisi.Services.Interfaces;
 using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.Http;
 
-namespace ulasım_veri_servisi.Controllers;
+namespace ulasim_veri_servisi.Controllers;
 
 [ApiController]
 [Route("api/v1/journey-plans")]
@@ -37,3 +37,4 @@ public class JourneyPlansController : ControllerBase
         return Ok(response);
     }
 }
+

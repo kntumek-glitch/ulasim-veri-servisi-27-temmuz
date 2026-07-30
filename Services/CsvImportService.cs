@@ -1,11 +1,11 @@
-using CsvHelper;
+﻿using CsvHelper;
 using CsvHelper.Configuration;
 using System.Globalization;
 using System.Linq.Expressions;
 using TransportDataService;
 using TransportDataService.Domain;
 
-namespace ulasım_veri_servisi.Services
+namespace ulasim_veri_servisi.Services
 {
     public class CsvImportService
     {
@@ -218,3 +218,4 @@ namespace ulasım_veri_servisi.Services
         }
     }
 }
+

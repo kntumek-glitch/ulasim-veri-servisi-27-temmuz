@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class RouteDto
 {
@@ -11,3 +11,4 @@ public class RouteDto
     public string? RouteColor { get; set; }
     public string? RouteTextColor { get; set; }
 }
+

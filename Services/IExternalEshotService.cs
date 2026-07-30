@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Services
+﻿namespace ulasim_veri_servisi.Services
 {
     public interface IExternalEshotService
     {
@@ -7,3 +7,4 @@ namespace ulasım_veri_servisi.Services
         Task<CachedResult<List<RouteVehicleDto>>> GetRouteVehiclesAsync(string routeNumber, CancellationToken cancellationToken = default);
     }
 }
+

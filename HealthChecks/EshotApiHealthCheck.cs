@@ -1,6 +1,6 @@
-using Microsoft.Extensions.Diagnostics.HealthChecks;
+﻿using Microsoft.Extensions.Diagnostics.HealthChecks;
 
-namespace ulasım_veri_servisi.HealthChecks;
+namespace ulasim_veri_servisi.HealthChecks;
 
 public class EshotApiHealthCheck : IHealthCheck
 {
@@ -39,3 +39,4 @@ public class EshotApiHealthCheck : IHealthCheck
         }
     }
 }
+

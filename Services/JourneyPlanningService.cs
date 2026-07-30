@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
@@ -8,9 +8,9 @@ using Microsoft.Extensions.Caching.Memory;
 using TransportDataService;
 using TransportDataService.Domain;
 using TransportDataService.Models.Gtfs.JourneyPlan;
-using ulasım_veri_servisi.Services.Interfaces;
+using ulasim_veri_servisi.Services.Interfaces;
 
-namespace ulasım_veri_servisi.Services;
+namespace ulasim_veri_servisi.Services;
 
 public class JourneyPlanningService : IJourneyPlanningService
 {
@@ -35,7 +35,7 @@ public class JourneyPlanningService : IJourneyPlanningService
 
         if (activeRun == null)
         {
-            throw new ulasım_veri_servisi.Exceptions.ActiveFeedNotFoundException();
+            throw new ulasim_veri_servisi.Exceptions.ActiveFeedNotFoundException();
         }
 
         var roundedMinutes = (request.DepartureDateTime.Minute / 5) * 5;
@@ -675,3 +675,4 @@ public class JourneyPlanningService : IJourneyPlanningService
     private class LegData { public string TripId { get; set; } = null!; public string RouteId { get; set; } = null!; public string RouteShortName { get; set; } = null!; public string? Headsign { get; set; } public int? DirectionId { get; set; } public string FromStopId { get; set; } = null!; public string ToStopId { get; set; } = null!; public int FromStopSequence { get; set; } public int ToStopSequence { get; set; } public int DepSecs { get; set; } public int ArrSecs { get; set; } public bool IsPreviousDayTrip { get; set; } public int StopCount { get; set; } }
     private class OneTransferResult { public LegData Leg1 { get; set; } = null!; public LegData Leg2 { get; set; } = null!; public int TransferWalkMeters { get; set; } public int TransferWalkSeconds { get; set; } }
 }
+

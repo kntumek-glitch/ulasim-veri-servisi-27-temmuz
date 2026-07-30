@@ -1,11 +1,11 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using System.Net;
 using TransportDataService;
 using Xunit;
 using Moq;
 using Microsoft.Extensions.DependencyInjection;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
@@ -106,3 +106,4 @@ public class SecurityAndExceptionTests
         content.Should().Contain("Beklenmeyen bir sunucu hatası oluştu.");
     }
 }
+

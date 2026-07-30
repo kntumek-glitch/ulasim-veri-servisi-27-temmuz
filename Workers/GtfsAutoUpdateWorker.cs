@@ -1,8 +1,8 @@
-using TransportDataService;
-using ulasım_veri_servisi.Exceptions;
-using ulasım_veri_servisi.Services;
+﻿using TransportDataService;
+using ulasim_veri_servisi.Exceptions;
+using ulasim_veri_servisi.Services;
 
-namespace ulasım_veri_servisi.Workers;
+namespace ulasim_veri_servisi.Workers;
 
 public class GtfsAutoUpdateWorker : BackgroundService
 {
@@ -66,3 +66,4 @@ public class GtfsAutoUpdateWorker : BackgroundService
         }
     }
 }
+

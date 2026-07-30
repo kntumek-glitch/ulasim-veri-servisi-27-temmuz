@@ -1,10 +1,10 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Text.Json;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.IntegrationTests;
@@ -120,3 +120,4 @@ public class GtfsImportIntegrationTests
             => throw _exception;
     }
 }
+

@@ -1,7 +1,7 @@
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -61,3 +61,4 @@ public class ReconciliationReportGenerator
         Assert.NotNull(result);
     }
 }
+

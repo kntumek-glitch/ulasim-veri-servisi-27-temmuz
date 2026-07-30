@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace ulasım_veri_servisi.Models.Gtfs;
+namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class PaginatedResponse<T>
 {
@@ -9,3 +9,4 @@ public class PaginatedResponse<T>
     public int PageSize { get; set; }
     public int TotalCount { get; set; }
 }
+

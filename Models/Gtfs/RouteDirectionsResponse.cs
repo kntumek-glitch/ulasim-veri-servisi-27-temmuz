@@ -1,6 +1,6 @@
-using System.Collections.Generic;
+﻿using System.Collections.Generic;
 
-namespace ulasım_veri_servisi.Models.Gtfs;
+namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class RouteDirectionsResponse
 {
@@ -13,3 +13,4 @@ public class DirectionInfo
     public int DirectionId { get; set; }
     public IEnumerable<string> Headsigns { get; set; } = new List<string>();
 }
+

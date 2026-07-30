@@ -1,4 +1,4 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -7,7 +7,7 @@ using Moq.Protected;
 using System.Net;
 using TransportDataService;
 using TransportDataService.Domain;
-using ulasım_veri_servisi.Services;
+using ulasim_veri_servisi.Services;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -142,7 +142,7 @@ public class ExternalApiLoggerTests : IAsyncLifetime
         Func<Task> act = async () => await service.GetRouteVehiclesAsync("123");
 
         // Assert
-        await act.Should().ThrowAsync<ulasım_veri_servisi.Exceptions.BadGatewayException>();
+        await act.Should().ThrowAsync<ulasim_veri_servisi.Exceptions.BadGatewayException>();
 
         var logs = await _context.ExternalApiLogs.ToListAsync();
         logs.Should().HaveCount(1, "Aynı çağrı için yalnızca bir DB logu olmalıdır.");
@@ -153,3 +153,4 @@ public class ExternalApiLoggerTests : IAsyncLifetime
         log.ErrorMessage.Should().Be("Test Hatasi");
     }
 }
+

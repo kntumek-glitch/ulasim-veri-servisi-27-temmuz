@@ -1,4 +1,4 @@
-﻿namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsRoutePatternResponse
 {
@@ -22,4 +22,6 @@ public class GtfsPatternEndpointStop
     public double Longitude { get; init; }
     public string? PlatformCode { get; init; }
 }
+
+
 

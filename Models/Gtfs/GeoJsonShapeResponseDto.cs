@@ -1,6 +1,6 @@
-using System.Text.Json.Serialization;
+﻿using System.Text.Json.Serialization;
 
-namespace ulasım_veri_servisi.Models.Gtfs
+namespace ulasim_veri_servisi.Models.Gtfs
 {
     public class GeoJsonShapeResponseDto
     {
@@ -34,3 +34,4 @@ namespace ulasım_veri_servisi.Models.Gtfs
         public List<double[]> Coordinates { get; set; } = new();
     }
 }
+

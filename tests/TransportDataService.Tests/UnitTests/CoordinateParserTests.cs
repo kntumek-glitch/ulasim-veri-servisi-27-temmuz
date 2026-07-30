@@ -1,6 +1,6 @@
-using FluentAssertions;
+﻿using FluentAssertions;
 using System;
-using ulasım_veri_servisi.Helpers;
+using ulasim_veri_servisi.Helpers;
 using Xunit;
 
 namespace TransportDataService.Tests.UnitTests;
@@ -81,3 +81,4 @@ public class CoordinateParserTests
         result.Should().BeNull();
     }
 }
+

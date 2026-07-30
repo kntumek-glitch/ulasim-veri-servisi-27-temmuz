@@ -1,4 +1,4 @@
-namespace ulasım_veri_servisi.Models.Gtfs;
+﻿namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class FeedInfoResponse
 {
@@ -20,3 +20,4 @@ public class FeedCounts
     public int StopTimeCount { get; set; }
     public int ShapePointCount { get; set; }
 }
+
