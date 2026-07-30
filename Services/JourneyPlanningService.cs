@@ -328,7 +328,12 @@ public class JourneyPlanningService : IJourneyPlanningService
         if (response.Itineraries.Any())
         {
             response.ReasonCode = "SUCCESS";
-            _cache.Set(cacheKey, response, TimeSpan.FromMinutes(10));
+            var cacheOptions = new MemoryCacheEntryOptions
+            {
+                AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
+                Size = 1
+            };
+            _cache.Set(cacheKey, response, cacheOptions);
         }
         else
         {
