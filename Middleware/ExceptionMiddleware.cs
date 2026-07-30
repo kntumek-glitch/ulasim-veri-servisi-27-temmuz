@@ -62,6 +62,18 @@ public class ExceptionMiddleware
                 problem.Detail = "ESHOT servisine şu anda ulaşılamıyor.";
                 problem.Status = StatusCodes.Status503ServiceUnavailable;
                 break;
+                
+            case ArgumentException ex:
+                problem.Title = "Geçersiz İstek";
+                problem.Detail = ex.Message;
+                problem.Status = StatusCodes.Status400BadRequest;
+                break;
+                
+            case OperationCanceledException:
+                problem.Title = "İstek iptal edildi";
+                problem.Detail = "İstemci tarafında işlem iptal edildiği için sonuçlandırılamadı.";
+                problem.Status = 499; // Client Closed Request
+                break;
 
             default:
                 problem.Title = "Beklenmeyen hata";

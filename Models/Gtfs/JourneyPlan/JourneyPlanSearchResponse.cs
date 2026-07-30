@@ -5,8 +5,8 @@ namespace TransportDataService.Models.Gtfs.JourneyPlan;
 
 public class JourneyPlanSearchResponse
 {
-    public FeedMetadataDto Metadata { get; set; } = new();
-    
+    public FeedMetadataDto? Metadata { get; set; }
+    public string ReasonCode { get; set; } = "SUCCESS";
     public List<ItineraryDto> Itineraries { get; set; } = new();
 }
 

@@ -38,9 +38,9 @@ public class JourneyPlanningService : IJourneyPlanningService
             throw new ulasım_veri_servisi.Exceptions.ActiveFeedNotFoundException();
         }
 
-        var roundedMinutes = (request.DepartureTime.Minute / 5) * 5;
-        var bucketedTime = new DateTime(request.DepartureTime.Year, request.DepartureTime.Month, request.DepartureTime.Day, request.DepartureTime.Hour, roundedMinutes, 0);
-        string cacheKey = $"JourneyPlan_{request.OriginLat}_{request.OriginLon}_{request.DestLat}_{request.DestLon}_{bucketedTime:yyyyMMdd_HHmm}_{activeRun.Id}";
+        var roundedMinutes = (request.DepartureDateTime.Minute / 5) * 5;
+        var bucketedTime = new DateTime(request.DepartureDateTime.Year, request.DepartureDateTime.Month, request.DepartureDateTime.Day, request.DepartureDateTime.Hour, roundedMinutes, 0);
+        string cacheKey = $"JourneyPlan_{request.Origin.Lat}_{request.Origin.Lon}_{request.Destination.Lat}_{request.Destination.Lon}_{bucketedTime:yyyyMMdd_HHmm}_{activeRun.Id}";
 
         if (_cache.TryGetValue(cacheKey, out JourneyPlanSearchResponse? cachedResponse) && cachedResponse != null)
         {
@@ -69,7 +69,11 @@ public class JourneyPlanningService : IJourneyPlanningService
 
         // 1. Get Active Stops from Cache or DB
         var activeStops = await GetActiveStopsAsync(cancellationToken);
-        if (!activeStops.Any()) return response;
+        if (!activeStops.Any()) 
+        {
+            response.ReasonCode = "NO_ROUTE_FOUND";
+            return response;
+        }
 
         // 2. Load configurations
         int configMaxWalkingMeters = _configuration.GetValue<int>("JourneyPlan:MaxWalkingMeters", 1500);
@@ -84,7 +88,10 @@ public class JourneyPlanningService : IJourneyPlanningService
         var destStops = FindStopsWithinRadius(activeStops, request.Destination.Lat, request.Destination.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
 
         if (!originStops.Any() || !destStops.Any())
+        {
+            response.ReasonCode = "NO_ROUTE_FOUND";
             return response;
+        }
 
         var originStopIds = originStops.Select(s => s.Stop.StopId).ToList();
         var destStopIds = destStops.Select(s => s.Stop.StopId).ToList();
@@ -107,7 +114,11 @@ public class JourneyPlanningService : IJourneyPlanningService
             previousDayServiceIds = await GetActiveServiceIdsAsync(targetDate.AddDays(-1), cancellationToken);
         }
 
-        if (!activeServiceIds.Any() && !previousDayServiceIds.Any()) return response;
+        if (!activeServiceIds.Any() && !previousDayServiceIds.Any()) 
+        {
+            response.ReasonCode = "NO_ROUTE_FOUND";
+            return response;
+        }
 
         var itineraries = new List<ItineraryDto>();
 
@@ -316,7 +327,12 @@ public class JourneyPlanningService : IJourneyPlanningService
             
         if (response.Itineraries.Any())
         {
+            response.ReasonCode = "SUCCESS";
             _cache.Set(cacheKey, response, TimeSpan.FromMinutes(10));
+        }
+        else
+        {
+            response.ReasonCode = "NO_ROUTE_FOUND";
         }
 
         return response;
