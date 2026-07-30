@@ -27,8 +27,6 @@ public class JourneyPlanningService : IJourneyPlanningService
 
     public async Task<JourneyPlanSearchResponse> SearchJourneyAsync(JourneyPlanSearchRequest request, CancellationToken cancellationToken = default)
     {
-        var response = new JourneyPlanSearchResponse();
-
         // 0. Check for Active Feed
         var activeRun = await _context.GtfsImportRuns
             .AsNoTracking()
@@ -39,6 +37,17 @@ public class JourneyPlanningService : IJourneyPlanningService
         {
             throw new ulasım_veri_servisi.Exceptions.ActiveFeedNotFoundException();
         }
+
+        var roundedMinutes = (request.DepartureTime.Minute / 5) * 5;
+        var bucketedTime = new DateTime(request.DepartureTime.Year, request.DepartureTime.Month, request.DepartureTime.Day, request.DepartureTime.Hour, roundedMinutes, 0);
+        string cacheKey = $"JourneyPlan_{request.OriginLat}_{request.OriginLon}_{request.DestLat}_{request.DestLon}_{bucketedTime:yyyyMMdd_HHmm}_{activeRun.Id}";
+
+        if (_cache.TryGetValue(cacheKey, out JourneyPlanSearchResponse? cachedResponse) && cachedResponse != null)
+        {
+            return cachedResponse;
+        }
+
+        var response = new JourneyPlanSearchResponse();
 
         // Fetch agency info for timezone
         var agency = await _context.GtfsAgencies.AsNoTracking().FirstOrDefaultAsync(cancellationToken);
@@ -305,6 +314,11 @@ public class JourneyPlanningService : IJourneyPlanningService
             .Take(request.MaxResults)
             .ToList();
             
+        if (response.Itineraries.Any())
+        {
+            _cache.Set(cacheKey, response, TimeSpan.FromMinutes(10));
+        }
+
         return response;
     }
 

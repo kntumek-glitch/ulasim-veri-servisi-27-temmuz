@@ -96,6 +96,12 @@ public class AppDbContext : DbContext
             .HasIndex(x => new { x.TripId, x.GtfsImportRunId })
             .IsUnique();
 
+        modelBuilder.Entity<GtfsStopTime>()
+            .HasIndex(x => new { x.StopId, x.DepartureSeconds });
+
+        modelBuilder.Entity<GtfsStopTime>()
+            .HasIndex(x => new { x.GtfsTripId, x.StopSequence });
+
         modelBuilder.Entity<GtfsAgency>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsRoute>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsStop>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
