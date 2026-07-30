@@ -392,7 +392,7 @@ namespace ulasım_veri_servisi.Services
                    
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    const int batchSize = 5000;
+                    int batchSize = _configuration.GetValue<int>("GtfsImport:BatchSize", 10000);
 
                     for (int i = 0; i < tripEntities.Count; i += batchSize)
                     {
@@ -440,7 +440,7 @@ namespace ulasım_veri_servisi.Services
 
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    const int batchSize = 5000;
+                    int batchSize = _configuration.GetValue<int>("GtfsImport:BatchSize", 10000);
 
                     var batch = new List<GtfsStopTime>(batchSize);
 
@@ -598,7 +598,7 @@ namespace ulasım_veri_servisi.Services
 
                     await _context.SaveChangesAsync(cancellationToken);
 
-                    const int batchSize = 5000;
+                    int batchSize = _configuration.GetValue<int>("GtfsImport:BatchSize", 10000);
 
                     var batch = new List<GtfsShapePoint>(batchSize);
 

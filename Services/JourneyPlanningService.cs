@@ -16,11 +16,13 @@ public class JourneyPlanningService : IJourneyPlanningService
 {
     private readonly AppDbContext _context;
     private readonly IMemoryCache _cache;
+    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
 
-    public JourneyPlanningService(AppDbContext context, IMemoryCache cache)
+    public JourneyPlanningService(AppDbContext context, IMemoryCache cache, Microsoft.Extensions.Configuration.IConfiguration configuration)
     {
         _context = context;
         _cache = cache;
+        _configuration = configuration;
     }
 
     public async Task<JourneyPlanSearchResponse> SearchJourneyAsync(JourneyPlanSearchRequest request, CancellationToken cancellationToken = default)
@@ -60,9 +62,15 @@ public class JourneyPlanningService : IJourneyPlanningService
         var activeStops = await GetActiveStopsAsync(cancellationToken);
         if (!activeStops.Any()) return response;
 
-        // 2. Find Origin and Destination Stops within walking distance
-        var originStops = FindStopsWithinRadius(activeStops, request.Origin.Lat, request.Origin.Lon, request.MaxWalkingMeters);
-        var destStops = FindStopsWithinRadius(activeStops, request.Destination.Lat, request.Destination.Lon, request.MaxWalkingMeters);
+        // 2. Load configurations
+        int configMaxWalkingMeters = _configuration.GetValue<int>("JourneyPlan:MaxWalkingMeters", 1500);
+        int finalMaxWalkingMeters = Math.Min(request.MaxWalkingMeters, configMaxWalkingMeters);
+        double walkingSpeed = _configuration.GetValue<double>("JourneyPlan:WalkingSpeed", 1.4);
+        int maxCandidateStops = _configuration.GetValue<int>("JourneyPlan:MaxCandidateStops", 5);
+
+        // 3. Find Origin and Destination Stops within walking distance
+        var originStops = FindStopsWithinRadius(activeStops, request.Origin.Lat, request.Origin.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
+        var destStops = FindStopsWithinRadius(activeStops, request.Destination.Lat, request.Destination.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
 
         if (!originStops.Any() || !destStops.Any())
             return response;
@@ -70,24 +78,42 @@ public class JourneyPlanningService : IJourneyPlanningService
         var originStopIds = originStops.Select(s => s.Stop.StopId).ToList();
         var destStopIds = destStops.Select(s => s.Stop.StopId).ToList();
 
-        // 3. Find active ServiceIds for the given date
-        var targetDate = request.DepartureDateTime.Date;
-        var activeServiceIds = await GetActiveServiceIdsAsync(targetDate, cancellationToken);
-        if (!activeServiceIds.Any()) return response;
+        // 4. Resolve Target Date and Time in Local Timezone
+        TimeZoneInfo tzi;
+        try { tzi = TimeZoneInfo.FindSystemTimeZoneById(timezone); }
+        catch { tzi = TimeZoneInfo.FindSystemTimeZoneById("Turkey Standard Time"); }
 
-        // Convert requested time to GTFS seconds (from midnight)
-        var requestedSeconds = (int)request.DepartureDateTime.TimeOfDay.TotalSeconds;
+        var localDateTime = TimeZoneInfo.ConvertTime(request.DepartureDateTime, tzi);
+        var targetDate = localDateTime.Date;
+        var requestedSeconds = (int)localDateTime.TimeOfDay.TotalSeconds;
+
+        var activeServiceIds = await GetActiveServiceIdsAsync(targetDate, cancellationToken);
+        var previousDayServiceIds = new List<string>();
+
+        // If requested time is early morning, consider previous day's trips that go past midnight (24:00+)
+        if (requestedSeconds < 4 * 3600)
+        {
+            previousDayServiceIds = await GetActiveServiceIdsAsync(targetDate.AddDays(-1), cancellationToken);
+        }
+
+        if (!activeServiceIds.Any() && !previousDayServiceIds.Any()) return response;
 
         var itineraries = new List<ItineraryDto>();
 
-        // 4. Find Direct Routes (0-Transfer)
-        var directTrips = await FindDirectTripsAsync(originStopIds, destStopIds, activeServiceIds, requestedSeconds, cancellationToken);
+        // 5. Find Direct Routes (0-Transfer)
+        var directTrips = await FindDirectTripsAsync(originStopIds, destStopIds, activeServiceIds, previousDayServiceIds, requestedSeconds, cancellationToken);
         
         foreach (var trip in directTrips.Take(request.MaxResults))
         {
             var oStop = originStops.First(x => x.Stop.StopId == trip.OriginStopId);
             var dStop = destStops.First(x => x.Stop.StopId == trip.DestStopId);
             
+            DateTime baseDate = trip.IsPreviousDayTrip ? targetDate.AddDays(-1) : targetDate;
+            DateTime depDt = baseDate.AddSeconds(trip.DepartureSeconds);
+            DateTime arrDt = baseDate.AddSeconds(trip.ArrivalSeconds);
+            var departureTime = new DateTimeOffset(depDt, tzi.GetUtcOffset(depDt));
+            var arrivalTime = new DateTimeOffset(arrDt, tzi.GetUtcOffset(arrDt));
+
             var leg = new LegDto
             {
                 Mode = "TRANSIT",
@@ -96,10 +122,10 @@ public class JourneyPlanningService : IJourneyPlanningService
                 TripId = trip.TripId,
                 FromStopId = trip.OriginStopId,
                 FromStopName = oStop.Stop.StopName,
-                DepartureTime = targetDate.AddSeconds(trip.DepartureSeconds),
+                DepartureTime = departureTime,
                 ToStopId = trip.DestStopId,
                 ToStopName = dStop.Stop.StopName,
-                ArrivalTime = targetDate.AddSeconds(trip.ArrivalSeconds),
+                ArrivalTime = arrivalTime,
                 DistanceMeters = 0, // Optional
                 DurationMinutes = (trip.ArrivalSeconds - trip.DepartureSeconds) / 60
             };
@@ -114,7 +140,7 @@ public class JourneyPlanningService : IJourneyPlanningService
             });
         }
 
-        // 5. If 1-Transfer is requested, we can implement it here. (Placeholder for this iteration to keep it fast and responsive)
+        // 6. If 1-Transfer is requested, we can implement it here. (Placeholder for this iteration to keep it fast and responsive)
         if (request.MaxTransfers >= 1 && itineraries.Count < request.MaxResults)
         {
             // Placeholder: 1-transfer routing requires a more complex Graph search or SQL join which may time out.
@@ -172,33 +198,61 @@ public class JourneyPlanningService : IJourneyPlanningService
         return validServiceIds;
     }
 
-    private async Task<List<DirectTripResult>> FindDirectTripsAsync(List<string> originStopIds, List<string> destStopIds, List<string> activeServiceIds, int requestedSeconds, CancellationToken cancellationToken)
+    private async Task<List<DirectTripResult>> FindDirectTripsAsync(List<string> originStopIds, List<string> destStopIds, List<string> activeServiceIds, List<string> previousDayServiceIds, int requestedSeconds, CancellationToken cancellationToken)
     {
-        // This is a heavy query if not optimized, but using EF Core nicely:
-        var originStopTimes = _context.GtfsStopTimes.Where(st => originStopIds.Contains(st.StopId) && st.DepartureSeconds >= requestedSeconds);
-        var destStopTimes = _context.GtfsStopTimes.Where(st => destStopIds.Contains(st.StopId));
-        
-        var query = from o in originStopTimes
-                    join d in destStopTimes on o.GtfsTripId equals d.GtfsTripId
-                    join t in _context.GtfsTrips on o.GtfsTripId equals t.Id
-                    join r in _context.GtfsRoutes on t.GtfsRouteId equals r.Id
-                    where d.StopSequence > o.StopSequence && activeServiceIds.Contains(t.ServiceId)
-                    orderby o.DepartureSeconds
-                    select new DirectTripResult
-                    {
-                        TripId = t.TripId,
-                        RouteId = r.RouteId,
-                        RouteShortName = r.RouteShortName,
-                        OriginStopId = o.StopId,
-                        DestStopId = d.StopId,
-                        DepartureSeconds = o.DepartureSeconds.GetValueOrDefault(),
-                        ArrivalSeconds = d.ArrivalSeconds.GetValueOrDefault()
-                    };
+        var todayQuery = from o in _context.GtfsStopTimes
+                         join d in _context.GtfsStopTimes on o.GtfsTripId equals d.GtfsTripId
+                         join t in _context.GtfsTrips on o.GtfsTripId equals t.Id
+                         join r in _context.GtfsRoutes on t.GtfsRouteId equals r.Id
+                         where originStopIds.Contains(o.StopId) &&
+                               destStopIds.Contains(d.StopId) &&
+                               d.StopSequence > o.StopSequence &&
+                               activeServiceIds.Contains(t.ServiceId) &&
+                               o.DepartureSeconds >= requestedSeconds
+                         select new DirectTripResult
+                         {
+                             TripId = t.TripId,
+                             RouteId = r.RouteId,
+                             RouteShortName = r.RouteShortName,
+                             OriginStopId = o.StopId,
+                             DestStopId = d.StopId,
+                             DepartureSeconds = o.DepartureSeconds.GetValueOrDefault(),
+                             ArrivalSeconds = d.ArrivalSeconds.GetValueOrDefault(),
+                             IsPreviousDayTrip = false
+                         };
 
-        return await query.Take(50).AsNoTracking().ToListAsync(cancellationToken);
+        IQueryable<DirectTripResult> finalQuery = todayQuery;
+
+        if (previousDayServiceIds.Any())
+        {
+            int previousDayRequestedSeconds = requestedSeconds + 86400;
+            var yesterdayQuery = from o in _context.GtfsStopTimes
+                                 join d in _context.GtfsStopTimes on o.GtfsTripId equals d.GtfsTripId
+                                 join t in _context.GtfsTrips on o.GtfsTripId equals t.Id
+                                 join r in _context.GtfsRoutes on t.GtfsRouteId equals r.Id
+                                 where originStopIds.Contains(o.StopId) &&
+                                       destStopIds.Contains(d.StopId) &&
+                                       d.StopSequence > o.StopSequence &&
+                                       previousDayServiceIds.Contains(t.ServiceId) &&
+                                       o.DepartureSeconds >= previousDayRequestedSeconds
+                                 select new DirectTripResult
+                                 {
+                                     TripId = t.TripId,
+                                     RouteId = r.RouteId,
+                                     RouteShortName = r.RouteShortName,
+                                     OriginStopId = o.StopId,
+                                     DestStopId = d.StopId,
+                                     DepartureSeconds = o.DepartureSeconds.GetValueOrDefault(),
+                                     ArrivalSeconds = d.ArrivalSeconds.GetValueOrDefault(),
+                                     IsPreviousDayTrip = true
+                                 };
+            finalQuery = todayQuery.Concat(yesterdayQuery);
+        }
+
+        return await finalQuery.OrderBy(x => x.DepartureSeconds).Take(50).AsNoTracking().ToListAsync(cancellationToken);
     }
 
-    private List<StopWithDistance> FindStopsWithinRadius(List<GtfsStop> allStops, double lat, double lon, int maxMeters)
+    private List<StopWithDistance> FindStopsWithinRadius(List<GtfsStop> allStops, double lat, double lon, int maxMeters, double walkingSpeed, int maxCandidateStops)
     {
         var result = new List<StopWithDistance>();
         foreach (var stop in allStops)
@@ -210,11 +264,11 @@ public class JourneyPlanningService : IJourneyPlanningService
                 { 
                     Stop = stop, 
                     DistanceMeters = (int)distance,
-                    WalkingTimeSeconds = (int)(distance / 1.4) // Assume 1.4 m/s walking speed
+                    WalkingTimeSeconds = (int)(distance / walkingSpeed)
                 });
             }
         }
-        return result.OrderBy(x => x.DistanceMeters).ToList();
+        return result.OrderBy(x => x.DistanceMeters).Take(maxCandidateStops).ToList();
     }
 
     private double CalculateHaversineDistance(double lat1, double lon1, double lat2, double lon2)
@@ -249,5 +303,6 @@ public class JourneyPlanningService : IJourneyPlanningService
         public string DestStopId { get; set; } = null!;
         public int DepartureSeconds { get; set; }
         public int ArrivalSeconds { get; set; }
+        public bool IsPreviousDayTrip { get; set; }
     }
 }
