@@ -28,6 +28,7 @@ public class ItineraryDto
     public int TotalDurationMinutes => (int)(ArrivalTime - DepartureTime).TotalMinutes;
     public int Transfers { get; set; }
     public int TotalWalkingMeters { get; set; }
+    public int TotalTransitStops { get; set; }
     
     public List<LegDto> Legs { get; set; } = new();
 }
@@ -49,4 +50,5 @@ public class LegDto
     
     public int DistanceMeters { get; set; }
     public int DurationMinutes { get; set; }
+    public int StopCount { get; set; }
 }

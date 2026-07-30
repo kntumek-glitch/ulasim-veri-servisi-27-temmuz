@@ -138,7 +138,8 @@ public class JourneyPlanningService : IJourneyPlanningService
                 ToStopName = dStop.Stop.StopName,
                 ArrivalTime = arrivalTime,
                 DistanceMeters = 0, // Optional
-                DurationMinutes = (trip.ArrivalSeconds - trip.DepartureSeconds) / 60
+                DurationMinutes = (trip.ArrivalSeconds - trip.DepartureSeconds) / 60,
+                StopCount = trip.StopCount
             };
 
             itineraries.Add(new ItineraryDto
@@ -147,6 +148,7 @@ public class JourneyPlanningService : IJourneyPlanningService
                 ArrivalTime = leg.ArrivalTime.Value.AddSeconds(dStop.WalkingTimeSeconds),
                 Transfers = 0,
                 TotalWalkingMeters = oStop.DistanceMeters + dStop.DistanceMeters,
+                TotalTransitStops = trip.StopCount,
                 Legs = new List<LegDto> { leg }
             });
         }
@@ -176,7 +178,8 @@ public class JourneyPlanningService : IJourneyPlanningService
                     ToStopId = tResult.Leg1.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopName,
                     DepartureTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)),
                     ArrivalTime = new DateTimeOffset(arrDt1, tzi.GetUtcOffset(arrDt1)),
-                    DurationMinutes = (tResult.Leg1.ArrSecs - tResult.Leg1.DepSecs) / 60
+                    DurationMinutes = (tResult.Leg1.ArrSecs - tResult.Leg1.DepSecs) / 60,
+                    StopCount = tResult.Leg1.StopCount
                 };
 
                 var leg2 = new LegDto
@@ -186,7 +189,8 @@ public class JourneyPlanningService : IJourneyPlanningService
                     ToStopId = tResult.Leg2.ToStopId, ToStopName = dStop.Stop.StopName,
                     DepartureTime = new DateTimeOffset(depDt2, tzi.GetUtcOffset(depDt2)),
                     ArrivalTime = new DateTimeOffset(arrDt2, tzi.GetUtcOffset(arrDt2)),
-                    DurationMinutes = (tResult.Leg2.ArrSecs - tResult.Leg2.DepSecs) / 60
+                    DurationMinutes = (tResult.Leg2.ArrSecs - tResult.Leg2.DepSecs) / 60,
+                    StopCount = tResult.Leg2.StopCount
                 };
 
                 itineraries.Add(new ItineraryDto
@@ -195,12 +199,22 @@ public class JourneyPlanningService : IJourneyPlanningService
                     ArrivalTime = leg2.ArrivalTime.Value.AddSeconds(dStop.WalkingTimeSeconds),
                     Transfers = 1,
                     TotalWalkingMeters = oStop.DistanceMeters + dStop.DistanceMeters + tResult.TransferWalkMeters,
+                    TotalTransitStops = leg1.StopCount + leg2.StopCount,
                     Legs = new List<LegDto> { leg1, leg2 }
                 });
             }
         }
 
-        response.Itineraries = itineraries.OrderBy(x => x.ArrivalTime).Take(request.MaxResults).ToList();
+        response.Itineraries = itineraries
+            .OrderBy(x => x.ArrivalTime)
+            .ThenBy(x => x.Transfers)
+            .ThenBy(x => x.TotalWalkingMeters)
+            .ThenBy(x => x.TotalDurationMinutes)
+            .ThenBy(x => x.TotalTransitStops)
+            .ThenBy(x => string.Join("_", x.Legs.Select(l => l.TripId)))
+            .Take(request.MaxResults)
+            .ToList();
+            
         return response;
     }
 
@@ -272,7 +286,8 @@ public class JourneyPlanningService : IJourneyPlanningService
                              DestStopId = d.StopId,
                              DepartureSeconds = o.DepartureSeconds.GetValueOrDefault(),
                              ArrivalSeconds = d.ArrivalSeconds.GetValueOrDefault(),
-                             IsPreviousDayTrip = false
+                             IsPreviousDayTrip = false,
+                             StopCount = d.StopSequence - o.StopSequence
                          };
 
         IQueryable<DirectTripResult> finalQuery = todayQuery;
@@ -298,7 +313,8 @@ public class JourneyPlanningService : IJourneyPlanningService
                                      DestStopId = d.StopId,
                                      DepartureSeconds = o.DepartureSeconds.GetValueOrDefault(),
                                      ArrivalSeconds = d.ArrivalSeconds.GetValueOrDefault(),
-                                     IsPreviousDayTrip = true
+                                     IsPreviousDayTrip = true,
+                                     StopCount = d.StopSequence - o.StopSequence
                                  };
             finalQuery = todayQuery.Concat(yesterdayQuery);
         }
@@ -365,7 +381,7 @@ public class JourneyPlanningService : IJourneyPlanningService
             var stopsAfter = leg1Stops.Where(s => s.GtfsTripId == leg1.TripDbId && s.StopSequence > leg1.DepSeq).ToList();
             foreach (var sa in stopsAfter)
             {
-                validLeg1Stops.Add(new Leg1StopData { TripInfo = leg1, TransferStop1Id = sa.StopId, ArrSecs = sa.ArrivalSeconds.GetValueOrDefault() });
+                validLeg1Stops.Add(new Leg1StopData { TripInfo = leg1, TransferStop1Id = sa.StopId, ArrSecs = sa.ArrivalSeconds.GetValueOrDefault(), StopCount = sa.StopSequence - leg1.DepSeq });
             }
         }
 
@@ -398,7 +414,7 @@ public class JourneyPlanningService : IJourneyPlanningService
                                    where chunkIds.Contains(ts.StopId) && destStopIds.Contains(d.StopId) && d.StopSequence > ts.StopSequence && activeServiceIds.Contains(t.ServiceId)
                                    select new Leg2TripData {
                                        TripId = t.TripId, RouteId = r.RouteId, RouteShortName = r.RouteShortName,
-                                       TransferStop2Id = ts.StopId, DestStopId = d.StopId, DepSecs = ts.DepartureSeconds.GetValueOrDefault(), ArrSecs = d.ArrivalSeconds.GetValueOrDefault(), IsPreviousDayTrip = false
+                                       TransferStop2Id = ts.StopId, DestStopId = d.StopId, DepSecs = ts.DepartureSeconds.GetValueOrDefault(), ArrSecs = d.ArrivalSeconds.GetValueOrDefault(), IsPreviousDayTrip = false, StopCount = d.StopSequence - ts.StopSequence
                                    };
                                    
             IQueryable<Leg2TripData> finalLeg2Query = todayLeg2Query;
@@ -412,7 +428,7 @@ public class JourneyPlanningService : IJourneyPlanningService
                                        where chunkIds.Contains(ts.StopId) && destStopIds.Contains(d.StopId) && d.StopSequence > ts.StopSequence && previousDayServiceIds.Contains(t.ServiceId)
                                        select new Leg2TripData {
                                            TripId = t.TripId, RouteId = r.RouteId, RouteShortName = r.RouteShortName,
-                                           TransferStop2Id = ts.StopId, DestStopId = d.StopId, DepSecs = ts.DepartureSeconds.GetValueOrDefault(), ArrSecs = d.ArrivalSeconds.GetValueOrDefault(), IsPreviousDayTrip = true
+                                           TransferStop2Id = ts.StopId, DestStopId = d.StopId, DepSecs = ts.DepartureSeconds.GetValueOrDefault(), ArrSecs = d.ArrivalSeconds.GetValueOrDefault(), IsPreviousDayTrip = true, StopCount = d.StopSequence - ts.StopSequence
                                        };
                 finalLeg2Query = todayLeg2Query.Concat(yesterdayLeg2Query);
             }
@@ -441,11 +457,11 @@ public class JourneyPlanningService : IJourneyPlanningService
                             {
                                 Leg1 = new LegData {
                                     TripId = l1.TripInfo.TripId, RouteId = l1.TripInfo.RouteId, RouteShortName = l1.TripInfo.RouteShortName,
-                                    FromStopId = l1.TripInfo.OriginStopId, ToStopId = l1.TransferStop1Id, DepSecs = l1.TripInfo.DepSecs, ArrSecs = l1.ArrSecs, IsPreviousDayTrip = l1.TripInfo.IsPreviousDayTrip
+                                    FromStopId = l1.TripInfo.OriginStopId, ToStopId = l1.TransferStop1Id, DepSecs = l1.TripInfo.DepSecs, ArrSecs = l1.ArrSecs, IsPreviousDayTrip = l1.TripInfo.IsPreviousDayTrip, StopCount = l1.StopCount
                                 },
                                 Leg2 = new LegData {
                                     TripId = l2.TripId, RouteId = l2.RouteId, RouteShortName = l2.RouteShortName,
-                                    FromStopId = l2.TransferStop2Id, ToStopId = l2.DestStopId, DepSecs = l2.DepSecs, ArrSecs = l2.ArrSecs, IsPreviousDayTrip = l2.IsPreviousDayTrip
+                                    FromStopId = l2.TransferStop2Id, ToStopId = l2.DestStopId, DepSecs = l2.DepSecs, ArrSecs = l2.ArrSecs, IsPreviousDayTrip = l2.IsPreviousDayTrip, StopCount = l2.StopCount
                                 },
                                 TransferWalkMeters = pair.WalkSeconds > 0 ? (int)(pair.WalkSeconds * walkingSpeed) : 0,
                                 TransferWalkSeconds = pair.WalkSeconds
@@ -511,13 +527,14 @@ public class JourneyPlanningService : IJourneyPlanningService
         public int DepartureSeconds { get; set; }
         public int ArrivalSeconds { get; set; }
         public bool IsPreviousDayTrip { get; set; }
+        public int StopCount { get; set; }
     }
 
     private class Leg1TripData { public string TripId { get; set; } = null!; public int TripDbId { get; set; } public string RouteId { get; set; } = null!; public string RouteShortName { get; set; } = null!; public string OriginStopId { get; set; } = null!; public int DepSeq { get; set; } public int DepSecs { get; set; } public bool IsPreviousDayTrip { get; set; } }
-    private class Leg1StopData { public Leg1TripData TripInfo { get; set; } = null!; public string TransferStop1Id { get; set; } = null!; public int ArrSecs { get; set; } }
-    private class Leg2TripData { public string TripId { get; set; } = null!; public string RouteId { get; set; } = null!; public string RouteShortName { get; set; } = null!; public string TransferStop2Id { get; set; } = null!; public string DestStopId { get; set; } = null!; public int DepSecs { get; set; } public int ArrSecs { get; set; } public bool IsPreviousDayTrip { get; set; } }
+    private class Leg1StopData { public Leg1TripData TripInfo { get; set; } = null!; public string TransferStop1Id { get; set; } = null!; public int ArrSecs { get; set; } public int StopCount { get; set; } }
+    private class Leg2TripData { public string TripId { get; set; } = null!; public string RouteId { get; set; } = null!; public string RouteShortName { get; set; } = null!; public string TransferStop2Id { get; set; } = null!; public string DestStopId { get; set; } = null!; public int DepSecs { get; set; } public int ArrSecs { get; set; } public bool IsPreviousDayTrip { get; set; } public int StopCount { get; set; } }
     private class TransferPair { public string TransferStop1Id { get; set; } = null!; public string TransferStop2Id { get; set; } = null!; public int WalkSeconds { get; set; } }
     
-    private class LegData { public string TripId { get; set; } = null!; public string RouteId { get; set; } = null!; public string RouteShortName { get; set; } = null!; public string FromStopId { get; set; } = null!; public string ToStopId { get; set; } = null!; public int DepSecs { get; set; } public int ArrSecs { get; set; } public bool IsPreviousDayTrip { get; set; } }
+    private class LegData { public string TripId { get; set; } = null!; public string RouteId { get; set; } = null!; public string RouteShortName { get; set; } = null!; public string FromStopId { get; set; } = null!; public string ToStopId { get; set; } = null!; public int DepSecs { get; set; } public int ArrSecs { get; set; } public bool IsPreviousDayTrip { get; set; } public int StopCount { get; set; } }
     private class OneTransferResult { public LegData Leg1 { get; set; } = null!; public LegData Leg2 { get; set; } = null!; public int TransferWalkMeters { get; set; } public int TransferWalkSeconds { get; set; } }
 }
