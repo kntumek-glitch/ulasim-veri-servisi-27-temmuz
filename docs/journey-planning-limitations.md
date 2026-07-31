@@ -8,10 +8,10 @@ Yolculuk planlama API'si (Faz 4) başarıyla tamamlanmış ve 124 kapsamlı sena
 - **Neden?:** İlişkisel Veritabanlarında (PostgreSQL), Graph algoritmaları (Dijkstra, A*) veya PostGIS/pgRouting eklentileri olmadan 2 ve üzeri transferin hesabı $O(N^3)$ kombinasyonel patlamaya (Combinatorial Explosion) neden olmaktadır. API yanıt sürelerinin `~100ms` altında kalması için limit uygulanmıştır.
 - **Çözüm:** Faz 5 ve sonrasında `pgRouting` veya `Neo4j` veritabanına geçilmesi önerilir.
 
-## 2. İstasyon Dışı Yürüme (Walk Transfer) Yokluğu
-Kullanıcının `Otobüs 1`'den indikten sonra `Otobüs 2`'ye binebilmesi için her iki aracın da TAM OLARAK aynı `StopId` (Fiziksel Durak ID) üzerinden geçmesi gerekir.
-- **Limitasyon:** Eğer kullanıcı `Durak A`'da inip `200 metre` karşısındaki `Durak B`'ye yürüyüp oradan aktarma yapacaksa, algoritma bu rotayı hesaplamaz.
-- **Çözüm:** İstasyon dışı yürüyüş eklentisi (Transfer Table & Walkable Stop Edges) bir sonraki geliştirmede sisteme entegre edilebilir.
+## 2. Transfer Yürüyüş Limiti (MaxTransferWalkMeters)
+Kullanıcının `Otobüs 1`'den indikten sonra `Otobüs 2`'ye binebilmesi için belirli bir yürüme mesafesi içinde olan duraklara (Transfer Table) geçiş yapması desteklenmektedir.
+- **Limitasyon:** Konfigürasyon dosyasındaki `MaxTransferWalkMeters` (Örn: 500m) sınırını aşan duraklara yürüyerek aktarma yapılması desteklenmez. Spatial (Uzamsal) arama gridleri bu limite göre optimize edilmiştir.
+- **Neden?:** Aktarma için 2 km yürümek mantıklı bir senaryo değildir ve çok büyük çaplı uzamsal aramalar N x N karşılaştırması yaratarak performans darboğazına neden olur.
 
 ## 3. Canlı Trafik ve Gerçek Zamanlı Veri (GTFS-Realtime) Eksikliği
 API sadece Statik (Planlanmış/GTFS) saatleri hesaba katar.

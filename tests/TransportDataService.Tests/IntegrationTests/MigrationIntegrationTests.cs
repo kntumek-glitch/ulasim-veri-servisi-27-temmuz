@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
@@ -28,7 +28,20 @@ public class MigrationIntegrationTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task VersionedFeedMigration_WhenDatabaseIsPopulated_RunsSuccessfullyAndBackfillsData()
+    public async Task CleanInstall_RunAllMigrations_ShouldCompleteSuccessfully()
+    {
+        var options = new DbContextOptionsBuilder<AppDbContext>()
+            .UseNpgsql(_dbContainer.GetConnectionString())
+            .Options;
+
+        await using var context = new AppDbContext(options);
+        
+        Func<Task> act = async () => await context.Database.MigrateAsync();
+        await act.Should().NotThrowAsync();
+    }
+
+    [Fact]
+    public async Task ForwardOnlyMigration_WhenDatabaseHasLegacyData_RunsSuccessfullyAndBackfillsData()
     {
         // Arrange: Setup DbContext targeting the Testcontainer
         var options = new DbContextOptionsBuilder<AppDbContext>()
@@ -38,36 +51,38 @@ public class MigrationIntegrationTests : IAsyncLifetime
         await using var context = new AppDbContext(options);
         var migrator = context.GetService<IMigrator>();
 
-        // 1. Migrate up to the point just before "VersionedFeed"
-        // The migration right before VersionedFeed is "20260727072403_AddGtfsRouteFields"
-        await migrator.MigrateAsync("20260727072403_AddGtfsRouteFields");
+        // 1. Migrate up to VersionedFeed (the original one, without backfill)
+        // Since the DB is empty, this will succeed even with AlterColumn and AddForeignKey
+        await migrator.MigrateAsync("20260728123556_VersionedFeed");
 
-        // 2. Insert raw SQL data representing the old schema (without GtfsImportRunId columns)
-        // Note: Using raw SQL because EF models represent the current (future) state
+        // Temporarily drop FKs to simulate "legacy data with GtfsImportRunId = 0"
+        // This simulates a database where developers manually dropped constraints or used bulk insert without constraints.
         await context.Database.ExecuteSqlRawAsync(@"
-            INSERT INTO ""GtfsAgencies"" (""Id"", ""AgencyId"", ""AgencyName"", ""AgencyUrl"", ""AgencyTimezone"", ""AgencyLang"", ""AgencyPhone"")
-            VALUES (1, 'AG1', 'Test Agency', 'http://test.com', 'Europe/Istanbul', 'tr', '123');
-
-            INSERT INTO ""GtfsRoutes"" (""Id"", ""RouteId"", ""RouteShortName"", ""RouteLongName"", ""RouteType"")
-            VALUES (1, 'R1', 'Short', 'Long', 3);
-
-            INSERT INTO ""GtfsTrips"" (""Id"", ""RouteId"", ""GtfsRouteId"", ""ServiceId"", ""TripId"", ""DirectionId"")
-            VALUES (1, 'R1', 1, 'SVC1', 'T1', 0);
-
-            INSERT INTO ""GtfsStops"" (""Id"", ""StopId"", ""StopCode"", ""StopName"", ""StopLat"", ""StopLon"")
-            VALUES (1, 'S1', 'SC1', 'Stop 1', 38.0, 27.0);
+            ALTER TABLE ""GtfsTrips"" DROP CONSTRAINT ""FK_GtfsTrips_GtfsImportRuns_GtfsImportRunId"";
+            ALTER TABLE ""GtfsRoutes"" DROP CONSTRAINT ""FK_GtfsRoutes_GtfsImportRuns_GtfsImportRunId"";
+            ALTER TABLE ""GtfsStops"" DROP CONSTRAINT ""FK_GtfsStops_GtfsImportRuns_GtfsImportRunId"";
         ");
 
-        // Act: Apply the VersionedFeed migration on the populated database
-        // This should trigger the new backfill SQL we wrote in the migration file
-        Func<Task> act = async () => await migrator.MigrateAsync("20260728123556_VersionedFeed");
+        // 2. Insert raw SQL data representing the legacy state (with GtfsImportRunId = 0)
+        await context.Database.ExecuteSqlRawAsync(@"
+            INSERT INTO ""GtfsRoutes"" (""Id"", ""RouteId"", ""RouteShortName"", ""RouteLongName"", ""RouteType"", ""GtfsImportRunId"")
+            VALUES (1, 'R1', 'Short', 'Long', 3, 0);
 
-        // Assert: The migration should succeed without throwing a Foreign Key or Non-Null constraint error
+            INSERT INTO ""GtfsTrips"" (""Id"", ""RouteId"", ""GtfsRouteId"", ""ServiceId"", ""TripId"", ""DirectionId"", ""GtfsImportRunId"")
+            VALUES (1, 'R1', 1, 'SVC1', 'T1', 0, 0);
+
+            INSERT INTO ""GtfsStops"" (""Id"", ""StopId"", ""StopCode"", ""StopName"", ""StopLat"", ""StopLon"", ""GtfsImportRunId"")
+            VALUES (1, 'S1', 'SC1', 'Stop 1', 38.0, 27.0, 0);
+        ");
+
+        // Act: Apply all remaining migrations (which includes our new BackfillVersionedFeed)
+        Func<Task> act = async () => await context.Database.MigrateAsync();
+
+        // Assert: The migration should succeed
         await act.Should().NotThrowAsync();
 
-        // 3. Verify that the backfill worked properly and a GtfsImportRun was generated or used
-        // Since there were no existing runs, our migration SQL should have created one.
-        var runIdResult = await context.Database.SqlQueryRaw<int>(@"SELECT ""Id"" AS ""Value"" FROM ""GtfsImportRuns"" WHERE ""Status"" = 'Completed' ORDER BY ""Id"" DESC LIMIT 1").ToListAsync();
+        // Verify that the backfill worked properly and a Dummy GtfsImportRun was generated
+        var runIdResult = await context.Database.SqlQueryRaw<int>(@"SELECT ""Id"" AS ""Value"" FROM ""GtfsImportRuns"" WHERE ""SourceUrl"" = 'http://dummy.url' AND ""IsActive"" = false LIMIT 1").ToListAsync();
         runIdResult.Should().NotBeEmpty();
         int activeRunId = runIdResult.First();
 

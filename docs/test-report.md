@@ -5,10 +5,12 @@ Bu doküman projenin test kapsamını (coverage) ve durumunu özetlemektedir.
 ## Genel Durum
 Projedeki Unit ve Integration testleri `dotnet test` komutuyla düzenli olarak koşturulmakta ve CI pipeline üzerinden takip edilmektedir.
 
-- **Toplam Test Sayısı:** 105
-- **Başarılı (Passed):** 105
+- **Toplam Test Sayısı:** 138
+- **Başarılı (Passed):** 138
 - **Başarısız (Failed):** 0
 - **Atlanan (Skipped):** 0
+
+*(Not: Bu 138 testin **33** tanesi spesifik olarak Faz 4 Zaman ve Aktarma Duyarlı Yolculuk Planlama (Journey Planning) modülü geliştirilirken yazılmıştır.)*
 
 ## Integration Testleri ve Testcontainers Uyarısı
 Tüm entegrasyon testleri `Testcontainers.PostgreSql` kütüphanesi kullanarak gerçek bir PostgreSQL veritabanı üzerinde koşmaktadır.

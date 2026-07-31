@@ -11,9 +11,12 @@ public class JourneyPlanSearchRequest
     [Required]
     public CoordinateDto Destination { get; set; } = null!;
 
-    [Required]
-    public DateTimeOffset DepartureDateTime { get; set; }
+    [Required(ErrorMessage = "Geçerli bir tarih ve saat (departureDateTime) belirtilmelidir.")]
+    public DateTimeOffset? DepartureDateTime { get; set; }
 
+    /// <summary>
+    /// Maksimum aktarma sayısı (0 veya 1).
+    /// </summary>
     [Range(0, 1, ErrorMessage = "Şu anda sistem yalnızca 0 (Aktarmasız) veya 1 aktarmalı rotaları desteklemektedir.")]
     public int MaxTransfers { get; set; } = 1;
 

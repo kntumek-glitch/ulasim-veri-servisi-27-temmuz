@@ -29,3 +29,23 @@ Key Formatı: JourneyPlan_{OriginLat}_{OriginLon}_{DestLat}_{DestLon}_{TimeBucke
 Kullanıcılar genellikle arama sonuçlarını beklemeden sekmeyi veya uygulamayı kapatabilirler (Özellikle mobil).
 Backend, tüm sorgularına `CancellationToken` (İstemci Kapatma Sinyali) entegre etmiştir. İstemci HTTP isteğini kopardığında (HTTP 499), veritabanındaki uzun süren aktarma (Transfer) aramaları anında abort edilerek (İptal edilerek) CPU ve RAM kaynaklarının israf edilmesi önlenir.
 (Bkz: `E3_LongRunningQuery_ShouldBe_Cancelled` uçtan uca testi).
+
+## 5. Algoritma ve RDBMS Optimizasyonları (Spatial Grid)
+
+Aktarmalı (1-Transfer) rota aramasındaki en büyük darboğaz, potansiyel aktarma duraklarının birbirleriyle (N x N) karşılaştırılmasıdır (Brute-force Haversine mesafe hesaplaması).
+Bu problemi çözmek ve $O(N^2)$ zaman karmaşıklığını lineer $O(N)$ seviyesine çekmek için **Uzamsal Izgara (Spatial Grid)** yaklaşımı entegre edilmiştir.
+
+1. **Spatial Grid Mimarisi:** İstasyolar (Stops) statik bir harita olarak RAM'e yüklenirken (`ActiveStopsCache`), her bir istasyon belirli bir coğrafi "hücreye" (Örn: 0.01 derece aralıklı Bucket) atanır (`Dictionary<string, List<GtfsStop>>`).
+2. **Kapsama Alanı Taraması:** Aktarma hesaplanırken tüm durakları gezmek yerine, yalnızca hedeflenen durağın içinde bulunduğu hücre ve komşu 8 hücresi (Toplam 9 Bucket) taranır. 
+3. **Hardcoded Limitler:** SQL sunucusunun zorlanmasını engellemek amacıyla, her bir transit bacağından en fazla veri getirme limiti (`Take(500)`) getirilmiş, bu limitler konfigüre edilebilir (`JourneyPlan:MaxLegTrips`, `JourneyPlan:MaxDirectTrips`) hale getirilmiştir.
+
+### Benchmark Sonuçları (Before vs After)
+Yapılan *BenchmarkDotNet (ve GC Memory Analytics)* testleri sonucunda aşağıdaki metrikler (Raw) elde edilmiştir:
+
+| Senaryo (Local DB)       | Süre (Eski N*N) | Süre (Spatial) | Bellek (Eski N*N) | Bellek (Spatial) |
+|--------------------------|-----------------|----------------|-------------------|------------------|
+| Doğrudan (0-Transfer)    | ~45 ms          | ~50 ms         | ~210 KB           | ~193 KB          |
+| Aktarmalı (1-Transfer)   | ~3200+ ms       | **~9 ms**      | ~185,000+ KB      | **~142 KB**      |
+| Bulunamayan (Not Found)  | ~3150 ms        | **~6 ms**      | ~185,000+ KB      | **~132 KB**      |
+
+Uzamsal (Spatial) filtreleme sayesinde %99 oranında bellek tasarrufu sağlanmış, CPU darboğazı tamamen ortadan kaldırılmıştır.

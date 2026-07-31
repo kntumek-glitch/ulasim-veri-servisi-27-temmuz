@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using System.Threading;
 using System.Threading.Tasks;
 using TransportDataService.Models.Gtfs.JourneyPlan;
@@ -32,6 +32,14 @@ public class JourneyPlansController : ControllerBase
     public async Task<IActionResult> Search([FromBody] JourneyPlanSearchRequest request, CancellationToken cancellationToken)
     {
         // Validation is automatically handled by the framework via DataAnnotations and InvalidModelStateResponseFactory.
+        if (request.DepartureDateTime == null || request.DepartureDateTime.Value.Year < 2000)
+        {
+            var problemDetails = new ValidationProblemDetails(new Dictionary<string, string[]> 
+            { 
+                { "DepartureDateTime", new[] { "Geçerli bir tarih ve saat (departureDateTime) belirtilmelidir." } } 
+            });
+            return BadRequest(problemDetails);
+        }
         
         var response = await _journeyPlanningService.SearchJourneyAsync(request, cancellationToken);
         return Ok(response);

@@ -41,11 +41,15 @@ public class LegDto
     public string Mode { get; set; } = null!; // "WALK" or "TRANSIT"
     
     // TRANSIT ONLY FIELDS
+    public string? PatternId { get; set; }
+    public string? ShapeId { get; set; }
     public string? RouteId { get; set; }
     public string? RouteShortName { get; set; }
     public string? TripId { get; set; }
     public int? DirectionId { get; set; }
     public string? Headsign { get; set; }
+    public string? ServiceId { get; set; }
+    public string? ServiceDate { get; set; }
     
     // STOP IDENTIFIERS (BOTH WALK AND TRANSIT)
     public string? FromStopId { get; set; }
