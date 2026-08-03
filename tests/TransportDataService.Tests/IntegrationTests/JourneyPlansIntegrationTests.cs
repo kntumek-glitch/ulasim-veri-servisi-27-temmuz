@@ -384,7 +384,7 @@ public class JourneyPlansIntegrationTests : IClassFixture<CustomWebApplicationFa
         // Assert
         result.Should().NotBeNull();
         result!.Itineraries.Should().HaveCountGreaterThan(0);
-        result.Itineraries.First().Transfers.Should().Be(1);
+        result.Itineraries.First().TransferCount.Should().Be(1);
     }
 
     [Fact]
@@ -507,7 +507,7 @@ public class JourneyPlansIntegrationTests : IClassFixture<CustomWebApplicationFa
         result.Should().NotBeNull();
         // Should only find the direct trip(s), NOT a 1-transfer trip utilizing T1 -> T1.
         result!.Itineraries.Should().HaveCountGreaterThan(0);
-        result.Itineraries.All(x => x.Transfers == 0).Should().BeTrue("No 1-transfer itinerary should be found for the same trip.");
+        result.Itineraries.All(x => x.TransferCount == 0).Should().BeTrue("No 1-transfer itinerary should be found for the same trip.");
     }
 
     [Fact]

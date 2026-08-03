@@ -37,6 +37,70 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        var transferList = (await ComputeTransfersAsync(gtfsImportRunId, context, cancellationToken))
+            .GroupBy(t => new { t.GtfsImportRunId, t.FromStopId, t.ToStopId })
+            .Select(g => g.First())
+            .ToList();
+        _logger.LogInformation("Calculated {TotalTransfers} transfer edges. Starting bulk insert...", transferList.Count);
+
+        // Bulk insert in batches of 10_000
+        int batchSize = 10000;
+        for (int i = 0; i < transferList.Count; i += batchSize)
+        {
+            var batch = transferList.Skip(i).Take(batchSize).ToList();
+            
+            using var batchScope = _scopeFactory.CreateScope();
+            var batchContext = batchScope.ServiceProvider.GetRequiredService<AppDbContext>();
+            
+            await batchContext.GtfsTransfers.AddRangeAsync(batch, cancellationToken);
+            await batchContext.SaveChangesAsync(cancellationToken);
+            
+            _logger.LogInformation("Inserted {Inserted}/{TotalTransfers} transfer records.", Math.Min(i + batchSize, transferList.Count), transferList.Count);
+        }
+
+        _logger.LogInformation("GtfsTransfer calculation completed successfully for RunId: {RunId}", gtfsImportRunId);
+    }
+
+    public async Task<int> RebuildTransfersAsync(int gtfsImportRunId, CancellationToken cancellationToken)
+    {
+        _logger.LogInformation("Starting GtfsTransfer REBUILD for RunId: {RunId}", gtfsImportRunId);
+        
+        using var scope = _scopeFactory.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var transferList = await ComputeTransfersAsync(gtfsImportRunId, context, cancellationToken);
+        _logger.LogInformation("Calculated {TotalTransfers} transfer edges. Starting transactional replace...", transferList.Count);
+
+        using var transaction = await context.Database.BeginTransactionAsync(cancellationToken);
+        try
+        {
+            // Eksi verileri temizle
+            await context.GtfsTransfers.Where(t => t.GtfsImportRunId == gtfsImportRunId).ExecuteDeleteAsync(cancellationToken);
+            
+            // Yeni verileri ekle
+            int batchSize = 10000;
+            for (int i = 0; i < transferList.Count; i += batchSize)
+            {
+                var batch = transferList.Skip(i).Take(batchSize).ToList();
+                await context.GtfsTransfers.AddRangeAsync(batch, cancellationToken);
+                await context.SaveChangesAsync(cancellationToken);
+                _logger.LogInformation("Inserted {Inserted}/{TotalTransfers} transfer records in rebuild.", Math.Min(i + batchSize, transferList.Count), transferList.Count);
+            }
+            
+            await transaction.CommitAsync(cancellationToken);
+            _logger.LogInformation("GtfsTransfer REBUILD completed successfully for RunId: {RunId}", gtfsImportRunId);
+            return transferList.Count;
+        }
+        catch (Exception ex)
+        {
+            await transaction.RollbackAsync(cancellationToken);
+            _logger.LogError(ex, "GtfsTransfer REBUILD failed for RunId: {RunId}. Transaction rolled back.", gtfsImportRunId);
+            throw;
+        }
+    }
+
+    private async Task<List<GtfsTransfer>> ComputeTransfersAsync(int gtfsImportRunId, AppDbContext context, CancellationToken cancellationToken)
+    {
         int maxWalkMeters = _configuration.GetValue<int>("JourneyPlan:MaxTransferWalkMeters", 1500);
         double walkingSpeed = _configuration.GetValue<double>("JourneyPlan:WalkingSpeedMetersPerSecond", 1.2);
 
@@ -111,25 +175,7 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
             }
         });
 
-        var transferList = transfers.ToList();
-        _logger.LogInformation("Calculated {TotalTransfers} transfer edges. Starting bulk insert...", transferList.Count);
-
-        // Bulk insert in batches of 10_000
-        int batchSize = 10000;
-        for (int i = 0; i < transferList.Count; i += batchSize)
-        {
-            var batch = transferList.Skip(i).Take(batchSize).ToList();
-            
-            using var batchScope = _scopeFactory.CreateScope();
-            var batchContext = batchScope.ServiceProvider.GetRequiredService<AppDbContext>();
-            
-            await batchContext.GtfsTransfers.AddRangeAsync(batch, cancellationToken);
-            await batchContext.SaveChangesAsync(cancellationToken);
-            
-            _logger.LogInformation("Inserted {Inserted}/{TotalTransfers} transfer records.", Math.Min(i + batchSize, transferList.Count), transferList.Count);
-        }
-
-        _logger.LogInformation("GtfsTransfer calculation completed successfully for RunId: {RunId}", gtfsImportRunId);
+        return transfers.ToList();
     }
 
     private string GetGridKey(double lat, double lon)

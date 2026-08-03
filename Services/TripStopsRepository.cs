@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TransportDataService;
 using ulasim_veri_servisi.Models.Gtfs;
 using ulasim_veri_servisi.Services.Interfaces;
@@ -14,13 +14,13 @@ namespace ulasim_veri_servisi.Services
             _context = context;
         }
 
-        public async Task<TripStopsResponseDto?> GetTripWithStopsFromDbAsync(string tripId)
+        public async Task<TripStopsResponseDto?> GetTripWithStopsFromDbAsync(string tripId, CancellationToken cancellationToken = default)
         {
             var trip = await _context.GtfsTrips
                 .Include(t => t.StopTimes)
                 .ThenInclude(st => st.Stop)
                 .AsNoTracking()
-                .FirstOrDefaultAsync(t => t.TripId == tripId);
+                .FirstOrDefaultAsync(t => t.TripId == tripId, cancellationToken);
 
             if (trip == null)
             {

@@ -1,4 +1,4 @@
-﻿using System.Text.Json;
+using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using ulasim_veri_servisi.Exceptions;
 
@@ -70,9 +70,18 @@ public class ExceptionMiddleware
                 break;
                 
             case OperationCanceledException:
-                problem.Title = "İstek iptal edildi";
-                problem.Detail = "İstemci tarafında işlem iptal edildiği için sonuçlandırılamadı.";
-                problem.Status = 499; // Client Closed Request
+                if (context.RequestAborted.IsCancellationRequested)
+                {
+                    problem.Title = "İstek iptal edildi";
+                    problem.Detail = "İstemci tarafında işlem iptal edildiği için sonuçlandırılamadı.";
+                    problem.Status = 499; // Client Closed Request
+                }
+                else
+                {
+                    problem.Title = "Zaman aşımı (Timeout)";
+                    problem.Detail = "Sunucu arama süresi aşıldığı için işlem iptal edildi.";
+                    problem.Status = StatusCodes.Status503ServiceUnavailable;
+                }
                 break;
 
             default:

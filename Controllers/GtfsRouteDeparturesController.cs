@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using ulasim_veri_servisi.Services.Interfaces;
 
 namespace ulasim_veri_servisi.Controllers
@@ -21,7 +21,8 @@ namespace ulasim_veri_servisi.Controllers
             [FromQuery] int directionId, 
             [FromQuery] string date, 
             [FromQuery] int page = 1, 
-            [FromQuery] int pageSize = 20)
+            [FromQuery] int pageSize = 20,
+            CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(routeId))
                 return Problem(detail: "RouteId boş olamaz.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz İstek");
@@ -35,7 +36,7 @@ namespace ulasim_veri_servisi.Controllers
             if (pageSize < 1) pageSize = 20;
             if (pageSize > 100) pageSize = 100;
 
-            var result = await _routeDeparturesService.GetRouteDeparturesAsync(routeId, directionId, parsedDate, page, pageSize);
+            var result = await _routeDeparturesService.GetRouteDeparturesAsync(routeId, directionId, parsedDate, page, pageSize, cancellationToken);
 
             if (result == null)
             {

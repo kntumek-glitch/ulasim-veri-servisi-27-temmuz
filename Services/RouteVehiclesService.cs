@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
@@ -18,9 +18,9 @@ namespace ulasim_veri_servisi.Services
             _context = context;
             _externalEshotService = externalEshotService;
         }
-        public async Task<RouteVehiclesResponse> GetRouteVehiclesAsync(string routeNumber)
+        public async Task<RouteVehiclesResponse> GetRouteVehiclesAsync(string routeNumber, CancellationToken cancellationToken = default)
         {
-            var cacheResult = await _externalEshotService.GetRouteVehiclesAsync(routeNumber);
+            var cacheResult = await _externalEshotService.GetRouteVehiclesAsync(routeNumber, cancellationToken);
 
 
             var result = new RouteVehiclesResponse

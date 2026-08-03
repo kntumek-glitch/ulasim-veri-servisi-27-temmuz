@@ -1,4 +1,4 @@
-﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore;
 using TransportDataService;
 using ulasim_veri_servisi.Models.Gtfs;
 using ulasim_veri_servisi.Services.Interfaces;
@@ -14,17 +14,17 @@ namespace ulasim_veri_servisi.Services
             _context = context;
         }
 
-        public async Task<RouteDeparturesResponseDto?> GetRouteDeparturesAsync(string routeId, int directionId, DateOnly date, int page, int pageSize)
+        public async Task<RouteDeparturesResponseDto?> GetRouteDeparturesAsync(string routeId, int directionId, DateOnly date, int page, int pageSize, CancellationToken cancellationToken = default)
         {
             // Check if the route exists
-            bool routeExists = await _context.GtfsRoutes.AnyAsync(r => r.RouteId == routeId);
+            bool routeExists = await _context.GtfsRoutes.AnyAsync(r => r.RouteId == routeId, cancellationToken);
             if (!routeExists) return null;
 
             // 1. Calculate Metadata
             var activeRun = await _context.GtfsImportRuns
                 .Where(r => r.IsActive)
                 .Select(r => new { r.FeedEndDate })
-                .FirstOrDefaultAsync();
+                .FirstOrDefaultAsync(cancellationToken);
 
             bool isFeedExpired = false;
             if (activeRun?.FeedEndDate != null)
@@ -32,7 +32,7 @@ namespace ulasim_veri_servisi.Services
                 isFeedExpired = activeRun.FeedEndDate < date;
             }
 
-            bool missingCalendarDatesFile = !await _context.GtfsCalendarDates.AnyAsync();
+            bool missingCalendarDatesFile = !await _context.GtfsCalendarDates.AnyAsync(cancellationToken);
 
             // 2. Find Active ServiceIds for the given date
             var dayOfWeek = date.DayOfWeek;
@@ -40,7 +40,7 @@ namespace ulasim_veri_servisi.Services
             // Get base services from calendar
             var calendarServices = await _context.GtfsCalendars
                 .Where(c => date >= c.StartDate && date <= c.EndDate)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             var activeServiceIds = calendarServices
                 .Where(c => IsActiveOnDay(c, dayOfWeek))
@@ -50,7 +50,7 @@ namespace ulasim_veri_servisi.Services
             // Apply exceptions from calendar_dates
             var exceptions = await _context.GtfsCalendarDates
                 .Where(cd => cd.Date == date)
-                .ToListAsync();
+                .ToListAsync(cancellationToken);
 
             foreach (var ex in exceptions)
             {
@@ -97,7 +97,7 @@ namespace ulasim_veri_servisi.Services
             int totalRecords = 0;
             if (activeServiceIds.Any())
             {
-                totalRecords = await departuresQuery.CountAsync();
+                totalRecords = await departuresQuery.CountAsync(cancellationToken);
             }
 
             // Pagination
@@ -108,7 +108,7 @@ namespace ulasim_veri_servisi.Services
                     .OrderBy(d => d.DepartureSeconds)
                     .Skip((page - 1) * pageSize)
                     .Take(pageSize)
-                    .ToListAsync();
+                    .ToListAsync(cancellationToken);
 
                 // Map CalendarValidity in memory because dictionary lookup can't be translated by EF Core
                 foreach (var item in data)

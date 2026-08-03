@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
@@ -28,7 +28,7 @@ public class ApiIntegrationTests
 
     private void SeedTestData(AppDbContext db)
     {
-        if (!db.GtfsRoutes.Any())
+        if (!db.GtfsRoutes.Any(r => r.RouteId == "R1"))
         {
             var run = db.GtfsImportRuns.FirstOrDefault(r => r.IsActive);
             if (run == null)

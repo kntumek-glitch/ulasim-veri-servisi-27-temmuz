@@ -25,17 +25,24 @@ public class GtfsQueryIntegrationTests
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
         
         // Truncate before seeding to prevent PK conflicts from other tests sharing DB
-        context.Database.ExecuteSqlRaw(@"TRUNCATE TABLE ""GtfsImportRuns"", ""GtfsStops"", ""GtfsRoutes"", ""GtfsTrips"", ""GtfsStopTimes"", ""GtfsCalendars"", ""GtfsShapePoints"" RESTART IDENTITY CASCADE");
+        context.Database.ExecuteSqlRaw(@"TRUNCATE TABLE ""GtfsImportRuns"", ""GtfsStops"", ""GtfsRoutes"", ""GtfsTrips"", ""GtfsStopTimes"", ""GtfsCalendars"", ""GtfsShapePoints"", ""GtfsTransfers"" RESTART IDENTITY CASCADE");
 
-        // Seed data
-        context.GtfsImportRuns.Add(new GtfsImportRun { Id = 1, Status = "Completed", IsActive = true, FinishedAt = DateTime.UtcNow, FileHash = "ACTIVE_HASH" });
-        context.GtfsStops.Add(new GtfsStop { GtfsImportRunId = 1, Id = 1, StopId = "stop_1", StopName = "Konak", StopCode = "1001", StopLat = 1.0, StopLon = 1.0 });
-        context.GtfsRoutes.Add(new GtfsRoute { GtfsImportRunId = 1, Id = 1, RouteId = "route_1", RouteShortName = "123", RouteType = 3 });
-        context.GtfsTrips.Add(new GtfsTrip { GtfsImportRunId = 1, Id = 1, TripId = "trip_1", RouteId = "route_1", GtfsRouteId = 1, DirectionId = 0, ServiceId = "service_1", ShapeId = "shape_1" });
-        context.GtfsStopTimes.Add(new GtfsStopTime { GtfsImportRunId = 1, TripId = "trip_1", GtfsTripId = 1, StopId = "stop_1", GtfsStopId = 1, StopSequence = 1, ArrivalSeconds = 3600, DepartureSeconds = 3660 });
-        
-        context.GtfsCalendars.Add(new GtfsCalendar { GtfsImportRunId = 1, ServiceId = "service_1", Monday = true, Tuesday = true, Wednesday = true, Thursday = true, Friday = true, Saturday = true, Sunday = true, StartDate = new DateOnly(2020, 1, 1), EndDate = new DateOnly(2030, 12, 31) });
-        context.GtfsShapePoints.Add(new GtfsShapePoint { GtfsImportRunId = 1, ShapeId = "shape_1", Latitude = 1.0, Longitude = 1.0, Sequence = 1 });
+        // Seed data without explicit Ids so Postgres sequence advances normally
+        var run = new GtfsImportRun { Status = "Completed", IsActive = true, FinishedAt = DateTime.UtcNow, FileHash = "ACTIVE_HASH" };
+        var stop = new GtfsStop { GtfsImportRun = run, StopId = "stop_1", StopName = "Konak", StopCode = "1001", StopLat = 1.0, StopLon = 1.0 };
+        var route = new GtfsRoute { GtfsImportRun = run, RouteId = "route_1", RouteShortName = "123", RouteType = 3 };
+        var trip = new GtfsTrip { GtfsImportRun = run, TripId = "trip_1", Route = route, RouteId = "route_1", DirectionId = 0, ServiceId = "service_1", ShapeId = "shape_1" };
+        var stopTime = new GtfsStopTime { GtfsImportRun = run, TripId = "trip_1", Trip = trip, StopId = "stop_1", Stop = stop, StopSequence = 1, ArrivalSeconds = 3600, DepartureSeconds = 3660 };
+        var calendar = new GtfsCalendar { GtfsImportRun = run, ServiceId = "service_1", Monday = true, Tuesday = true, Wednesday = true, Thursday = true, Friday = true, Saturday = true, Sunday = true, StartDate = new DateOnly(2020, 1, 1), EndDate = new DateOnly(2030, 12, 31) };
+        var shapePoint = new GtfsShapePoint { GtfsImportRun = run, ShapeId = "shape_1", Latitude = 1.0, Longitude = 1.0, Sequence = 1 };
+
+        context.GtfsImportRuns.Add(run);
+        context.GtfsStops.Add(stop);
+        context.GtfsRoutes.Add(route);
+        context.GtfsTrips.Add(trip);
+        context.GtfsStopTimes.Add(stopTime);
+        context.GtfsCalendars.Add(calendar);
+        context.GtfsShapePoints.Add(shapePoint);
         
         context.SaveChanges();
     }

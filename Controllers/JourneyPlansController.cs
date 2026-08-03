@@ -5,6 +5,8 @@ using TransportDataService.Models.Gtfs.JourneyPlan;
 using ulasim_veri_servisi.Services.Interfaces;
 using Swashbuckle.AspNetCore.Annotations;
 using Microsoft.AspNetCore.Http;
+using Microsoft.Extensions.Configuration;
+using System;
 
 namespace ulasim_veri_servisi.Controllers;
 
@@ -13,10 +15,12 @@ namespace ulasim_veri_servisi.Controllers;
 public class JourneyPlansController : ControllerBase
 {
     private readonly IJourneyPlanningService _journeyPlanningService;
+    private readonly IConfiguration _configuration;
 
-    public JourneyPlansController(IJourneyPlanningService journeyPlanningService)
+    public JourneyPlansController(IJourneyPlanningService journeyPlanningService, IConfiguration configuration)
     {
         _journeyPlanningService = journeyPlanningService;
+        _configuration = configuration;
     }
 
     /// <summary>
@@ -41,7 +45,11 @@ public class JourneyPlansController : ControllerBase
             return BadRequest(problemDetails);
         }
         
-        var response = await _journeyPlanningService.SearchJourneyAsync(request, cancellationToken);
+        int timeoutSeconds = _configuration.GetValue<int>("JourneyPlan:MaxSearchTimeSeconds", 15);
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+
+        var response = await _journeyPlanningService.SearchJourneyAsync(request, cts.Token);
         return Ok(response);
     }
 }

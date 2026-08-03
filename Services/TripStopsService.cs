@@ -1,4 +1,4 @@
-﻿using ulasim_veri_servisi.Helpers;
+using ulasim_veri_servisi.Helpers;
 using ulasim_veri_servisi.Models.Gtfs;
 using ulasim_veri_servisi.Services.Interfaces;
 
@@ -13,9 +13,9 @@ namespace ulasim_veri_servisi.Services
             _repository = repository;
         }
 
-        public async Task<TripStopsResponseDto?> GetTripStopsAsync(string tripId)
+        public async Task<TripStopsResponseDto?> GetTripStopsAsync(string tripId, CancellationToken cancellationToken = default)
         {
-            var tripData = await _repository.GetTripWithStopsFromDbAsync(tripId);
+            var tripData = await _repository.GetTripWithStopsFromDbAsync(tripId, cancellationToken);
 
             if (tripData == null)
                 return null;

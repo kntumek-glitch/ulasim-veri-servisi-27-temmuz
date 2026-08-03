@@ -84,14 +84,14 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
             new GtfsCalendarDate { ServiceId = "SRV_REMOVED", Date = new DateOnly(2024, 1, 1), ExceptionType = 2, GtfsImportRunId = runId }
         );
 
-        var t1 = new GtfsTrip { Route = r1, TripId = "T1", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Dest", DirectionId = 0, GtfsImportRunId = runId };
-        var t2 = new GtfsTrip { Route = r1, TripId = "T2", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Origin", DirectionId = 1, GtfsImportRunId = runId };
-        var t3 = new GtfsTrip { Route = r1, TripId = "T3", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Transfer", DirectionId = 0, GtfsImportRunId = runId };
-        var t4 = new GtfsTrip { Route = r2, TripId = "T4", RouteId = "R2", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Dest", DirectionId = 0, GtfsImportRunId = runId };
-        var t6 = new GtfsTrip { Route = r2, TripId = "T6", RouteId = "R2", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Dest", DirectionId = 0, GtfsImportRunId = runId };
-        var t7 = new GtfsTrip { Route = r1, TripId = "T7", RouteId = "R1", ServiceId = "SRV_ADDED", TripHeadsign = "Added", DirectionId = 0, GtfsImportRunId = runId };
-        var t8 = new GtfsTrip { Route = r1, TripId = "T8", RouteId = "R1", ServiceId = "SRV_REMOVED", TripHeadsign = "Removed", DirectionId = 0, GtfsImportRunId = runId };
-        var t9 = new GtfsTrip { Route = r1, TripId = "T9", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Midnight", DirectionId = 0, GtfsImportRunId = runId };
+        var t1 = new GtfsTrip { Route = r1, TripId = "T1", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Dest", DirectionId = 0, ShapeId = "SHAPE_1", GtfsImportRunId = runId };
+        var t2 = new GtfsTrip { Route = r1, TripId = "T2", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Origin", DirectionId = 1, ShapeId = "SHAPE_2", GtfsImportRunId = runId };
+        var t3 = new GtfsTrip { Route = r1, TripId = "T3", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Transfer", DirectionId = 0, ShapeId = "SHAPE_3", GtfsImportRunId = runId };
+        var t4 = new GtfsTrip { Route = r2, TripId = "T4", RouteId = "R2", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Dest", DirectionId = 0, ShapeId = "SHAPE_4", GtfsImportRunId = runId };
+        var t6 = new GtfsTrip { Route = r2, TripId = "T6", RouteId = "R2", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Dest", DirectionId = 0, ShapeId = "SHAPE_6", GtfsImportRunId = runId };
+        var t7 = new GtfsTrip { Route = r1, TripId = "T7", RouteId = "R1", ServiceId = "SRV_ADDED", TripHeadsign = "Added", DirectionId = 0, ShapeId = "SHAPE_7", GtfsImportRunId = runId };
+        var t8 = new GtfsTrip { Route = r1, TripId = "T8", RouteId = "R1", ServiceId = "SRV_REMOVED", TripHeadsign = "Removed", DirectionId = 0, ShapeId = "SHAPE_8", GtfsImportRunId = runId };
+        var t9 = new GtfsTrip { Route = r1, TripId = "T9", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Midnight", DirectionId = 0, ShapeId = "SHAPE_9", GtfsImportRunId = runId };
         db.GtfsTrips.AddRange(t1, t2, t3, t4, t6, t7, t8, t9);
 
         db.GtfsStopTimes.AddRange(
@@ -165,7 +165,7 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
         var response = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
         var result = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         
-        var transferRoute = result!.Itineraries.FirstOrDefault(i => i.Transfers == 1 && i.Legs.Any(l => l.TripId == "T3") && i.Legs.Any(l => l.TripId == "T4"));
+        var transferRoute = result!.Itineraries.FirstOrDefault(i => i.TransferCount == 1 && i.Legs.Any(l => l.TripId == "T3") && i.Legs.Any(l => l.TripId == "T4"));
         transferRoute.Should().NotBeNull();
         
         // Ensure Leg sequence is WALK -> TRANSIT (T3) -> WALK -> TRANSIT (T4) -> WALK
@@ -457,9 +457,9 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
         var result2 = await response2.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
         // Cache keys must be isolated by maxTransfers, so result1 shouldn't contain transfers
-        result1!.Itineraries.All(i => i.Transfers == 0).Should().BeTrue();
+        result1!.Itineraries.All(i => i.TransferCount == 0).Should().BeTrue();
         // and result2 should contain transfers
-        result2!.Itineraries.Any(i => i.Transfers == 1).Should().BeTrue();
+        result2!.Itineraries.Any(i => i.TransferCount == 1).Should().BeTrue();
     }
 
     [Fact]

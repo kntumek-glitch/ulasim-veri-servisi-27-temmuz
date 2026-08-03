@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using ulasim_veri_servisi.Services.Interfaces;
 
 namespace ulasim_veri_servisi.Controllers
@@ -16,12 +16,12 @@ namespace ulasim_veri_servisi.Controllers
         }
 
         [HttpGet("{tripId}/stops")]
-        public async Task<IActionResult> GetTripStops(string tripId)
+        public async Task<IActionResult> GetTripStops(string tripId, CancellationToken cancellationToken = default)
         {
             if (string.IsNullOrWhiteSpace(tripId))
                 return Problem(detail: "TripId boş olamaz.", statusCode: StatusCodes.Status400BadRequest, title: "Geçersiz İstek");
 
-            var result = await _tripStopsService.GetTripStopsAsync(tripId);
+            var result = await _tripStopsService.GetTripStopsAsync(tripId, cancellationToken);
 
             if (result == null)
                 return Problem(detail: $"Belirtilen tripId ({tripId}) bulunamadı.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak Bulunamadı");

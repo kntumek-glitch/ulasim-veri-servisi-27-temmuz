@@ -1,4 +1,4 @@
-﻿using System.Globalization;
+using System.Globalization;
 using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
@@ -19,14 +19,14 @@ namespace ulasim_veri_servisi.Services
             _context = context;
             _externalEshotService = externalEshotService;
         }
-        public async Task<ApproachingBusResponse> GetApproachingBusesAsync(int stopId)
+        public async Task<ApproachingBusResponse> GetApproachingBusesAsync(int stopId, CancellationToken cancellationToken = default)
         {
-            var stop = await _context.Stops.FindAsync(stopId);
+            var stop = await _context.Stops.FindAsync(new object[] { stopId }, cancellationToken);
             if (stop == null)
             {
                 throw new NotFoundException("Durak bulunamadı.");
             }
-            var cacheResult = await _externalEshotService.GetApproachingBusesAsync(stop.ExternalStopId);
+            var cacheResult = await _externalEshotService.GetApproachingBusesAsync(stop.ExternalStopId, cancellationToken);
              var result = new ApproachingBusResponse
             {
                 StopId = stop.Id,

@@ -24,14 +24,21 @@ public class JourneyPlanMetadataDto
 public class ItineraryDto
 {
     public string PlanId { get; set; } = Guid.NewGuid().ToString();
+    public string DataSource { get; set; } = "STATIC_GTFS";
+    public string RouteTypeSummary { get; set; } = string.Empty;
     public DateTimeOffset DepartureTime { get; set; }
     public DateTimeOffset ArrivalTime { get; set; }
     public int TotalDurationMinutes => (int)(ArrivalTime - DepartureTime).TotalMinutes;
-    public int Transfers { get; set; }
-    public int TotalWalkingMeters { get; set; }
-    public int TotalWalkingMinutes { get; set; }
+    public int TotalJourneyTimeSeconds => (int)(ArrivalTime - DepartureTime).TotalSeconds;
+    public int TransferCount { get; set; }
+    public int TotalWalkingDistanceMeters { get; set; }
+    public int TotalWalkingTimeSeconds { get; set; }
+    public int TotalWaitingTimeSeconds { get; set; }
+    public int TotalInVehicleTimeSeconds { get; set; }
+    public int InitialWaitTimeSeconds { get; set; }
+    public List<int> TransferWaitTimes { get; set; } = new();
     public string ServiceDate { get; set; } = null!;
-    public int TotalTransitStops { get; set; }
+    public int TotalTransitStopCount { get; set; }
     
     public List<LegDto> Legs { get; set; } = new();
 }
@@ -41,6 +48,7 @@ public class LegDto
     public string Mode { get; set; } = null!; // "WALK" or "TRANSIT"
     
     // TRANSIT ONLY FIELDS
+    public int? RouteType { get; set; }
     public string? PatternId { get; set; }
     public string? ShapeId { get; set; }
     public string? RouteId { get; set; }
@@ -75,4 +83,22 @@ public class LegDto
     public int DistanceMeters { get; set; }
     public int DurationMinutes { get; set; }
     public int StopCount { get; set; }
+
+    // INTERMEDIATE STOPS
+    public List<IntermediateStopDto>? IntermediateStops { get; set; }
+}
+
+public class IntermediateStopDto
+{
+    public string StopId { get; set; } = null!;
+    public string? StopCode { get; set; }
+    public string StopName { get; set; } = null!;
+    public int StopSequence { get; set; }
+    public string? RawGtfsArrivalTime { get; set; }
+    public string? RawGtfsDepartureTime { get; set; }
+    public int? ArrivalSeconds { get; set; }
+    public int? DepartureSeconds { get; set; }
+    public DateTimeOffset? ArrivalTime { get; set; }
+    public double Lat { get; set; }
+    public double Lon { get; set; }
 }

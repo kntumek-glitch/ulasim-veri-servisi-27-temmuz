@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using ulasim_veri_servisi.Services;
 
@@ -24,9 +24,9 @@ namespace ulasim_veri_servisi.Controllers
         [ProducesResponseType(StatusCodes.Status502BadGateway)]
         [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetRouteVehicles(string routeNumber)
+        public async Task<IActionResult> GetRouteVehicles(string routeNumber, CancellationToken cancellationToken = default)
         {
-            var result = await _routeVehiclesService.GetRouteVehiclesAsync(routeNumber);
+            var result = await _routeVehiclesService.GetRouteVehiclesAsync(routeNumber, cancellationToken);
 
             return Ok(result);
         }

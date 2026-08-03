@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Swashbuckle.AspNetCore.Annotations;
@@ -262,9 +262,9 @@ namespace ulasim_veri_servisi.Controllers
         [ProducesResponseType(StatusCodes.Status502BadGateway)]
         [ProducesResponseType(StatusCodes.Status503ServiceUnavailable)]
         [ProducesResponseType(StatusCodes.Status500InternalServerError)]
-        public async Task<IActionResult> GetApproachingBuses([FromRoute] int id)
+        public async Task<IActionResult> GetApproachingBuses([FromRoute] int id, CancellationToken cancellationToken = default)
         {
-            var result = await _approachingBusService.GetApproachingBusesAsync(id);
+            var result = await _approachingBusService.GetApproachingBusesAsync(id, cancellationToken);
 
             return Ok(result);
         }

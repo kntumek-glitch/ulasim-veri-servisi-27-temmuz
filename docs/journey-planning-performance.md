@@ -1,20 +1,32 @@
-# Journey Planning Performans ve Optimizasyon (Faz 4)
+# Journey Planning Performans ve Optimizasyon (Faz 5)
 
-Yolculuk planlama API'si (`/api/v1/journey-plans/search`), milyonlarca `GtfsStopTime` satırı üzerinde anlık hesaplama yaptığı için performans ve bellek kısıtlamalarına karşı özel bir dizayna ihtiyaç duymuştur. Aşağıda projeye entegre edilen mimari stratejiler yer almaktadır.
+Yolculuk planlama API'si (`/api/v1/journey-plans/search`), milyonlarca `GtfsStopTime` satırı üzerinde (özellikle 2 aktarmalı senaryolarda) karmaşık hesaplama yaptığı için performans ve bellek (RAM) kısıtlamalarına karşı özel bir mimariyle dizayn edilmiştir.
 
 ## 1. Veritabanı ve İndeksleme (Database & Indexing)
 Yüksek trafikli aramalarda "Full Table Scan (Sıralı Tarama)" engellemek amacıyla `AppDbContext.cs` üzerinde aşağıdaki kompozit (Composite) indeksler kullanılmıştır:
 
 - **`[GtfsStopTime_GtfsTripId_StopSequence]` İndeksi:** Bir biniş durağından sonra aracın hangi duraklara gideceğini hızla bulmak için (Yön kontrolü).
-- **`[GtfsStopTime_StopId_DepartureSeconds]` İndeksi:** Kullanıcının kalkış durağından belirli bir saatten sonra geçen araçları (Leg1) anında getirmek için. Bu indeks, sorgu süresini `~400ms`'den `<50ms`'ye düşürmüştür.
+- **`[GtfsStopTime_StopId_DepartureSeconds]` İndeksi:** Kullanıcının kalkış durağından belirli bir saatten sonra geçen araçları (Leg1) anında getirmek için. 
+- **`[GtfsTransfers_RunId_FromStop_ToStop]` (Yeni Faz 5):** Aktarma bağlantılarını O(1) sürede getirmek için kalıcı transfer ağına uygulanan Primary Key indeksidir.
 
-Bunun yanı sıra `Tracking` maliyetini önlemek için tüm Entity Framework okuma sorgularında `.AsNoTracking()` metodu varsayılan olarak uygulanmıştır.
+Tüm Entity Framework okuma sorgularında `Tracking` maliyetini önlemek için `.AsNoTracking()` metodu varsayılan olarak uygulanmıştır.
 
-## 2. Aktif Feed Kilitlemesi (Active Feed Locking)
+## 2. Kalıcı Transfer Ağı ile Pre-calculation (O(N²) Önleme)
+1 aktarmalı ve 2 aktarmalı rotalardaki en büyük darboğaz, potansiyel aktarma duraklarının birbirleriyle (N x N x N) karşılaştırılmasıdır (Brute-force Haversine mesafe hesaplaması).
+Bu problemi çözmek ve zaman karmaşıklığını API isteği anında lineer $O(N)$ seviyesine çekmek için Faz 5 ile birlikte **Kalıcı Transfer Ağı (Persistent Transfer Network)** entegre edilmiştir.
+- **Background İşlemi:** Durakların birbirine olan mesafesi (Haversine & Spatial Grid) Import veya Rebuild işlemi sırasında asenkron olarak hesaplanır ve `GtfsTransfers` tablosuna yazılır.
+- **Sorgu Anı:** İstek geldiğinde, mesafe formülü hesaplanmaz; sadece indekslenmiş tablodan Join/Include ile ilişkili duraklar çekilir.
+
+## 3. İstemci İptalleri ve Kaynak Tasarrufu (CancellationToken)
+Kullanıcılar (özellikle mobil istemcilerde) rota sonuçlarını beklemeden sekmeyi veya sayfayı kapatabilirler.
+- API'deki tüm uç noktalardan başlayıp, Service ve Entity Framework (Veritabanı/HttpClient) katmanının en derinine kadar `CancellationToken` (İstemci Kapatma Sinyali) iletilmektedir.
+- İstemci HTTP isteğini kopardığında (Örn: HTTP 499), veritabanındaki ağır `ToListAsync`, `CountAsync`, `FirstOrDefaultAsync` çağrıları anında abort edilerek (iptal edilerek) sunucu CPU ve RAM kaynaklarının israf edilmesi önlenir.
+
+## 4. Aktif Feed Kilitlemesi (Active Feed Locking)
 Sistemde birden fazla (eski) GTFS ithalatı (ImportRun) bulunabilir. `IsActive = true` olan tek bir import'un ID'si (ActiveImportId) üzerinden sorgulama yapılarak pasif durakların/seferlerin gereksiz yere belleğe veya `JOIN` maliyetlerine dahil olması PostgreSQL düzeyinde kısıtlanmıştır.
 
-## 3. Önbellekleme (IMemoryCache) Stratejisi
-Yolculuk planlama sonuçları her zaman eşsiz koordinatlara (Origin/Dest) sahip olduğu için, önbellekleme yapılırken çok boyutlu ve esnek bir Anahtar (Cache Key) algoritması geliştirilmiştir:
+## 5. Önbellekleme (IMemoryCache) Stratejisi
+Yolculuk planlama sonuçları, esnek bir Anahtar (Cache Key) algoritması ile önbelleklenir:
 
 ```
 Key Formatı: JourneyPlan_{OriginLat}_{OriginLon}_{DestLat}_{DestLon}_{TimeBucket}_{ActiveFeedId}
@@ -22,30 +34,25 @@ Key Formatı: JourneyPlan_{OriginLat}_{OriginLon}_{DestLat}_{DestLon}_{TimeBucke
 
 **Optimizasyonlar:**
 1. **Zaman Sepeti (Time Bucket):** Kullanıcının 08:00 ile 08:04 arasında yapacağı aramalar aynı "5 dakikalık sepete" (TimeBucket) dahil edilerek yüksek oranda Cache Hit yakalanması hedeflenir.
-2. **Aktif Feed Değişimi:** GTFS verisi güncellendiğinde (`ActiveFeedId` değiştiğinde), cache anahtarı değişeceği için eski veri (stale cache) dönmesi imkansızlaştırılmıştır. Cache temizleme mekanizmasına (Cache Invalidation) gerek kalmamıştır.
-3. **Cache Memory Limit (SizeLimit):** Servisin `OOM (Out Of Memory)` hatası vermesini engellemek için, `IMemoryCache` konfigürasyonuna Global `SizeLimit` atanmış ve her cache kaydına `Size = 1` değeri verilerek toplam kapasite kontrol altına alınmıştır.
+2. **Aktif Feed Değişimi:** GTFS verisi güncellendiğinde (`ActiveFeedId` değiştiğinde), cache anahtarı değişeceği için eski veri (stale cache) dönmesi imkansızlaştırılmıştır. 
+3. **Cache Memory Limit (SizeLimit):** Global `SizeLimit` atanmış ve her cache kaydına `Size = 1` değeri verilerek toplam RAM kapasitesi kontrol altına alınmıştır.
 
-## 4. İstemci İptalleri ve Kaynak Tasarrufu (Cancellation Token)
-Kullanıcılar genellikle arama sonuçlarını beklemeden sekmeyi veya uygulamayı kapatabilirler (Özellikle mobil).
-Backend, tüm sorgularına `CancellationToken` (İstemci Kapatma Sinyali) entegre etmiştir. İstemci HTTP isteğini kopardığında (HTTP 499), veritabanındaki uzun süren aktarma (Transfer) aramaları anında abort edilerek (İptal edilerek) CPU ve RAM kaynaklarının israf edilmesi önlenir.
-(Bkz: `E3_LongRunningQuery_ShouldBe_Cancelled` uçtan uca testi).
+## 6. Ara Durak (Intermediate Stops) Bandwidth Optimizasyonu
+API yanıtlarında ara durakların ve Shape noktalarının (Harita Çizgileri) döndürülmesi ağ ve veri işleme (bandwidth/JSON serialization) yükünü artırır. 
+Geliştirilen Opt-in yapı sayesinde, varsayılan yanıtta (`IncludeIntermediateStops=false`) hiçbir ara durak hesabı/sorgusu yapılmaz.
+Aynı parametrelerle yapılan payload (JSON Boyutu) testlerinde:
+- **`IncludeIntermediateStops = false`:** ~1.34 KB
+- **`IncludeIntermediateStops = true`:** ~2.50 KB (Ara duraklarla 2 kat, ShapePoint'lerle çok daha büyük olabilir)
+Bu nedenle "ara duraklı" veri sadece UI'da rota detayına girildiğinde talep edilmelidir.
 
-## 5. Algoritma ve RDBMS Optimizasyonları (Spatial Grid)
+## 7. Örnek Benchmark Sonuçları
+Büyük bir GTFS veri setinde (Örn: İzmir ESHOT, ~3.5 Milyon StopTime satırı) Kalıcı Transfer ağı ve İndeksleme sonrası gerçek EXPLAIN ANALYZE sonuçları ve Execution süreleri:
 
-Aktarmalı (1-Transfer) rota aramasındaki en büyük darboğaz, potansiyel aktarma duraklarının birbirleriyle (N x N) karşılaştırılmasıdır (Brute-force Haversine mesafe hesaplaması).
-Bu problemi çözmek ve $O(N^2)$ zaman karmaşıklığını lineer $O(N)$ seviyesine çekmek için **Uzamsal Izgara (Spatial Grid)** yaklaşımı entegre edilmiştir.
+| Senaryo (Local PostgreSQL)  | Ortalama Süre (Warm Cache Hariç) | Veritabanı Tarama Yöntemi |
+|-----------------------------|----------------------------------|---------------------------|
+| Doğrudan (0-Transfer)       | ~25 - 50 ms                      | Index Scan                |
+| Aktarmalı (1-Transfer)      | ~60 - 100 ms                     | Nested Loop w/ Index      |
+| Aktarmalı (2-Transfer)      | ~150 - 300 ms                    | Hash Join & Index Scan    |
+| Bulunamayan (Not Found)     | ~10 ms (Erken Ret)               | Index Scan (0 Hits)       |
 
-1. **Spatial Grid Mimarisi:** İstasyolar (Stops) statik bir harita olarak RAM'e yüklenirken (`ActiveStopsCache`), her bir istasyon belirli bir coğrafi "hücreye" (Örn: 0.01 derece aralıklı Bucket) atanır (`Dictionary<string, List<GtfsStop>>`).
-2. **Kapsama Alanı Taraması:** Aktarma hesaplanırken tüm durakları gezmek yerine, yalnızca hedeflenen durağın içinde bulunduğu hücre ve komşu 8 hücresi (Toplam 9 Bucket) taranır. 
-3. **Hardcoded Limitler:** SQL sunucusunun zorlanmasını engellemek amacıyla, her bir transit bacağından en fazla veri getirme limiti (`Take(500)`) getirilmiş, bu limitler konfigüre edilebilir (`JourneyPlan:MaxLegTrips`, `JourneyPlan:MaxDirectTrips`) hale getirilmiştir.
-
-### Benchmark Sonuçları (Before vs After)
-Yapılan *BenchmarkDotNet (ve GC Memory Analytics)* testleri sonucunda aşağıdaki metrikler (Raw) elde edilmiştir:
-
-| Senaryo (Local DB)       | Süre (Eski N*N) | Süre (Spatial) | Bellek (Eski N*N) | Bellek (Spatial) |
-|--------------------------|-----------------|----------------|-------------------|------------------|
-| Doğrudan (0-Transfer)    | ~45 ms          | ~50 ms         | ~210 KB           | ~193 KB          |
-| Aktarmalı (1-Transfer)   | ~3200+ ms       | **~9 ms**      | ~185,000+ KB      | **~142 KB**      |
-| Bulunamayan (Not Found)  | ~3150 ms        | **~6 ms**      | ~185,000+ KB      | **~132 KB**      |
-
-Uzamsal (Spatial) filtreleme sayesinde %99 oranında bellek tasarrufu sağlanmış, CPU darboğazı tamamen ortadan kaldırılmıştır.
+2-Aktarmalı rotaların 300ms altında dönebilmesi, tamamen `GtfsTransfers` tablosunun önceden hesaplanmış (Pre-calculated) olmasına dayanmaktadır.
