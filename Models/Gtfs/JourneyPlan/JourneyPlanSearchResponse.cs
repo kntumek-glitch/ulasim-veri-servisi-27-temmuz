@@ -5,12 +5,12 @@ namespace TransportDataService.Models.Gtfs.JourneyPlan;
 
 public class JourneyPlanSearchResponse
 {
-    public FeedMetadataDto? Metadata { get; set; }
+    public JourneyPlanMetadataDto? Metadata { get; set; }
     public string ReasonCode { get; set; } = "SUCCESS";
     public List<ItineraryDto> Itineraries { get; set; } = new();
 }
 
-public class FeedMetadataDto
+public class JourneyPlanMetadataDto
 {
     public int ActiveImportId { get; set; }
     public string FeedHash { get; set; } = null!;

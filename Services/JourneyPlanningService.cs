@@ -86,7 +86,7 @@ public class JourneyPlanningService : IJourneyPlanningService
         var minDate = await _context.GtfsCalendars.AsNoTracking().MinAsync(c => (DateOnly?)c.StartDate, cancellationToken);
         var maxDate = await _context.GtfsCalendars.AsNoTracking().MaxAsync(c => (DateOnly?)c.EndDate, cancellationToken);
 
-        response.Metadata = new FeedMetadataDto
+        response.Metadata = new JourneyPlanMetadataDto
         {
             ActiveImportId = activeRun.Id,
             FeedHash = activeRun.FileHash ?? "UNKNOWN",
