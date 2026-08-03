@@ -355,8 +355,15 @@ public class JourneyPlansIntegrationTests : IClassFixture<CustomWebApplicationFa
         var st3 = new GtfsStopTime { GtfsTripId = trip2.Id, Trip = trip2, StopId = "SB", GtfsStopId = stop2.Id, Stop = stop2, StopSequence = 1, DepartureSeconds = 2700, ArrivalSeconds = 2700, GtfsImportRun = run };
         var st4 = new GtfsStopTime { GtfsTripId = trip2.Id, Trip = trip2, StopId = "SC", GtfsStopId = stop3.Id, Stop = stop3, StopSequence = 2, DepartureSeconds = 3300, ArrivalSeconds = 3300, GtfsImportRun = run };
         db.GtfsStopTimes.AddRange(st1, st2, st3, st4);
-
         await db.SaveChangesAsync();
+        var transferService = scope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IGtfsTransferCalculationService>();
+        await transferService.CalculateTransfersAsync(run.Id, CancellationToken.None);
+        
+        var cache = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+        if (cache is Microsoft.Extensions.Caching.Memory.MemoryCache memoryCache)
+        {
+            memoryCache.Clear();
+        }
 
         var client = _factory.CreateClient();
         

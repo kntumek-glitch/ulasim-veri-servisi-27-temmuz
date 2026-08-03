@@ -1,4 +1,4 @@
-﻿using TransportDataService;
+using TransportDataService;
 using TransportDataService.Domain;
 using System.Security.Cryptography;
 using Microsoft.EntityFrameworkCore;
@@ -10,7 +10,7 @@ using CsvHelper.Configuration;
 using Microsoft.Extensions.Caching.Memory;
 using ulasim_veri_servisi.Exceptions;
 using Npgsql;
-
+using ulasim_veri_servisi.Services.Interfaces;
 
   
 namespace ulasim_veri_servisi.Services
@@ -740,6 +740,12 @@ namespace ulasim_veri_servisi.Services
                 importRun.FinishedAt = DateTime.UtcNow;
                 
                 await CompletePhaseAsync(_context, activePhase, cancellationToken);
+                
+                activePhase = await StartPhaseAsync(_context, importRun.Id, "CalculatingTransfers", cancellationToken);
+                var transferCalcService = scope.ServiceProvider.GetRequiredService<IGtfsTransferCalculationService>();
+                await transferCalcService.CalculateTransfersAsync(importRun.Id, cancellationToken);
+                await CompletePhaseAsync(_context, activePhase, cancellationToken);
+                
                 activePhase = await StartPhaseAsync(_context, importRun.Id, "Activating", cancellationToken);
 
                 // Agresif olarak eski tüm önbellek kalıntılarını siler.
@@ -833,6 +839,7 @@ namespace ulasim_veri_servisi.Services
                     }
 
                     // Hatalı yüklenen pasif (staging) verileri kirlilik yapmaması için siliyoruz
+                    await errorContext.GtfsTransfers.Where(x => x.GtfsImportRunId == importRun.Id).ExecuteDeleteAsync(CancellationToken.None);
                     await errorContext.GtfsStopTimes.Where(x => x.GtfsImportRunId == importRun.Id).ExecuteDeleteAsync(CancellationToken.None);
                     await errorContext.GtfsTrips.Where(x => x.GtfsImportRunId == importRun.Id).ExecuteDeleteAsync(CancellationToken.None);
                     await errorContext.GtfsRoutes.Where(x => x.GtfsImportRunId == importRun.Id).ExecuteDeleteAsync(CancellationToken.None);
@@ -952,6 +959,7 @@ namespace ulasim_veri_servisi.Services
 
             _logger.LogInformation("Cleaning up {Count} old GTFS feeds (IDs: {Ids})", runsToDelete.Count, string.Join(",", runsToDelete));
 
+            await context.GtfsTransfers.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsStopTimes.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsTrips.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsRoutes.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);

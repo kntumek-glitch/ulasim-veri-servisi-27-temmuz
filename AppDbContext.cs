@@ -38,6 +38,9 @@ public class AppDbContext : DbContext
     public DbSet<GtfsImportRun> GtfsImportRuns { get; set; }
     
     public DbSet<GtfsImportPhase> GtfsImportPhases { get; set; }
+    
+    public DbSet<GtfsTransfer> GtfsTransfers { get; set; }
+    
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder);
@@ -110,5 +113,14 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<GtfsCalendar>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsCalendarDate>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsShapePoint>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        
+        modelBuilder.Entity<GtfsTransfer>()
+            .HasIndex(x => new { x.GtfsImportRunId, x.FromStopId, x.ToStopId })
+            .IsUnique();
+
+        modelBuilder.Entity<GtfsTransfer>()
+            .HasIndex(x => new { x.GtfsImportRunId, x.FromStopId, x.DistanceMeters });
+
+        modelBuilder.Entity<GtfsTransfer>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
     }
 }

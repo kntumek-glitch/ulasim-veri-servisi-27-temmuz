@@ -44,6 +44,15 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
         // SEED DATA
         await SeedDataAsync(db, _runId);
         await db.SaveChangesAsync();
+
+        var transferService = scope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IGtfsTransferCalculationService>();
+        await transferService.CalculateTransfersAsync(_runId, CancellationToken.None);
+
+        var cache = scope.ServiceProvider.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
+        if (cache is Microsoft.Extensions.Caching.Memory.MemoryCache memoryCache)
+        {
+            memoryCache.Clear();
+        }
     }
 
     public Task DisposeAsync() => Task.CompletedTask;

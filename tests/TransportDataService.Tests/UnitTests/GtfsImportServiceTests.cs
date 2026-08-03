@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Moq;
@@ -41,6 +41,8 @@ public class GtfsImportServiceTests : IAsyncLifetime
         services.AddDbContext<AppDbContext>(opt => opt.UseNpgsql(_fixture.ConnectionString));
         services.AddLogging();
         services.AddMemoryCache();
+        var mockTransferService = new Mock<ulasim_veri_servisi.Services.Interfaces.IGtfsTransferCalculationService>();
+        services.AddScoped(sp => mockTransferService.Object);
         
         var sp = services.BuildServiceProvider();
         _scopeFactory = sp.GetRequiredService<IServiceScopeFactory>();

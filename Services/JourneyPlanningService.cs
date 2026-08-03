@@ -22,6 +22,7 @@ public class JourneyPlanningService : IJourneyPlanningService
     {
         public List<GtfsStop> Stops { get; set; } = new();
         public Dictionary<string, List<GtfsStop>> SpatialGrid { get; set; } = new();
+        public Dictionary<string, List<GtfsTransfer>> TransfersByStopId { get; set; } = new();
     }
 
     private static string GetGridKey(double lat, double lon)
@@ -393,8 +394,10 @@ public class JourneyPlanningService : IJourneyPlanningService
                 }
                 list.Add(s);
             }
+            var transfers = await _context.GtfsTransfers.AsNoTracking().ToListAsync(cancellationToken);
+            var transfersDict = transfers.GroupBy(t => t.FromStopId).ToDictionary(g => g.Key, g => g.ToList());
             
-            return new ActiveStopsCache { Stops = stops, SpatialGrid = grid };
+            return new ActiveStopsCache { Stops = stops, SpatialGrid = grid, TransfersByStopId = transfersDict };
         }) ?? new ActiveStopsCache();
     }
 
@@ -513,8 +516,6 @@ public class JourneyPlanningService : IJourneyPlanningService
         var originStopIds = originStops.Select(s => s.Stop.StopId).ToList();
         var destStopIds = destStops.Select(s => s.Stop.StopId).ToList();
         int minDepartureSeconds = requestedSeconds + minWalkingTime;
-        var spatialGrid = activeStopsCache.SpatialGrid;
-        
         var todayLeg1Query = from o in _context.GtfsStopTimes
                                join t in _context.GtfsTrips on o.GtfsTripId equals t.Id
                                join r in _context.GtfsRoutes on t.GtfsRouteId equals r.Id
@@ -573,23 +574,16 @@ public class JourneyPlanningService : IJourneyPlanningService
         }
 
         var uniqueTransferStop1Ids = validLeg1Stops.Select(x => x.TransferStop1Id).Distinct().ToList();
-        var transferStop1Entities = activeStopsCache.Stops.Where(s => uniqueTransferStop1Ids.Contains(s.StopId)).ToList();
-        
         var transferPairs = new List<TransferPair>();
-        foreach (var ts1 in transferStop1Entities)
+        foreach (var ts1Id in uniqueTransferStop1Ids)
         {
-            var neighborKeys = GetNeighborGridKeys(ts1.StopLat, ts1.StopLon);
-            foreach (var key in neighborKeys)
+            if (activeStopsCache.TransfersByStopId.TryGetValue(ts1Id, out var stopTransfers))
             {
-                if (spatialGrid.TryGetValue(key, out var bucketStops))
+                foreach (var tr in stopTransfers)
                 {
-                    foreach (var ts2 in bucketStops)
+                    if (tr.DistanceMeters <= maxTransferWalkMeters)
                     {
-                        var dist = CalculateHaversineDistance(ts1.StopLat, ts1.StopLon, ts2.StopLat, ts2.StopLon);
-                        if (dist <= maxTransferWalkMeters)
-                        {
-                            transferPairs.Add(new TransferPair { TransferStop1Id = ts1.StopId, TransferStop2Id = ts2.StopId, WalkSeconds = (int)(dist / walkingSpeed) });
-                        }
+                        transferPairs.Add(new TransferPair { TransferStop1Id = ts1Id, TransferStop2Id = tr.ToStopId, WalkSeconds = tr.WalkingTimeSeconds });
                     }
                 }
             }

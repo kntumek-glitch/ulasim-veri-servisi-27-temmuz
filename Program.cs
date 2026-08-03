@@ -1,4 +1,4 @@
-﻿
+
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi.Models;
@@ -100,6 +100,7 @@ builder.Services.AddScoped<IRouteDeparturesService, RouteDeparturesService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Services.Interfaces.IJourneyPlanningService, ulasim_veri_servisi.Services.JourneyPlanningService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.AdminKeyAuthAttribute>();
+builder.Services.AddScoped<IGtfsTransferCalculationService, GtfsTransferCalculationService>();
 
 builder.Services.AddHostedService<GtfsAutoUpdateWorker>();
 
