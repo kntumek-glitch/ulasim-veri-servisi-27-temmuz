@@ -15,15 +15,19 @@ namespace ulasim_veri_servisi.Services;
 public class JourneyPlanningService : IJourneyPlanningService
 {
     private readonly AppDbContext _context;
+    private readonly IConfiguration _configuration;
     private readonly IMemoryCache _cache;
-    private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
+    private readonly ILogger<JourneyPlanningService> _logger;
+    private readonly ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource _cacheTokenSource;
+    private readonly WalkingRoutingService _walkingRoutingService;
+    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
 
     private class ActiveStopsCache
     {
         public List<GtfsStop> Stops { get; set; } = new();
         public Dictionary<string, List<GtfsStop>> SpatialGrid { get; set; } = new();
         public Dictionary<string, List<GtfsTransfer>> TransfersByStopId { get; set; } = new();
-        public Dictionary<int, List<int>> TripStopSequences { get; set; } = new();
+        public ILookup<string, GtfsTransfer> TransfersByToStopId { get; set; } = default!;
     }
 
     private static string GetGridKey(double lat, double lon)
@@ -42,11 +46,20 @@ public class JourneyPlanningService : IJourneyPlanningService
         return keys;
     }
 
-    public JourneyPlanningService(AppDbContext context, IMemoryCache cache, Microsoft.Extensions.Configuration.IConfiguration configuration)
+    public JourneyPlanningService(
+        AppDbContext context,
+        IConfiguration configuration,
+        IMemoryCache cache,
+        ILogger<JourneyPlanningService> logger,
+        ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource cacheTokenSource,
+        WalkingRoutingService walkingRoutingService)
     {
         _context = context;
-        _cache = cache;
         _configuration = configuration;
+        _cache = cache;
+        _logger = logger;
+        _cacheTokenSource = cacheTokenSource;
+        _walkingRoutingService = walkingRoutingService;
     }
 
     public async Task<JourneyPlanSearchResponse> SearchJourneyAsync(JourneyPlanSearchRequest request, CancellationToken cancellationToken = default)
@@ -59,19 +72,20 @@ public class JourneyPlanningService : IJourneyPlanningService
 
         if (activeRun == null)
         {
-            throw new ulasim_veri_servisi.Exceptions.ActiveFeedNotFoundException();
+            throw new ulasim_veri_servisi.Exceptions.ActiveFeedNotFoundException("Sistemde işlem yapabilecek aktif bir GTFS veri seti bulunamadı.");
         }
 
         // 0.1 Load configurations earlier for cache key isolation
         int configMaxWalkingMeters = _configuration.GetValue<int>("JourneyPlan:MaxWalkingMeters", 1500);
         int finalMaxWalkingMeters = Math.Min(request.MaxWalkingMeters, configMaxWalkingMeters);
-        double walkingSpeed = _configuration.GetValue<double>("JourneyPlan:WalkingSpeed", 1.4);
+        double walkingSpeed = _configuration.GetValue<double>("JourneyPlan:WalkingSpeedMetersPerSecond", 1.2);
         int maxCandidateStops = _configuration.GetValue<int>("JourneyPlan:MaxCandidateStops", 5);
         int transferBufferMinutes = _configuration.GetValue<int>("JourneyPlan:TransferBufferMinutes", 3);
         int maxTransferWalkMeters = _configuration.GetValue<int>("JourneyPlan:MaxTransferWalkMeters", 500);
 
         var utcTimeKey = request.DepartureDateTime!.Value.ToUniversalTime().ToString("yyyyMMdd_HHmm");
-        string cacheKey = $"JourneyPlan_{request.Origin.Lat}_{request.Origin.Lon}_{request.Destination.Lat}_{request.Destination.Lon}_{utcTimeKey}_{request.MaxTransfers}_{finalMaxWalkingMeters}_{request.MaxResults}_{walkingSpeed}_{maxCandidateStops}_{transferBufferMinutes}_{maxTransferWalkMeters}_{activeRun.Id}";
+        
+        string cacheKey = $"JourneyPlan:v2:{request.Origin.Lat}_{request.Origin.Lon}_{request.Destination.Lat}_{request.Destination.Lon}_{utcTimeKey}_{request.MaxTransfers}_{finalMaxWalkingMeters}_{request.MaxResults}_{request.IncludeIntermediateStops}_{walkingSpeed}_{maxCandidateStops}_{transferBufferMinutes}_{maxTransferWalkMeters}_{activeRun.Id}";
 
         if (_cache.TryGetValue(cacheKey, out JourneyPlanSearchResponse? cachedResponse) && cachedResponse != null)
         {
@@ -178,6 +192,8 @@ public class JourneyPlanningService : IJourneyPlanningService
             var oStop = originStops.First(x => x.Stop.StopId == trip.OriginStopId);
             var dStop = destStops.First(x => x.Stop.StopId == trip.DestStopId);
             
+            if (oStop.DistanceMeters + dStop.DistanceMeters > finalMaxWalkingMeters) continue;
+            
             DateTime baseDate = trip.IsPreviousDayTrip ? targetDate.AddDays(-1) : targetDate;
             DateTime depDt = baseDate.AddSeconds(trip.DepartureSeconds);
             DateTime arrDt = baseDate.AddSeconds(trip.ArrivalSeconds);
@@ -254,10 +270,13 @@ public class JourneyPlanningService : IJourneyPlanningService
             
             var transferTrips = await FindOneTransferTripsAsync(originStops, destStops, activeServiceIds, previousDayServiceIds, requestedSeconds, minWalkingTime, transferBufferMinutes * 60, targetDate, tzi, activeStopsCache, maxTransferWalkMeters, walkingSpeed, maxLegTrips, maxTransferTrips, maxWaitTimeMinutes, maxJourneyTimeMinutes, cancellationToken);
             
-            foreach (var tResult in transferTrips.Take(request.MaxResults - itineraries.Count))
+            foreach (var tResult in transferTrips.Take(request.MaxResults))
             {
                 var oStop = originStops.First(x => x.Stop.StopId == tResult.Leg1.FromStopId);
                 var dStop = destStops.First(x => x.Stop.StopId == tResult.Leg2.ToStopId);
+                
+                _logger.LogWarning("DEBUG WALK: o={O}, t={T}, d={D}, max={M}, res={Res}", oStop.DistanceMeters, tResult.TransferWalkMeters, dStop.DistanceMeters, finalMaxWalkingMeters, tResult.Leg1.TripId);
+                if (oStop.DistanceMeters + tResult.TransferWalkMeters + dStop.DistanceMeters > finalMaxWalkingMeters) continue;
                 
                 DateTime baseDate1 = tResult.Leg1.IsPreviousDayTrip ? targetDate.AddDays(-1) : targetDate;
                 DateTime depDt1 = baseDate1.AddSeconds(tResult.Leg1.DepSecs);
@@ -353,10 +372,12 @@ public class JourneyPlanningService : IJourneyPlanningService
             
             var twoTransferTrips = await FindTwoTransferTripsAsync(originStops, destStops, activeServiceIds, previousDayServiceIds, requestedSeconds, minWalkingTime, transferBufferMinutes * 60, targetDate, tzi, activeStopsCache, maxTransferWalkMeters, walkingSpeed, maxLegTrips, maxTwoTransferTrips, maxWaitTimeMinutes, maxJourneyTimeMinutes, cancellationToken);
             
-            foreach (var tResult in twoTransferTrips.Take(request.MaxResults - itineraries.Count))
+            foreach (var tResult in twoTransferTrips.Take(request.MaxResults))
             {
                 var oStop = originStops.First(x => x.Stop.StopId == tResult.Leg1.FromStopId);
                 var dStop = destStops.First(x => x.Stop.StopId == tResult.Leg3.ToStopId);
+                
+                if (oStop.DistanceMeters + tResult.TransferWalk1Meters + tResult.TransferWalk2Meters + dStop.DistanceMeters > finalMaxWalkingMeters) continue;
                 
                 DateTime baseDate1 = tResult.Leg1.IsPreviousDayTrip ? targetDate.AddDays(-1) : targetDate;
                 DateTime depDt1 = baseDate1.AddSeconds(tResult.Leg1.DepSecs);
@@ -435,7 +456,21 @@ public class JourneyPlanningService : IJourneyPlanningService
             }
         }
 
-        response.Itineraries = itineraries
+        var topCandidates = itineraries
+            .Where(x => x.TotalWalkingDistanceMeters <= finalMaxWalkingMeters)
+            .OrderBy(x => x.ArrivalTime)
+            .ThenBy(x => x.TransferCount)
+            .ThenBy(x => x.TotalWalkingDistanceMeters)
+            .ThenBy(x => x.TotalDurationMinutes)
+            .ThenBy(x => x.TotalTransitStopCount)
+            .ThenBy(x => string.Join("_", x.Legs.Select(l => l.TripId)))
+            .Take(request.MaxResults + 5) // Buffer for dropped candidates
+            .ToList();
+
+        var evaluatedItineraries = await EvaluateOsrmWalksAsync(topCandidates, request, activeStops, activeRun.Id, cancellationToken);
+
+        response.Itineraries = evaluatedItineraries
+            .Where(x => x.TotalWalkingDistanceMeters <= finalMaxWalkingMeters)
             .OrderBy(x => x.ArrivalTime)
             .ThenBy(x => x.TransferCount)
             .ThenBy(x => x.TotalWalkingDistanceMeters)
@@ -458,6 +493,7 @@ public class JourneyPlanningService : IJourneyPlanningService
                 AbsoluteExpirationRelativeToNow = TimeSpan.FromMinutes(10),
                 Size = 1
             };
+            cacheOptions.AddExpirationToken(_cacheTokenSource.GetChangeToken());
             _cache.Set(cacheKey, response, cacheOptions);
         }
         else
@@ -489,17 +525,9 @@ public class JourneyPlanningService : IJourneyPlanningService
             }
             var transfers = await _context.GtfsTransfers.AsNoTracking().ToListAsync(cancellationToken);
             var transfersDict = transfers.GroupBy(t => t.FromStopId).ToDictionary(g => g.Key, g => g.ToList());
+            var transfersToDict = transfers.ToLookup(t => t.ToStopId);
             
-            var stopTimes = await _context.GtfsStopTimes
-                .Select(st => new { st.GtfsTripId, st.StopSequence })
-                .AsNoTracking()
-                .ToListAsync(cancellationToken);
-                
-            var tripSequences = stopTimes
-                .GroupBy(st => st.GtfsTripId)
-                .ToDictionary(g => g.Key, g => g.OrderBy(x => x.StopSequence).Select(x => x.StopSequence).ToList());
-            
-            return new ActiveStopsCache { Stops = stops, SpatialGrid = grid, TransfersByStopId = transfersDict, TripStopSequences = tripSequences };
+            return new ActiveStopsCache { Stops = stops, SpatialGrid = grid, TransfersByStopId = transfersDict, TransfersByToStopId = transfersToDict };
         }) ?? new ActiveStopsCache();
     }
 
@@ -683,6 +711,7 @@ public class JourneyPlanningService : IJourneyPlanningService
         var transferPairs = new List<TransferPair>();
         foreach (var ts1Id in uniqueTransferStop1Ids)
         {
+            transferPairs.Add(new TransferPair { TransferStop1Id = ts1Id, TransferStop2Id = ts1Id, WalkSeconds = 0 });
             if (activeStopsCache.TransfersByStopId.TryGetValue(ts1Id, out var stopTransfers))
             {
                 foreach (var tr in stopTransfers)
@@ -731,9 +760,14 @@ public class JourneyPlanningService : IJourneyPlanningService
             }
 
             var chunkResults = await finalLeg2Query.AsNoTracking().ToListAsync(cancellationToken);
+            var chunkTripIds = chunkResults.Select(x => x.TripDbId).Distinct().ToList();
+            var chunkSummaries = await _context.GtfsTripStopSummaries
+                .Where(x => chunkTripIds.Contains(x.GtfsTripId))
+                .ToDictionaryAsync(x => x.GtfsTripId, x => x.StopSequences, cancellationToken);
+                
             foreach(var leg2 in chunkResults)
             {
-                if (activeStopsCache.TripStopSequences.TryGetValue(leg2.TripDbId, out var seqs))
+                if (chunkSummaries.TryGetValue(leg2.TripDbId, out var seqs))
                 {
                     leg2.StopCount = seqs.Count(s => s > leg2.DepSeq && s <= leg2.ArrSeq);
                 }
@@ -744,12 +778,15 @@ public class JourneyPlanningService : IJourneyPlanningService
         var results = new List<OneTransferResult>();
         var deduplicationSet = new HashSet<string>();
 
+        var transferPairsLookup = transferPairs.ToLookup(p => p.TransferStop1Id);
+        var leg2CandidatesLookup = leg2Candidates.ToLookup(l2 => l2.TransferStop2Id);
+
         foreach (var l1 in validLeg1Stops)
         {
-            var pairs = transferPairs.Where(p => p.TransferStop1Id == l1.TransferStop1Id).ToList();
+            var pairs = transferPairsLookup[l1.TransferStop1Id];
             foreach (var pair in pairs)
             {
-                var l2s = leg2Candidates.Where(l2 => l2.TransferStop2Id == pair.TransferStop2Id).ToList();
+                var l2s = leg2CandidatesLookup[pair.TransferStop2Id];
                 foreach (var l2 in l2s)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -815,7 +852,7 @@ public class JourneyPlanningService : IJourneyPlanningService
         foreach (var res in results.OrderBy(x => x.Leg2.ArrSecs))
         {
             var hash = $"{res.Leg1.PatternId}|{res.Leg2.PatternId}";
-            System.IO.File.AppendAllText("dedup-debug.txt", $"[DEBUG-DEDUP] Leg1={res.Leg1.TripId}, Leg2={res.Leg2.TripId}, Hash={hash}\n");
+            _logger.LogWarning("[DEBUG-DEDUP] Leg1={Leg1TripId}, Leg2={Leg2TripId}, Hash={Hash}", res.Leg1.TripId, res.Leg2.TripId, hash);
             
             if (patternHashes.Add(hash))
             {
@@ -823,10 +860,10 @@ public class JourneyPlanningService : IJourneyPlanningService
             }
             else 
             {
-                System.IO.File.AppendAllText("dedup-debug.txt", $"[DEBUG-DEDUP] REJECTED Leg1={res.Leg1.TripId}, Leg2={res.Leg2.TripId} due to duplicate hash\n");
+                _logger.LogWarning("[DEBUG-DEDUP] REJECTED Leg1={Leg1TripId}, Leg2={Leg2TripId} due to duplicate hash", res.Leg1.TripId, res.Leg2.TripId);
             }
         }
-        System.IO.File.AppendAllText("dedup-debug.txt", $"[DEBUG-DEDUP] Total before={results.Count}, after={deduplicatedResults.Count}\n");
+        _logger.LogWarning("[DEBUG-DEDUP] Total before={BeforeCount}, after={AfterCount}", results.Count, deduplicatedResults.Count);
         return deduplicatedResults;
     }
     private async Task<List<TwoTransferResult>> FindTwoTransferTripsAsync(List<StopWithDistance> originStops, List<StopWithDistance> destStops, List<string> activeServiceIds, List<string> previousDayServiceIds, int requestedSeconds, int minWalkingTime, int transferBufferSeconds, DateTime targetDate, TimeZoneInfo tzi, ActiveStopsCache activeStopsCache, int maxTransferWalkMeters, double walkingSpeed, int maxLegTrips, int maxTwoTransferTrips, int maxWaitTimeMinutes, int maxJourneyTimeMinutes, CancellationToken cancellationToken)
@@ -892,6 +929,7 @@ public class JourneyPlanningService : IJourneyPlanningService
         var transfer1Pairs = new List<TransferPair>();
         foreach (var ts1Id in uniqueTransferStop1Ids)
         {
+            transfer1Pairs.Add(new TransferPair { TransferStop1Id = ts1Id, TransferStop2Id = ts1Id, WalkSeconds = 0 });
             if (activeStopsCache.TransfersByStopId.TryGetValue(ts1Id, out var stopTransfers))
             {
                 foreach (var tr in stopTransfers.Where(tr => tr.DistanceMeters <= maxTransferWalkMeters))
@@ -949,16 +987,18 @@ public class JourneyPlanningService : IJourneyPlanningService
 
         var uniqueTransferStop2Ids = validLeg3Stops.Select(x => x.TransferStop2Id).Distinct().ToList();
         var transfer2Pairs = new List<TransferPair>();
-        // We need to reverse loop transfers, or just loop through all transfers that end at uniqueTransferStop2Ids
-        // To be safe and fast, loop through activeStopsCache.TransfersByStopId
-        foreach (var kvp in activeStopsCache.TransfersByStopId)
+        foreach (var ts2Id in uniqueTransferStop2Ids)
         {
-            var originStopId = kvp.Key;
-            foreach (var tr in kvp.Value.Where(tr => tr.DistanceMeters <= maxTransferWalkMeters))
+            transfer2Pairs.Add(new TransferPair { TransferStop1Id = ts2Id, TransferStop2Id = ts2Id, WalkSeconds = 0 });
+        }
+        // Use the inverse index TransfersByToStopId to avoid full network scan
+        foreach (var ts2Id in uniqueTransferStop2Ids)
+        {
+            foreach (var tr in activeStopsCache.TransfersByToStopId[ts2Id])
             {
-                if (uniqueTransferStop2Ids.Contains(tr.ToStopId))
+                if (tr.DistanceMeters <= maxTransferWalkMeters)
                 {
-                    transfer2Pairs.Add(new TransferPair { TransferStop1Id = originStopId, TransferStop2Id = tr.ToStopId, WalkSeconds = tr.WalkingTimeSeconds });
+                    transfer2Pairs.Add(new TransferPair { TransferStop1Id = tr.FromStopId, TransferStop2Id = ts2Id, WalkSeconds = tr.WalkingTimeSeconds });
                 }
             }
         }
@@ -998,9 +1038,14 @@ public class JourneyPlanningService : IJourneyPlanningService
                 }
 
                 var chunkResults = await finalLeg2Query.AsNoTracking().ToListAsync(cancellationToken);
+                var chunkTripIds = chunkResults.Select(x => x.TripDbId).Distinct().ToList();
+                var chunkSummaries = await _context.GtfsTripStopSummaries
+                    .Where(x => chunkTripIds.Contains(x.GtfsTripId))
+                    .ToDictionaryAsync(x => x.GtfsTripId, x => x.StopSequences, cancellationToken);
+                    
                 foreach(var leg2 in chunkResults)
                 {
-                    if (activeStopsCache.TripStopSequences.TryGetValue(leg2.TripDbId, out var seqs))
+                    if (chunkSummaries.TryGetValue(leg2.TripDbId, out var seqs))
                     {
                         leg2.StopCount = seqs.Count(s => s > leg2.DepSeq && s <= leg2.ArrSeq);
                     }
@@ -1013,12 +1058,17 @@ public class JourneyPlanningService : IJourneyPlanningService
         var results = new List<TwoTransferResult>();
         var deduplicationSet = new HashSet<string>();
 
+        var transfer1PairsLookup = transfer1Pairs.ToLookup(p => p.TransferStop1Id);
+        var leg2CandidatesLookup = leg2Candidates.ToLookup(l2 => l2.TransferStop2Id);
+        var transfer2PairsLookup = transfer2Pairs.ToLookup(p => p.TransferStop1Id);
+        var validLeg3StopsLookup = validLeg3Stops.ToLookup(l3 => l3.TransferStop2Id);
+
         foreach (var l1 in validLeg1Stops)
         {
-            var p1List = transfer1Pairs.Where(p => p.TransferStop1Id == l1.TransferStop1Id).ToList();
+            var p1List = transfer1PairsLookup[l1.TransferStop1Id];
             foreach (var p1 in p1List)
             {
-                var l2List = leg2Candidates.Where(l2 => l2.TransferStop2Id == p1.TransferStop2Id).ToList();
+                var l2List = leg2CandidatesLookup[p1.TransferStop2Id];
                 foreach (var l2 in l2List)
                 {
                     cancellationToken.ThrowIfCancellationRequested();
@@ -1038,10 +1088,10 @@ public class JourneyPlanningService : IJourneyPlanningService
                         var wait1Minutes = (absDep2 - absArr1).TotalMinutes;
                         if (wait1Minutes > maxWaitTimeMinutes) continue;
 
-                        var p2List = transfer2Pairs.Where(p => p.TransferStop1Id == l2.DestStopId).ToList();
+                        var p2List = transfer2PairsLookup[l2.DestStopId];
                         foreach (var p2 in p2List)
                         {
-                            var l3List = validLeg3Stops.Where(l3 => l3.TransferStop2Id == p2.TransferStop2Id).ToList();
+                            var l3List = validLeg3StopsLookup[p2.TransferStop2Id];
                             foreach (var l3 in l3List)
                             {
                                 cancellationToken.ThrowIfCancellationRequested();
@@ -1165,6 +1215,7 @@ public class JourneyPlanningService : IJourneyPlanningService
         var stopTimes = await _context.GtfsStopTimes
             .Include(st => st.Stop)
             .Where(st => st.GtfsImportRunId == importId && tripIds.Contains(st.TripId))
+            .AsNoTracking()
             .ToListAsync(cancellationToken);
 
         foreach (var leg in transitLegs)
@@ -1308,5 +1359,182 @@ public class JourneyPlanningService : IJourneyPlanningService
             RouteTypeSummary = routeTypeSummary,
             Legs = legs
         };
+    }
+
+    private async Task<ItineraryDto?> FindNextTripForPatternAsync(ItineraryDto itinerary, int missedLegIndex, DateTimeOffset newReadyTime, int importId, CancellationToken cancellationToken)
+    {
+        var missedLeg = itinerary.Legs[missedLegIndex];
+        if (missedLeg.PatternId == null || missedLeg.FromStopSequence == null) return null;
+
+        int searchSeconds = (int)newReadyTime.TimeOfDay.TotalSeconds;
+        if (newReadyTime.Date < newReadyTime.ToLocalTime().Date) 
+        {
+            // Simple handling: if cross-day, just return null for now. 
+            // Full robust next-trip requires heavy DB scan over GtfsTripStopSummaries.
+            // But we can scan the summary for the pattern.
+        }
+
+        var routeId = missedLeg.RouteId;
+        var dirId = missedLeg.DirectionId;
+        if (routeId == null) return null;
+
+        // Query DB for the next departure on the same route/direction
+        var nextStopTime = await _context.GtfsStopTimes
+            .Include(st => st.Trip)
+            .Where(st => st.GtfsImportRunId == importId
+                      && st.StopId == missedLeg.FromStopId
+                      && st.Trip.RouteId == routeId
+                      && st.Trip.DirectionId == dirId
+                      && st.DepartureSeconds >= searchSeconds)
+            .OrderBy(st => st.DepartureSeconds)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (nextStopTime == null || !nextStopTime.DepartureSeconds.HasValue) return null;
+
+        var shiftSeconds = nextStopTime.DepartureSeconds.Value - missedLeg.RawGtfsDepartureSeconds.GetValueOrDefault();
+        
+        missedLeg.TripId = nextStopTime.TripId;
+        missedLeg.DepartureTime = missedLeg.DepartureTime?.AddSeconds(shiftSeconds);
+        if (missedLeg.ArrivalTime.HasValue) missedLeg.ArrivalTime = missedLeg.ArrivalTime.Value.AddSeconds(shiftSeconds);
+        missedLeg.RawGtfsDepartureSeconds = nextStopTime.DepartureSeconds;
+        missedLeg.RawGtfsArrivalSeconds += shiftSeconds; 
+
+        // Shift all subsequent legs by shiftSeconds (naive shift, but works if no more transfers).
+        // If there are transfers, this naive shift might break them. 
+        // For Phase 1 of this implementation, we will just return the shifted itinerary and re-validate catchability.
+        for (int i = missedLegIndex + 1; i < itinerary.Legs.Count; i++)
+        {
+            var leg = itinerary.Legs[i];
+            leg.DepartureTime = leg.DepartureTime?.AddSeconds(shiftSeconds);
+            if (leg.ArrivalTime.HasValue) leg.ArrivalTime = leg.ArrivalTime.Value.AddSeconds(shiftSeconds);
+            if (leg.RawGtfsDepartureSeconds.HasValue) leg.RawGtfsDepartureSeconds += shiftSeconds;
+            if (leg.RawGtfsArrivalSeconds.HasValue) leg.RawGtfsArrivalSeconds += shiftSeconds;
+        }
+
+        return itinerary;
+    }
+
+    private void UpdateItineraryMetrics(ItineraryDto itinerary, JourneyPlanSearchRequest request)
+    {
+        var transitLegs = itinerary.Legs.Where(l => l.Mode == "TRANSIT").ToList();
+        var walkLegs = itinerary.Legs.Where(l => l.Mode == "WALK").ToList();
+
+        itinerary.DepartureTime = itinerary.Legs.First().DepartureTime.GetValueOrDefault();
+        itinerary.ArrivalTime = itinerary.Legs.Last().ArrivalTime.GetValueOrDefault();
+
+        var initialWait = (int)(itinerary.DepartureTime - request.DepartureDateTime).GetValueOrDefault().TotalSeconds;
+        if (initialWait < 0) initialWait = 0;
+
+        var transferWaitTimes = new List<int>();
+        for (int i = 0; i < transitLegs.Count - 1; i++)
+        {
+            var currentTransit = transitLegs[i];
+            var nextTransit = transitLegs[i + 1];
+            
+            var walkBetween = itinerary.Legs.FirstOrDefault(l => l.Mode == "WALK" && l.DepartureTime == currentTransit.ArrivalTime);
+            var arrivedAtNextStop = walkBetween != null ? walkBetween.ArrivalTime.Value : currentTransit.ArrivalTime.Value;
+            
+            var wait = (int)(nextTransit.DepartureTime.Value - arrivedAtNextStop).TotalSeconds;
+            transferWaitTimes.Add(wait < 0 ? 0 : wait);
+        }
+
+        itinerary.TotalWalkingDistanceMeters = walkLegs.Sum(l => l.DistanceMeters);
+        itinerary.TotalWalkingTimeSeconds = walkLegs.Sum(l => (int)(l.ArrivalTime.Value - l.DepartureTime.Value).TotalSeconds);
+        itinerary.TotalInVehicleTimeSeconds = transitLegs.Sum(l => (int)(l.ArrivalTime.Value - l.DepartureTime.Value).TotalSeconds);
+        itinerary.InitialWaitTimeSeconds = initialWait;
+        itinerary.TransferWaitTimes = transferWaitTimes;
+        itinerary.TotalWaitingTimeSeconds = initialWait + transferWaitTimes.Sum();
+    }
+
+    private async Task<List<ItineraryDto>> EvaluateOsrmWalksAsync(List<ItineraryDto> candidates, JourneyPlanSearchRequest request, List<GtfsStop> activeStops, int importId, CancellationToken cancellationToken)
+    {
+        var validated = new List<ItineraryDto>();
+
+        foreach (var itinerary in candidates)
+        {
+            bool dropItinerary = false;
+            bool itineraryApproximated = false;
+
+            for (int i = 0; i < itinerary.Legs.Count; i++)
+            {
+                var leg = itinerary.Legs[i];
+                if (leg.Mode != "WALK") continue;
+
+                double srcLat, srcLon, tgtLat, tgtLon;
+
+                if (i == 0) // Origin to first stop
+                {
+                    srcLat = request.Origin.Lat;
+                    srcLon = request.Origin.Lon;
+                    var stop = activeStops.FirstOrDefault(s => s.StopId == leg.ToStopId);
+                    if (stop == null) { dropItinerary = true; break; }
+                    tgtLat = stop.StopLat; tgtLon = stop.StopLon;
+                }
+                else if (i == itinerary.Legs.Count - 1) // Last stop to destination
+                {
+                    var stop = activeStops.FirstOrDefault(s => s.StopId == leg.FromStopId);
+                    if (stop == null) { dropItinerary = true; break; }
+                    srcLat = stop.StopLat; srcLon = stop.StopLon;
+                    tgtLat = request.Destination.Lat; tgtLon = request.Destination.Lon;
+                }
+                else // Transfer walk
+                {
+                    var stop1 = activeStops.FirstOrDefault(s => s.StopId == leg.FromStopId);
+                    var stop2 = activeStops.FirstOrDefault(s => s.StopId == leg.ToStopId);
+                    if (stop1 == null || stop2 == null) { dropItinerary = true; break; }
+                    srcLat = stop1.StopLat; srcLon = stop1.StopLon;
+                    tgtLat = stop2.StopLat; tgtLon = stop2.StopLon;
+                }
+
+                var osrmResult = await _walkingRoutingService.CalculateWalkingRouteAsync(srcLat, srcLon, tgtLat, tgtLon, false, cancellationToken);
+                
+                if (osrmResult.State.ErrorCode == "UNROUTABLE_LOCATION" || osrmResult.State.ErrorCode == "NO_ROUTE")
+                {
+                    dropItinerary = true;
+                    break;
+                }
+                
+                if (osrmResult.State.IsSuccess)
+                {
+                    leg.DistanceMeters = (int)osrmResult.DistanceMeters;
+                    leg.DurationSeconds = (int)osrmResult.DurationSeconds;
+                    leg.DurationMinutes = leg.DurationSeconds / 60;
+                    
+                    // Update Arrival Time based on actual walk duration
+                    leg.ArrivalTime = leg.DepartureTime?.AddSeconds(leg.DurationSeconds);
+                }
+                else
+                {
+                    // Fallback to Haversine values already in leg, mark as approximate
+                    itineraryApproximated = true;
+                }
+
+                // Check Catchability for the next transit leg
+                if (i + 1 < itinerary.Legs.Count)
+                {
+                    var nextTransit = itinerary.Legs[i + 1];
+                    if (leg.ArrivalTime > nextTransit.DepartureTime)
+                    {
+                        // MISSED CONNECTION!
+                        var newItinerary = await FindNextTripForPatternAsync(itinerary, i + 1, leg.ArrivalTime.Value, importId, cancellationToken);
+                        if (newItinerary == null)
+                        {
+                            dropItinerary = true;
+                            break; // No next trip found, drop candidate
+                        }
+                        // Trip shifted successfully. The loop continues to evaluate further walks.
+                    }
+                }
+            }
+
+            if (!dropItinerary)
+            {
+                itinerary.IsApproximate = itineraryApproximated;
+                UpdateItineraryMetrics(itinerary, request);
+                validated.Add(itinerary);
+            }
+        }
+
+        return validated;
     }
 }

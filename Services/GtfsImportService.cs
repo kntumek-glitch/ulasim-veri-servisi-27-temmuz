@@ -500,7 +500,15 @@ namespace ulasim_veri_servisi.Services
 
                     importRun.StopTimeCount = total;
 
-
+                    _logger.LogInformation("Generating GtfsTripStopSummaries...");
+                    await _context.Database.ExecuteSqlRawAsync($@"
+                        INSERT INTO ""GtfsTripStopSummaries"" (""GtfsImportRunId"", ""GtfsTripId"", ""StopSequences"")
+                        SELECT ""GtfsImportRunId"", ""GtfsTripId"", array_agg(""StopSequence"" ORDER BY ""StopSequence"")
+                        FROM ""GtfsStopTimes""
+                        WHERE ""GtfsImportRunId"" = {{0}}
+                        GROUP BY ""GtfsImportRunId"", ""GtfsTripId"";
+                    ", importRun.Id);
+                    _logger.LogInformation("GtfsTripStopSummaries generated successfully.");
                 }
                 var calendarEntry = archive.GetEntry("calendar.txt");
 
@@ -960,6 +968,7 @@ namespace ulasim_veri_servisi.Services
             _logger.LogInformation("Cleaning up {Count} old GTFS feeds (IDs: {Ids})", runsToDelete.Count, string.Join(",", runsToDelete));
 
             await context.GtfsTransfers.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
+            await context.GtfsTripStopSummaries.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsStopTimes.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsTrips.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);
             await context.GtfsRoutes.Where(x => runsToDelete.Contains(x.GtfsImportRunId)).ExecuteDeleteAsync(cancellationToken);

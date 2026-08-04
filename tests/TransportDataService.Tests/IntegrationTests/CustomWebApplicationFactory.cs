@@ -35,7 +35,8 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
         {
             config.AddInMemoryCollection(new[]
             {
-                new KeyValuePair<string, string>("AdminSettings:ApiKey", "test-key")
+                new KeyValuePair<string, string>("AdminSettings:ApiKey", "test-key"),
+                new KeyValuePair<string, string>("JourneyPlan:MaxWalkingMeters", "10000")
             }!);
         });
 
@@ -51,6 +52,37 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
             using var scope = sp.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             db.Database.Migrate();
+
+            // Mock OSRM to never make real HTTP requests during tests
+            var routeProviderDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ulasim_veri_servisi.Services.IWalkingRouteProvider));
+            if (routeProviderDescriptor != null) services.Remove(routeProviderDescriptor);
+            services.AddSingleton<ulasim_veri_servisi.Services.IWalkingRouteProvider, MockWalkingRouteProvider>();
+        });
+    }
+}
+
+public class MockWalkingRouteProvider : ulasim_veri_servisi.Services.IWalkingRouteProvider
+{
+    public Task<ulasim_veri_servisi.Models.Gtfs.JourneyPlan.WalkingResult> GetWalkingRouteAsync(double srcLat, double srcLon, double tgtLat, double tgtLon, bool returnGeometry, CancellationToken cancellationToken)
+    {
+        // Simple Haversine approximation to maintain backwards compatibility with older tests
+        double r = 6371e3;
+        double p1 = srcLat * Math.PI / 180;
+        double p2 = tgtLat * Math.PI / 180;
+        double dp = (tgtLat - srcLat) * Math.PI / 180;
+        double dl = (tgtLon - srcLon) * Math.PI / 180;
+
+        double a = Math.Sin(dp / 2) * Math.Sin(dp / 2) +
+                   Math.Cos(p1) * Math.Cos(p2) *
+                   Math.Sin(dl / 2) * Math.Sin(dl / 2);
+        double c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+
+        double dist = r * c;
+        return Task.FromResult(new ulasim_veri_servisi.Models.Gtfs.JourneyPlan.WalkingResult
+        {
+            State = new ulasim_veri_servisi.Models.Gtfs.JourneyPlan.ErrorState { IsSuccess = true },
+            DistanceMeters = dist,
+            DurationSeconds = dist / 1.2
         });
     }
 }

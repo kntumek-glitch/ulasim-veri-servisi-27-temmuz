@@ -20,19 +20,22 @@ public class GtfsTransfersController : ControllerBase
     private readonly IConfiguration _configuration;
     private readonly IMemoryCache _cache;
     private readonly ILogger<GtfsTransfersController> _logger;
+    private readonly ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource _cacheTokenSource;
 
     public GtfsTransfersController(
         AppDbContext context,
         IGtfsTransferCalculationService calculationService,
         IConfiguration configuration,
         IMemoryCache cache,
-        ILogger<GtfsTransfersController> logger)
+        ILogger<GtfsTransfersController> logger,
+        ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource cacheTokenSource)
     {
         _context = context;
         _calculationService = calculationService;
         _configuration = configuration;
         _cache = cache;
         _logger = logger;
+        _cacheTokenSource = cacheTokenSource;
     }
 
     [HttpPost("/api/v1/admin/gtfs/transfers/rebuild")]
@@ -42,7 +45,7 @@ public class GtfsTransfersController : ControllerBase
         var activeRun = await _context.GtfsImportRuns.FirstOrDefaultAsync(r => r.IsActive, cancellationToken);
         if (activeRun == null)
         {
-            return BadRequest(new ProblemDetails { Title = "Hata", Detail = "Sistemde aktif bir GTFS Import bulunamadı." });
+            throw new ulasim_veri_servisi.Exceptions.ActiveFeedNotFoundException("Sistemde aktif bir GTFS Import bulunamadı.");
         }
 
         // Concurrency kilidi (Eşzamanlı başlatmayı engelle)
@@ -61,11 +64,8 @@ public class GtfsTransfersController : ControllerBase
             
             sw.Stop();
 
-            // Clear journey planning cache since transfers are updated
-            if (_cache is MemoryCache memoryCache)
-            {
-                memoryCache.Clear();
-            }
+            // Sadece Journey Plan cache'lerini invalide et (MemoryCache.Clear() tüm cache'i temizliyordu, bu bir güvenlik açığıydı)
+            _cacheTokenSource.Reset();
 
             int maxWalkMeters = _configuration.GetValue<int>("JourneyPlan:MaxTransferWalkMeters", 1500);
 
@@ -77,11 +77,6 @@ public class GtfsTransfersController : ControllerBase
             };
 
             return Ok(response);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Rebuild sırasında beklenmeyen bir hata oluştu.");
-            return StatusCode(500, new ProblemDetails { Title = "Sunucu Hatası", Detail = "Rebuild işlemi başarısız oldu ve geri alındı." });
         }
         finally
         {

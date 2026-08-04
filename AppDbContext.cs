@@ -34,12 +34,13 @@ public class AppDbContext : DbContext
     public DbSet<GtfsCalendarDate> GtfsCalendarDates { get; set; }
 
     public DbSet<GtfsShapePoint> GtfsShapePoints { get; set; }
-
     public DbSet<GtfsImportRun> GtfsImportRuns { get; set; }
-    
+
     public DbSet<GtfsImportPhase> GtfsImportPhases { get; set; }
     
     public DbSet<GtfsTransfer> GtfsTransfers { get; set; }
+    
+    public DbSet<GtfsTripStopSummary> GtfsTripStopSummaries { get; set; }
     
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -107,6 +108,13 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<GtfsStopTime>()
             .HasIndex(x => new { x.GtfsTripId, x.StopSequence });
+            
+        modelBuilder.Entity<GtfsTripStopSummary>()
+            .HasIndex(x => x.GtfsTripId);
+
+        modelBuilder.Entity<GtfsTripStopSummary>()
+            .HasIndex(x => new { x.GtfsImportRunId, x.GtfsTripId })
+            .IsUnique();
 
         modelBuilder.Entity<GtfsAgency>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsRoute>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
@@ -116,6 +124,7 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<GtfsCalendar>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsCalendarDate>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         modelBuilder.Entity<GtfsShapePoint>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
+        modelBuilder.Entity<GtfsTripStopSummary>().HasQueryFilter(x => x.GtfsImportRun.IsActive);
         
         modelBuilder.Entity<GtfsTransfer>()
             .HasIndex(x => new { x.GtfsImportRunId, x.FromStopId, x.ToStopId })

@@ -382,6 +382,8 @@ public class JourneyPlansIntegrationTests : IClassFixture<CustomWebApplicationFa
         var result = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         
         // Assert
+        Console.WriteLine($"DEBUG RESPONSE CODE: {response.StatusCode}");
+        Console.WriteLine($"DEBUG RESPONSE BODY: {await response.Content.ReadAsStringAsync()}");
         result.Should().NotBeNull();
         result!.Itineraries.Should().HaveCountGreaterThan(0);
         result.Itineraries.First().TransferCount.Should().Be(1);

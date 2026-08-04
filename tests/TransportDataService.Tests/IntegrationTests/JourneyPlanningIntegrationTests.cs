@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using System.Net;
 using System.Net.Http.Json;
+using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
 using TransportDataService.Models.Gtfs.JourneyPlan;
@@ -555,5 +556,204 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
         // Wait, the API returns StopCount for the leg. A leg from A to B has 1 intermediate transit, which means 1 stop? No, if it goes A -> B, it's 1 stop.
         // Let's just verify it didn't do `20 - 10 = 10`.
         leg!.StopCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task C2_CacheIsolation_IncludeIntermediateStops_FalseThenTrue_ShouldReturnCorrectData()
+    {
+        var client = _factory.CreateClient();
+        
+        var requestFalse = new JourneyPlanSearchRequest
+        {
+            Origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 },
+            Destination = new CoordinateDto { Lat = 38.41, Lon = 27.11 },
+            DepartureDateTime = new DateTimeOffset(2024, 1, 1, 7, 50, 0, TimeSpan.FromHours(3)),
+            IncludeIntermediateStops = false
+        };
+
+        var requestTrue = new JourneyPlanSearchRequest
+        {
+            Origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 },
+            Destination = new CoordinateDto { Lat = 38.41, Lon = 27.11 },
+            DepartureDateTime = new DateTimeOffset(2024, 1, 1, 7, 50, 0, TimeSpan.FromHours(3)),
+            IncludeIntermediateStops = true
+        };
+
+        // 1. First request with false
+        var response1 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", requestFalse);
+        var result1 = await response1.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
+        result1!.Itineraries.Should().NotBeEmpty();
+        
+        // Assert strict logic: all legs should have NULL intermediate stops since we asked for false
+        var allLegs1 = result1.Itineraries.SelectMany(i => i.Legs).Where(l => l.Mode != "WALK").ToList();
+        allLegs1.Should().OnlyContain(l => l.IntermediateStops == null);
+
+        // 2. Second request with true for EXACT SAME ROUTE
+        var response2 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", requestTrue);
+        var result2 = await response2.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
+        result2!.Itineraries.Should().NotBeEmpty();
+
+        // Assert strict logic: legs should have non-null intermediate stops since we asked for true (and they shouldn't be polluted by false cache)
+        var allLegs2 = result2.Itineraries.SelectMany(i => i.Legs).Where(l => l.Mode != "WALK").ToList();
+        allLegs2.Should().OnlyContain(l => l.IntermediateStops != null, "Aynı rota için IncludeIntermediateStops=true istendiğinde cache yanlış dönmemeli.");
+    }
+
+    [Fact]
+    public async Task C3_CacheIsolation_IncludeIntermediateStops_TrueThenFalse_ShouldReturnCorrectData()
+    {
+        var client = _factory.CreateClient();
+        
+        var requestTrue = new JourneyPlanSearchRequest
+        {
+            Origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 },
+            Destination = new CoordinateDto { Lat = 38.41, Lon = 27.11 }, // Use valid dest
+            DepartureDateTime = new DateTimeOffset(2024, 1, 1, 7, 50, 0, TimeSpan.FromHours(3)),
+            IncludeIntermediateStops = true
+        };
+
+        var requestFalse = new JourneyPlanSearchRequest
+        {
+            Origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 },
+            Destination = new CoordinateDto { Lat = 38.41, Lon = 27.11 },
+            DepartureDateTime = new DateTimeOffset(2024, 1, 1, 7, 50, 0, TimeSpan.FromHours(3)),
+            IncludeIntermediateStops = false
+        };
+
+        // 1. First request with true
+        var response1 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", requestTrue);
+        var result1 = await response1.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
+        result1!.Itineraries.Should().NotBeEmpty();
+        
+        // Assert strict logic: legs should have non-null intermediate stops
+        var allLegs1 = result1.Itineraries.SelectMany(i => i.Legs).Where(l => l.Mode != "WALK").ToList();
+        allLegs1.Should().OnlyContain(l => l.IntermediateStops != null);
+
+        // 2. Second request with false for EXACT SAME ROUTE
+        var response2 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", requestFalse);
+        var result2 = await response2.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
+        result2!.Itineraries.Should().NotBeEmpty();
+
+        // Assert strict logic: legs should have NULL intermediate stops since we asked for false
+        var allLegs2 = result2.Itineraries.SelectMany(i => i.Legs).Where(l => l.Mode != "WALK").ToList();
+        allLegs2.Should().OnlyContain(l => l.IntermediateStops == null, "Aynı rota için IncludeIntermediateStops=false istendiğinde cache yanlış dönmemeli.");
+    }
+
+    [Fact]
+    public async Task C4_GlobalSorting_FasterTransfer_ShouldBeat_SlowDirectRoutes()
+    {
+        var client = _factory.CreateClient();
+        
+        using (var scope = _factory.Services.CreateScope())
+        {
+            var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+            var s1 = await db.GtfsStops.FirstAsync(s => s.StopId == "S1" && s.GtfsImportRunId == _runId);
+            var s2 = await db.GtfsStops.FirstAsync(s => s.StopId == "S2" && s.GtfsImportRunId == _runId);
+            var s3 = await db.GtfsStops.FirstAsync(s => s.StopId == "S3" && s.GtfsImportRunId == _runId);
+            var r1 = await db.GtfsRoutes.FirstAsync(r => r.RouteId == "R1" && r.GtfsImportRunId == _runId);
+
+            // 1. Seed 10 SLOW direct routes from S1 to S3 (takes 4 hours)
+            for (int i = 0; i < 10; i++)
+            {
+                var tSlow = new GtfsTrip { Route = r1, TripId = $"T_SLOW_{i}", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Slow", DirectionId = 0, GtfsImportRunId = _runId };
+                db.GtfsTrips.Add(tSlow);
+                
+                // Departure 06:00, Arrival 10:00 (4 hours)
+                db.GtfsStopTimes.AddRange(
+                    new GtfsStopTime { Trip = tSlow, Stop = s1, TripId = $"T_SLOW_{i}", StopId = "S1", StopSequence = 1, ArrivalSeconds = 6*3600, DepartureSeconds = 6*3600, GtfsImportRunId = _runId },
+                    new GtfsStopTime { Trip = tSlow, Stop = s3, TripId = $"T_SLOW_{i}", StopId = "S3", StopSequence = 2, ArrivalSeconds = 10*3600, DepartureSeconds = 10*3600, GtfsImportRunId = _runId }
+                );
+            }
+
+            var r2 = await db.GtfsRoutes.FirstAsync(r => r.RouteId == "R2" && r.GtfsImportRunId == _runId);
+
+            // 2. Seed 1 FAST 1-transfer route S1 -> S2 -> S3 (takes 45 mins)
+            var tFast1 = new GtfsTrip { Route = r1, TripId = "T_FAST_1", RouteId = "R1", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Fast1", DirectionId = 0, GtfsImportRunId = _runId };
+            var tFast2 = new GtfsTrip { Route = r2, TripId = "T_FAST_2", RouteId = "R2", ServiceId = "SRV_EVERYDAY", TripHeadsign = "Fast2", DirectionId = 0, GtfsImportRunId = _runId };
+            db.GtfsTrips.AddRange(tFast1, tFast2);
+
+            // Leg 1: S1 -> S2 (06:00 - 06:20)
+            db.GtfsStopTimes.AddRange(
+                new GtfsStopTime { Trip = tFast1, Stop = s1, TripId = "T_FAST_1", StopId = "S1", StopSequence = 1, ArrivalSeconds = 6*3600, DepartureSeconds = 6*3600, GtfsImportRunId = _runId },
+                new GtfsStopTime { Trip = tFast1, Stop = s2, TripId = "T_FAST_1", StopId = "S2", StopSequence = 2, ArrivalSeconds = 6*3600 + 1200, DepartureSeconds = 6*3600 + 1200, GtfsImportRunId = _runId }
+            );
+
+            // Leg 2: S2 -> S3 (06:25 - 06:45)
+            db.GtfsStopTimes.AddRange(
+                new GtfsStopTime { Trip = tFast2, Stop = s2, TripId = "T_FAST_2", StopId = "S2", StopSequence = 1, ArrivalSeconds = 6*3600 + 1500, DepartureSeconds = 6*3600 + 1500, GtfsImportRunId = _runId },
+                new GtfsStopTime { Trip = tFast2, Stop = s3, TripId = "T_FAST_2", StopId = "S3", StopSequence = 2, ArrivalSeconds = 6*3600 + 2700, DepartureSeconds = 6*3600 + 2700, GtfsImportRunId = _runId }
+            );
+
+            await db.SaveChangesAsync();
+        }
+
+        var request = new JourneyPlanSearchRequest
+        {
+            Origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 },
+            Destination = new CoordinateDto { Lat = 38.41, Lon = 27.11 },
+            DepartureDateTime = new DateTimeOffset(2024, 1, 1, 5, 50, 0, TimeSpan.FromHours(3)),
+            MaxResults = 5,
+            MaxTransfers = 1
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
+        var jsonDump = await response.Content.ReadAsStringAsync();
+        System.IO.File.WriteAllText("C:/Users/HP/source/repos/ulasım-veri-servisi/ulasım-veri-servisi/c4_dump.json", jsonDump);
+        var result = System.Text.Json.JsonSerializer.Deserialize<JourneyPlanSearchResponse>(jsonDump, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result!.Itineraries.Should().HaveCountLessThanOrEqualTo(5);
+        result.Itineraries.Should().NotBeEmpty();
+
+        // The fast 1-transfer route must be at the very top (index 0) because it arrives at 06:45 vs 10:00!
+        var bestRoute = result.Itineraries.First();
+        bestRoute.TransferCount.Should().Be(1, "1-transfer rotası, çok daha hızlı olduğu için (varış 06:45), yavaş direkt rotaları (varış 10:00) geçip listeye girmeli ve ilk sırada olmalıdır.");
+        bestRoute.Legs.Should().Contain(l => l.TripId == "T_FAST_1");
+        bestRoute.Legs.Should().Contain(l => l.TripId == "T_FAST_2");
+    }
+
+    [Fact]
+    public async Task C5_CumulativeWalk_BoundaryTests()
+    {
+        var client = _factory.CreateClient();
+
+        // Step 1: Find EXACT distance by searching with a very high limit
+        var request = new JourneyPlanSearchRequest
+        {
+            Origin = new CoordinateDto { Lat = 38.401, Lon = 27.101 }, // Offset to force walk
+            Destination = new CoordinateDto { Lat = 38.411, Lon = 27.111 }, // Offset to force walk
+            DepartureDateTime = new DateTimeOffset(2024, 1, 1, 8, 0, 0, TimeSpan.FromHours(3)),
+            MaxTransfers = 0,
+            MaxWalkingMeters = 5000,
+            IncludeIntermediateStops = false
+        };
+
+        var response = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
+        response.EnsureSuccessStatusCode();
+        var result = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        result.Should().NotBeNull();
+        result!.Itineraries.Should().NotBeEmpty("Yüksek yürüme limitiyle en az 1 rota bulunmalı.");
+
+        // We use the first found route's EXACT walking distance to test boundaries
+        int exactWalk = result.Itineraries.First().TotalWalkingDistanceMeters;
+
+        // --- C5: Just Below Limit ---
+        request.MaxWalkingMeters = exactWalk + 1;
+        var r5 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
+        var res5 = await r5.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        res5!.Itineraries.Should().NotBeEmpty("Limitin 1 metre altındaki rota dahil edilmelidir.");
+
+        // --- C6: Exactly At Limit ---
+        request.MaxWalkingMeters = exactWalk;
+        var r6 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
+        var res6 = await r6.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        res6!.Itineraries.Should().NotBeEmpty("Limite tam eşit olan rota dahil edilmelidir.");
+
+        // --- C7: Just Above Limit ---
+        request.MaxWalkingMeters = exactWalk - 1;
+        var r7 = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
+        var res7 = await r7.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>(new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        
+        // Ensure this specific exactWalk distance route is missing!
+        res7!.Itineraries.Any(i => i.TotalWalkingDistanceMeters == exactWalk).Should().BeFalse("Limitin 1 metre üstündeki rota REDDEDİLMELİDİR.");
     }
 }

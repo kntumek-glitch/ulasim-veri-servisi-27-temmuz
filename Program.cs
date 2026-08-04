@@ -87,6 +87,7 @@ builder.Services.AddHttpClient<IExternalEshotService, ExternalEshotService>(clie
 {
     client.Timeout = TimeSpan.FromSeconds(10);
 });
+builder.Services.AddSingleton<ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource>();
 builder.Services.AddMemoryCache(options => { options.SizeLimit = 10000; });
 builder.Services.AddScoped<ApproachingBusService>();
 builder.Services.AddScoped<RouteVehiclesService>();
@@ -98,6 +99,18 @@ builder.Services.AddScoped<ITripStopsRepository, TripStopsRepository>();
 builder.Services.AddScoped<ITripStopsService, TripStopsService>();
 builder.Services.AddScoped<IRouteDeparturesService, RouteDeparturesService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Services.Interfaces.IJourneyPlanningService, ulasim_veri_servisi.Services.JourneyPlanningService>();
+
+builder.Services.Configure<ulasim_veri_servisi.Models.WalkingRoutingCacheConfiguration>(builder.Configuration.GetSection("WalkingRoutingCache"));
+builder.Services.Configure<ulasim_veri_servisi.Models.OsrmConfiguration>(builder.Configuration.GetSection("Osrm"));
+builder.Services.AddHttpClient<IWalkingRouteProvider, OsrmWalkingRouteProvider>((sp, client) => {
+    var config = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<ulasim_veri_servisi.Models.OsrmConfiguration>>().Value;
+    if (!string.IsNullOrWhiteSpace(config.BaseUrl))
+    {
+        client.BaseAddress = new Uri(config.BaseUrl);
+    }
+    client.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
+});
+builder.Services.AddScoped<WalkingRoutingService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.AdminKeyAuthAttribute>();
 builder.Services.AddScoped<IGtfsTransferCalculationService, GtfsTransferCalculationService>();

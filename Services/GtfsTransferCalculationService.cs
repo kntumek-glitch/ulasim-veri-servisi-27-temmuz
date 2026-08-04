@@ -107,7 +107,7 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
         // Feed henüz aktif (IsActive = true) olmadığı için IgnoreQueryFilters kullanıyoruz!
         var stops = await context.GtfsStops
             .IgnoreQueryFilters()
-            .Where(s => s.GtfsImportRunId == gtfsImportRunId)
+            .Where(s => s.GtfsImportRunId == gtfsImportRunId && s.StopLat != 0 && s.StopLon != 0)
             .AsNoTracking()
             .ToListAsync(cancellationToken);
 
@@ -125,7 +125,7 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
             list.Add(s);
         }
 
-        var transfers = new ConcurrentBag<GtfsTransfer>();
+        var transfersDict = new System.Collections.Concurrent.ConcurrentDictionary<string, GtfsTransfer>();
         int calculatedCount = 0;
 
         _logger.LogInformation("Spatial grid built. Calculating transfers with radius {MaxMeters}m using parallel processing.", maxWalkMeters);
@@ -142,7 +142,12 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
                 {
                     foreach (var targetStop in neighborStops)
                     {
+                        if (originStop.StopId == targetStop.StopId) continue;
+
                         double distance = Haversine(originLat, originLon, targetStop.StopLat, targetStop.StopLon);
+                        
+                        // Strict data integrity validation for graph edges
+                        if (double.IsNaN(distance) || double.IsInfinity(distance) || distance < 0) continue;
                         
                         if (distance <= maxWalkMeters)
                         {
@@ -154,7 +159,7 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
                                 FromStopId = originStop.StopId,
                                 ToStopId = targetStop.StopId,
                                 DistanceMeters = distance,
-                                WalkingTimeSeconds = (int)(distance / walkingSpeed),
+                                WalkingTimeSeconds = (int)Math.Ceiling(distance / walkingSpeed),
                                 IsSamePhysicalStop = isSamePhysical,
                                 IsSameParentStation = false, // Varsa ParentStationId mantığı eklenebilir
                                 IsSameCoordinateCluster = isSamePhysical,
@@ -162,7 +167,8 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
                                 CreatedAt = DateTime.UtcNow
                             };
                             
-                            transfers.Add(transfer);
+                            var edgeKey = $"{originStop.StopId}_{targetStop.StopId}";
+                            transfersDict[edgeKey] = transfer;
                         }
                     }
                 }
@@ -175,7 +181,7 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
             }
         });
 
-        return transfers.ToList();
+        return transfersDict.Values.ToList();
     }
 
     private string GetGridKey(double lat, double lon)

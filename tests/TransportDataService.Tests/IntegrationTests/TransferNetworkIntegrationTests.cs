@@ -119,7 +119,10 @@ public class TransferNetworkIntegrationTests : IAsyncLifetime
         var sC = new GtfsStop { StopId = "TN_C", StopName = "Stop_C", StopLat = 41.180, StopLon = 29.000, GtfsImportRunId = runId };
         // Stop D = destination
         var sD = new GtfsStop { StopId = "TN_D", StopName = "Stop_D", StopLat = 41.002, StopLon = 29.002, GtfsImportRunId = runId };
-        db.GtfsStops.AddRange(sA, sASame, sB, sC, sD);
+        // Stop E = Invalid Coordinates
+        var sE = new GtfsStop { StopId = "TN_INVALID", StopName = "Invalid_Stop", StopLat = 0, StopLon = 0, GtfsImportRunId = runId };
+        
+        db.GtfsStops.AddRange(sA, sASame, sB, sC, sD, sE);
 
         var r1 = new GtfsRoute { RouteId = "TN_R1", RouteShortName = "TN_L1", RouteType = 3, GtfsImportRunId = runId };
         var r2 = new GtfsRoute { RouteId = "TN_R2", RouteShortName = "TN_L2", RouteType = 3, GtfsImportRunId = runId };
@@ -263,39 +266,112 @@ public class TransferNetworkIntegrationTests : IAsyncLifetime
     }
 
     /// <summary>
-    /// Transfer 6: Admin rebuild endpointi — /api/v1/admin/transfers/rebuild — aktif feed için çalışmalı.
+    /// Transfer 6: Admin rebuild endpointi — /api/v1/admin/gtfs/transfers/rebuild — aktif feed için çalışmalı.
     /// </summary>
     [Fact]
     public async Task T06_AdminRebuildEndpoint_ShouldReturnOkWithCount()
     {
         var client = _factory.CreateClient();
-        var response = await client.PostAsync("/api/v1/admin/transfers/rebuild", null);
+        client.DefaultRequestHeaders.Add("X-Admin-Key", "test-key");
+        var response = await client.PostAsync("/api/v1/admin/gtfs/transfers/rebuild", null);
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
-        doc.RootElement.TryGetProperty("totalTransfers", out _).Should().BeTrue("Yanıt totalTransfers içermeli");
-        doc.RootElement.TryGetProperty("runId", out _).Should().BeTrue("Yanıt runId içermeli");
+        doc.RootElement.TryGetProperty("transferCount", out _).Should().BeTrue("Yanıt transferCount içermeli");
+        doc.RootElement.TryGetProperty("executionTimeMs", out _).Should().BeTrue("Yanıt executionTimeMs içermeli");
     }
 
     /// <summary>
-    /// Transfer 7: Admin status endpointi — /api/v1/admin/transfers/status — transfer ağı durumunu döndürmeli.
+    /// Transfer 7: Admin status endpointi — /api/v1/gtfs/transfers/status — transfer ağı durumunu döndürmeli.
     /// </summary>
     [Fact]
     public async Task T07_AdminStatusEndpoint_ShouldReturnActiveRunStatus()
     {
         // Transfers are already calculated by InitializeAsync
         var client = _factory.CreateClient();
-        var response = await client.GetAsync("/api/v1/admin/transfers/status");
+        var response = await client.GetAsync("/api/v1/gtfs/transfers/status");
 
         response.StatusCode.Should().Be(HttpStatusCode.OK);
 
         var json = await response.Content.ReadAsStringAsync();
         using var doc = JsonDocument.Parse(json);
-        doc.RootElement.TryGetProperty("activeRunId", out var runIdProp).Should().BeTrue();
+        doc.RootElement.TryGetProperty("activeImportId", out var runIdProp).Should().BeTrue();
         runIdProp.GetInt32().Should().Be(_runId);
-        doc.RootElement.TryGetProperty("totalTransfers", out var countProp).Should().BeTrue();
+        doc.RootElement.TryGetProperty("transferCount", out var countProp).Should().BeTrue();
         countProp.GetInt32().Should().BeGreaterThanOrEqualTo(0, "Transfer sayısı 0 veya daha fazla olmalı");
+    }
+
+    /// <summary>
+    /// Transfer 8: Kendi kendine aktarma (Self-loop) reddedilmeli.
+    /// </summary>
+    [Fact]
+    public async Task T08_ShouldReject_SelfLoops()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var selfLoops = await db.GtfsTransfers
+            .Where(t => t.GtfsImportRunId == _runId && t.FromStopId == t.ToStopId)
+            .ToListAsync();
+
+        selfLoops.Should().BeEmpty("Hesaplamada kendi kendine (From=To) olan kenarlar (self-loop) oluşmamalıdır.");
+    }
+
+    /// <summary>
+    /// Transfer 9: Aynı yöndeki kenarlar çifte (duplicate) yazılmamalı.
+    /// </summary>
+    [Fact]
+    public async Task T09_ShouldReject_DuplicateEdges()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var allTransfers = await db.GtfsTransfers
+            .Where(t => t.GtfsImportRunId == _runId)
+            .ToListAsync();
+
+        var duplicates = allTransfers
+            .GroupBy(t => new { t.FromStopId, t.ToStopId })
+            .Where(g => g.Count() > 1)
+            .ToList();
+
+        duplicates.Should().BeEmpty("Hesaplamada aynı yönde (A->B) birden fazla kenar (duplicate) oluşmamalıdır.");
+    }
+
+    /// <summary>
+    /// Transfer 10: Farklı ID ama aynı koordinat (Distance=0) transferi desteklenmeli.
+    /// </summary>
+    [Fact]
+    public async Task T10_ShouldAllow_DifferentStops_AtSameCoordinate()
+    {
+        // TN_A ve TN_A_SAME zaten Initialize'da seed edildi ve T01 ile kontrol ediliyor.
+        // T01 mantığını pekiştirmek için açıkça tekrar doğrulayabiliriz.
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var transfer = await db.GtfsTransfers
+            .FirstOrDefaultAsync(t => t.GtfsImportRunId == _runId && t.FromStopId == "TN_A" && t.ToStopId == "TN_A_SAME");
+
+        transfer.Should().NotBeNull("Farklı ID'ye sahip, ancak aynı koordinattaki (Distance=0) duraklar birbiriyle bağlantılı olmalıdır.");
+        transfer!.DistanceMeters.Should().Be(0);
+        transfer.IsSameCoordinateCluster.Should().BeTrue();
+    }
+
+    /// <summary>
+    /// Transfer 11: Geçersiz (0,0) koordinatlı duraklar ağa dahil edilmemeli.
+    /// </summary>
+    [Fact]
+    public async Task T11_ShouldExclude_InvalidCoordinates()
+    {
+        using var scope = _factory.Services.CreateScope();
+        var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+
+        var invalidTransfers = await db.GtfsTransfers
+            .Where(t => t.GtfsImportRunId == _runId && (t.FromStopId == "TN_INVALID" || t.ToStopId == "TN_INVALID"))
+            .ToListAsync();
+
+        invalidTransfers.Should().BeEmpty("0,0 koordinatlı geçersiz duraklar transfer havuzuna veya hesaplamalara alınmamalıdır.");
     }
 }

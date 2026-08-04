@@ -28,6 +28,10 @@ public class TwoTransfersIntegrationTests : IClassFixture<WebApplicationFactory<
             {
                 var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(DbContextOptions<AppDbContext>));
                 if (descriptor != null) services.Remove(descriptor);
+                
+                var routeProviderDescriptor = services.SingleOrDefault(d => d.ServiceType == typeof(ulasim_veri_servisi.Services.IWalkingRouteProvider));
+                if (routeProviderDescriptor != null) services.Remove(routeProviderDescriptor);
+                services.AddSingleton<ulasim_veri_servisi.Services.IWalkingRouteProvider, MockWalkingRouteProvider>();
 
                 services.AddDbContext<AppDbContext>(options =>
                 {

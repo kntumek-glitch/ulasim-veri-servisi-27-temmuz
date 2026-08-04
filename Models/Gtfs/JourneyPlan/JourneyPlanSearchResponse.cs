@@ -39,6 +39,7 @@ public class ItineraryDto
     public List<int> TransferWaitTimes { get; set; } = new();
     public string ServiceDate { get; set; } = null!;
     public int TotalTransitStopCount { get; set; }
+    public bool IsApproximate { get; set; }
     
     public List<LegDto> Legs { get; set; } = new();
 }
@@ -82,7 +83,9 @@ public class LegDto
     // METRICS
     public int DistanceMeters { get; set; }
     public int DurationMinutes { get; set; }
+    public int DurationSeconds { get; set; }
     public int StopCount { get; set; }
+    public object? GeometryGeoJson { get; set; }
 
     // INTERMEDIATE STOPS
     public List<IntermediateStopDto>? IntermediateStops { get; set; }

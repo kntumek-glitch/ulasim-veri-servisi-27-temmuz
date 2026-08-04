@@ -92,6 +92,29 @@ public class GtfsTransfersControllerTests : IAsyncLifetime
     }
 
     [Fact]
+    public async Task Rebuild_WithValidAdminKey_ShouldReturn200()
+    {
+        var mockService = new Mock<IGtfsTransferCalculationService>();
+        mockService.Setup(s => s.RebuildTransfersAsync(It.IsAny<int>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(150);
+
+        var client = _factory.WithWebHostBuilder(builder =>
+        {
+            builder.ConfigureTestServices(services =>
+            {
+                services.AddScoped(sp => mockService.Object);
+            });
+        }).CreateClient();
+
+        var request = new HttpRequestMessage(HttpMethod.Post, "/api/v1/admin/gtfs/transfers/rebuild");
+        request.Headers.Add("X-Admin-Key", "test-key");
+        
+        var response = await client.SendAsync(request);
+        
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+    }
+
+    [Fact]
     public async Task Rebuild_Concurrency_SecondRequestShouldReturn409()
     {
         // To test concurrency, we need the calculation service to take some time.
