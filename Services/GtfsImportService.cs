@@ -23,6 +23,7 @@ namespace ulasim_veri_servisi.Services
         private readonly ILogger<GtfsImportService> _logger;
         private readonly IMemoryCache _cache;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
+        private readonly IRoutingSnapshotManager _snapshotManager;
         private const string GtfsUrl =
     "https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip";
 
@@ -31,13 +32,15 @@ namespace ulasim_veri_servisi.Services
             HttpClient httpClient,
             ILogger<GtfsImportService> logger,
             IMemoryCache cache,
-            Microsoft.Extensions.Configuration.IConfiguration configuration)
+            Microsoft.Extensions.Configuration.IConfiguration configuration,
+            IRoutingSnapshotManager snapshotManager)
         {
             _scopeFactory = scopeFactory;
             _httpClient = httpClient;
             _logger = logger;
             _cache = cache;
             _configuration = configuration;
+            _snapshotManager = snapshotManager;
         }
 
         public async Task<GtfsImportRun> ImportAsync(CancellationToken cancellationToken)
@@ -779,6 +782,9 @@ namespace ulasim_veri_servisi.Services
 
                 // Aktivasyonu atomik olarak commitliyoruz. Artık canlı API'ler bu yeni veriyi kullanacak.
                 await swapTransaction.CommitAsync(cancellationToken);
+                
+                activePhase = await StartPhaseAsync(_context, importRun.Id, "Building Snapshot", cancellationToken);
+                await _snapshotManager.BuildAndSwapSnapshotAsync(importRun.Id, importRun.FileHash, cancellationToken);
                 
                 await CompletePhaseAsync(_context, activePhase, cancellationToken);
                 activePhase = null;

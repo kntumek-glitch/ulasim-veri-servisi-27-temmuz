@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -17,8 +17,8 @@ public class ExternalApiLoggerTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
     private AppDbContext _context = null!;
-    private Mock<ILogger<ExternalEshotService>> _loggerMock;
-    private IMemoryCache _cache;
+    private Mock<ILogger<ExternalEshotService>> _loggerMock = default!;
+    private IMemoryCache _cache = default!;
 
     public ExternalApiLoggerTests(PostgreSqlFixture fixture) => _fixture = fixture;
 

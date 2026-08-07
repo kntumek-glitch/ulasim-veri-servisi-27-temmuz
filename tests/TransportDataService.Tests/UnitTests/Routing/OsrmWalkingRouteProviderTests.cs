@@ -197,4 +197,27 @@ public class OsrmWalkingRouteProviderTests
         result.State.IsSuccess.Should().BeFalse();
         result.State.ErrorCode.Should().Be("TIMEOUT");
     }
+
+    [Fact]
+    public async Task GetWalkingRouteAsync_ClientCancellation_ThrowsOperationCanceledException()
+    {
+        // Arrange
+        var handler = new Mock<HttpMessageHandler>();
+        handler.Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .ThrowsAsync(new OperationCanceledException());
+
+        var provider = CreateProvider(handler.Object);
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel(); // Mark as cancelled by client
+
+        // Act & Assert
+        await provider.Invoking(p => p.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, cts.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+    }
 }

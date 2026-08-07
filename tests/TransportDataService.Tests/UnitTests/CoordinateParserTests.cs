@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using System;
 using ulasim_veri_servisi.Helpers;
 using Xunit;
@@ -29,7 +29,7 @@ public class CoordinateParserTests
     public void Parse_NullOrEmpty_ThrowsArgumentException(string? input)
     {
         // Act
-        Action act = () => CoordinateParser.Parse(input);
+        Action act = () => CoordinateParser.Parse(input!);
 
         // Assert
         act.Should().Throw<ArgumentException>().WithMessage("Coordinate cannot be null or empty.");

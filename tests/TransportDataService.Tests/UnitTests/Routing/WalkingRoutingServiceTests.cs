@@ -105,4 +105,30 @@ public class WalkingRoutingServiceTests
         // Since it failed, it shouldn't be cached, so the provider should be called twice
         _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
+
+    [Fact]
+    public async Task CalculateWalkingRouteAsync_ClientCancellation_Throws_DoesNotCacheResult()
+    {
+        // Arrange
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+            .ThrowsAsync(new OperationCanceledException());
+
+        var cts = new CancellationTokenSource();
+        cts.Cancel();
+
+        // Act & Assert
+        await _service.Invoking(s => s.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, cts.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        
+        // Assert that nothing was cached by attempting again without cancellation
+        var fakeResult = new WalkingResult { State = new ErrorState { IsSuccess = true } };
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(fakeResult);
+
+        var result = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None);
+        result.State.IsSuccess.Should().BeTrue();
+
+        // The provider should have been called twice (first cancelled, second successful)
+        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()), Times.Exactly(2));
+    }
 }

@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
@@ -17,7 +17,7 @@ public class CacheTests : IAsyncLifetime
 {
     private readonly PostgreSqlFixture _fixture;
     private AppDbContext _context = null!;
-    private Mock<ILogger<ExternalEshotService>> _loggerMock;
+    private Mock<ILogger<ExternalEshotService>> _loggerMock = default!;
 
     public CacheTests(PostgreSqlFixture fixture) => _fixture = fixture;
 

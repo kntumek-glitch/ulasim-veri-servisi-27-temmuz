@@ -3,10 +3,25 @@ using System.Collections.Generic;
 
 namespace TransportDataService.Models.Gtfs.JourneyPlan;
 
+public enum JourneyPlanResolutionCode
+{
+    SUCCESS,
+    NO_NEARBY_ORIGIN_STOP,
+    NO_NEARBY_DESTINATION_STOP,
+    NO_ACTIVE_SERVICE,
+    NO_ROUTE_FOUND,
+    WALKING_ROUTE_UNAVAILABLE,
+    SEARCH_TIMEOUT,
+    CLIENT_CANCELLED,
+    FEED_NOT_AVAILABLE,
+    FEED_STALE,
+    INTERNAL_ERROR
+}
+
 public class JourneyPlanSearchResponse
 {
     public JourneyPlanMetadataDto? Metadata { get; set; }
-    public string ReasonCode { get; set; } = "SUCCESS";
+    public string ReasonCode { get; set; } = JourneyPlanResolutionCode.SUCCESS.ToString();
     public List<ItineraryDto> Itineraries { get; set; } = new();
 }
 
@@ -23,7 +38,7 @@ public class JourneyPlanMetadataDto
 
 public class ItineraryDto
 {
-    public string PlanId { get; set; } = Guid.NewGuid().ToString();
+    public string PlanId { get; set; } = string.Empty;
     public string DataSource { get; set; } = "STATIC_GTFS";
     public string RouteTypeSummary { get; set; } = string.Empty;
     public DateTimeOffset DepartureTime { get; set; }
@@ -86,6 +101,12 @@ public class LegDto
     public int DurationSeconds { get; set; }
     public int StopCount { get; set; }
     public object? GeometryGeoJson { get; set; }
+    
+    // WALKING METADATA
+    public string? WalkingSource { get; set; }
+    public bool IsApproximate { get; set; }
+    public string? WalkingWarning { get; set; }
+    public bool HasGeometry { get; set; }
 
     // INTERMEDIATE STOPS
     public List<IntermediateStopDto>? IntermediateStops { get; set; }

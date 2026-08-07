@@ -10,12 +10,14 @@ namespace TransportDataService.Tests.IntegrationTests;
 
 public class MigrationIntegrationTests : IAsyncLifetime
 {
+#pragma warning disable CS0618
     private readonly PostgreSqlContainer _dbContainer = new PostgreSqlBuilder()
         .WithImage("postgres:15-alpine")
         .WithDatabase("ulasim_migration_test")
         .WithUsername("postgres")
         .WithPassword("postgres")
         .Build();
+#pragma warning restore CS0618
 
     public async Task InitializeAsync()
     {

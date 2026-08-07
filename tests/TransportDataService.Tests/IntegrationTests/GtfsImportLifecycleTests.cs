@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.AspNetCore.Mvc.Testing;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
@@ -212,7 +212,7 @@ public class GtfsImportLifecycleTests : IAsyncLifetime
         {
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
             var oldRun = await db.GtfsImportRuns.FindAsync(oldRunId);
-            oldRun.Status.Should().Be("Failed");
+            oldRun!.Status.Should().Be("Failed");
             oldRun.ErrorMessage.Should().Contain("Abandoned");
         }
     }

@@ -12,7 +12,7 @@ using ulasim_veri_servisi.Services.Interfaces;
 
 namespace ulasim_veri_servisi.Services;
 
-public class JourneyPlanningService : IJourneyPlanningService
+public partial class JourneyPlanningService : IJourneyPlanningService
 {
     private readonly AppDbContext _context;
     private readonly IConfiguration _configuration;
@@ -20,7 +20,7 @@ public class JourneyPlanningService : IJourneyPlanningService
     private readonly ILogger<JourneyPlanningService> _logger;
     private readonly ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource _cacheTokenSource;
     private readonly WalkingRoutingService _walkingRoutingService;
-    private readonly SemaphoreSlim _semaphore = new SemaphoreSlim(1, 1);
+
 
     private class ActiveStopsCache
     {
@@ -60,6 +60,29 @@ public class JourneyPlanningService : IJourneyPlanningService
         _logger = logger;
         _cacheTokenSource = cacheTokenSource;
         _walkingRoutingService = walkingRoutingService;
+    }
+
+    public async Task<JourneyPlanSearchResponse> SearchJourneyV2Async(JourneyPlanV2SearchRequest request, CancellationToken cancellationToken = default)
+    {
+        if (request.SearchMode == RoutingMode.ARRIVE_BY)
+        {
+            return await SearchJourneyArriveByAsync(request, cancellationToken);
+        }
+
+        // Phase 1: DEPART_AT mode (maps to existing forward-search logic)
+        var v1Request = new JourneyPlanSearchRequest
+        {
+            Origin = request.Origin,
+            Destination = request.Destination,
+            DepartureDateTime = request.DateTime,
+            MaxTransfers = request.MaxTransfers,
+            MaxWalkingMeters = request.MaxWalkingMeters,
+            MaxResults = request.MaxResults,
+            IncludeIntermediateStops = request.IncludeIntermediateStops,
+            IncludeWalkingGeometry = request.IncludeWalkingGeometry
+        };
+
+        return await SearchJourneyAsync(v1Request, cancellationToken);
     }
 
     public async Task<JourneyPlanSearchResponse> SearchJourneyAsync(JourneyPlanSearchRequest request, CancellationToken cancellationToken = default)
@@ -1297,8 +1320,8 @@ public class JourneyPlanningService : IJourneyPlanningService
         var transitLegs = legs.Where(l => l.Mode == "TRANSIT").ToList();
         var walkLegs = legs.Where(l => l.Mode == "WALK").ToList();
 
-        var departureTime = legs.First().DepartureTime.Value;
-        var arrivalTime = legs.Last().ArrivalTime.Value;
+        var departureTime = legs.First().DepartureTime!.Value;
+        var arrivalTime = legs.Last().ArrivalTime!.Value;
 
         var initialWait = (int)(departureTime - request.DepartureDateTime).GetValueOrDefault().TotalSeconds;
         if (initialWait < 0) initialWait = 0;
@@ -1310,19 +1333,19 @@ public class JourneyPlanningService : IJourneyPlanningService
             var nextTransit = transitLegs[i + 1];
             
             var walkBetween = legs.FirstOrDefault(l => l.Mode == "WALK" && l.DepartureTime == currentTransit.ArrivalTime);
-            var arrivedAtNextStop = walkBetween != null ? walkBetween.ArrivalTime.Value : currentTransit.ArrivalTime.Value;
+            var arrivedAtNextStop = walkBetween != null ? walkBetween.ArrivalTime!.Value : currentTransit.ArrivalTime!.Value;
             
-            var wait = (int)(nextTransit.DepartureTime.Value - arrivedAtNextStop).TotalSeconds;
+            var wait = (int)(nextTransit.DepartureTime!.Value - arrivedAtNextStop).TotalSeconds;
             transferWaitTimes.Add(wait < 0 ? 0 : wait);
         }
 
         var totalWait = initialWait + transferWaitTimes.Sum();
         var totalWalkDistance = walkLegs.Sum(l => l.DistanceMeters);
-        var totalWalkTime = walkLegs.Sum(l => (int)(l.ArrivalTime.Value - l.DepartureTime.Value).TotalSeconds);
-        var totalInVehicleTime = transitLegs.Sum(l => (int)(l.ArrivalTime.Value - l.DepartureTime.Value).TotalSeconds);
+        var totalWalkTime = walkLegs.Sum(l => (int)(l.ArrivalTime!.Value - l.DepartureTime!.Value).TotalSeconds);
+        var totalInVehicleTime = transitLegs.Sum(l => (int)(l.ArrivalTime!.Value - l.DepartureTime!.Value).TotalSeconds);
         var totalTransitStops = transitLegs.Sum(l => l.StopCount);
 
-        var routeTypes = transitLegs.Where(l => l.RouteType.HasValue).Select(l => l.RouteType.Value).Distinct().Select(rt => 
+        var routeTypes = transitLegs.Where(l => l.RouteType.HasValue).Select(l => l.RouteType!.Value).Distinct().Select(rt => 
         {
             return rt switch
             {
@@ -1364,51 +1387,79 @@ public class JourneyPlanningService : IJourneyPlanningService
     private async Task<ItineraryDto?> FindNextTripForPatternAsync(ItineraryDto itinerary, int missedLegIndex, DateTimeOffset newReadyTime, int importId, CancellationToken cancellationToken)
     {
         var missedLeg = itinerary.Legs[missedLegIndex];
-        if (missedLeg.PatternId == null || missedLeg.FromStopSequence == null) return null;
+        if (missedLeg.PatternId == null || missedLeg.FromStopSequence == null || missedLeg.ToStopId == null) return null;
 
-        int searchSeconds = (int)newReadyTime.TimeOfDay.TotalSeconds;
-        if (newReadyTime.Date < newReadyTime.ToLocalTime().Date) 
-        {
-            // Simple handling: if cross-day, just return null for now. 
-            // Full robust next-trip requires heavy DB scan over GtfsTripStopSummaries.
-            // But we can scan the summary for the pattern.
-        }
+        var tzi = TimeZoneInfo.FindSystemTimeZoneById(_configuration["Timezone"] ?? "Europe/Istanbul");
+        var searchDate = TimeZoneInfo.ConvertTime(newReadyTime, tzi).Date;
+        int searchSeconds = (int)newReadyTime.ToOffset(tzi.GetUtcOffset(newReadyTime)).TimeOfDay.TotalSeconds;
 
-        var routeId = missedLeg.RouteId;
-        var dirId = missedLeg.DirectionId;
-        if (routeId == null) return null;
+        var activeServiceIds = await GetActiveServiceIdsAsync(searchDate, cancellationToken);
+        var previousDayServiceIds = await GetActiveServiceIdsAsync(searchDate.AddDays(-1), cancellationToken);
 
-        // Query DB for the next departure on the same route/direction
-        var nextStopTime = await _context.GtfsStopTimes
-            .Include(st => st.Trip)
-            .Where(st => st.GtfsImportRunId == importId
-                      && st.StopId == missedLeg.FromStopId
-                      && st.Trip.RouteId == routeId
-                      && st.Trip.DirectionId == dirId
-                      && st.DepartureSeconds >= searchSeconds)
-            .OrderBy(st => st.DepartureSeconds)
+        if (!activeServiceIds.Any() && !previousDayServiceIds.Any()) return null;
+
+        var patternId = missedLeg.PatternId;
+
+        // Query DB strictly for the same Pattern (Shape/Route/Direction), joining for both boarding and alighting stops
+        var nextTripStopData = await _context.GtfsStopTimes
+            .AsNoTracking()
+            .Where(st1 => st1.GtfsImportRunId == importId
+                       && st1.StopId == missedLeg.FromStopId
+                       && st1.Trip.RouteId == missedLeg.RouteId
+                       && st1.Trip.DirectionId == missedLeg.DirectionId
+                       && st1.Trip.ShapeId == missedLeg.ShapeId
+                       && (
+                           (activeServiceIds.Contains(st1.Trip.ServiceId) && st1.DepartureSeconds >= searchSeconds) ||
+                           (previousDayServiceIds.Contains(st1.Trip.ServiceId) && st1.DepartureSeconds >= searchSeconds + 86400)
+                       ))
+            .Join(_context.GtfsStopTimes.AsNoTracking(),
+                  st1 => st1.TripId,
+                  st2 => st2.TripId,
+                  (st1, st2) => new { st1, st2 })
+            .Where(j => j.st2.GtfsImportRunId == importId 
+                     && j.st2.StopId == missedLeg.ToStopId 
+                     && j.st1.StopSequence < j.st2.StopSequence)
+            .OrderBy(j => j.st1.DepartureSeconds)
+            .Select(j => new 
+            {
+                TripId = j.st1.TripId,
+                ServiceId = j.st1.Trip.ServiceId,
+                ShapeId = j.st1.Trip.ShapeId,
+                DepSecs = j.st1.DepartureSeconds,
+                ArrSecs = j.st2.ArrivalSeconds
+            })
             .FirstOrDefaultAsync(cancellationToken);
 
-        if (nextStopTime == null || !nextStopTime.DepartureSeconds.HasValue) return null;
+        if (nextTripStopData == null || !nextTripStopData.DepSecs.HasValue || !nextTripStopData.ArrSecs.HasValue) return null;
 
-        var shiftSeconds = nextStopTime.DepartureSeconds.Value - missedLeg.RawGtfsDepartureSeconds.GetValueOrDefault();
-        
-        missedLeg.TripId = nextStopTime.TripId;
-        missedLeg.DepartureTime = missedLeg.DepartureTime?.AddSeconds(shiftSeconds);
-        if (missedLeg.ArrivalTime.HasValue) missedLeg.ArrivalTime = missedLeg.ArrivalTime.Value.AddSeconds(shiftSeconds);
-        missedLeg.RawGtfsDepartureSeconds = nextStopTime.DepartureSeconds;
-        missedLeg.RawGtfsArrivalSeconds += shiftSeconds; 
+        // Hydrate exact times and identifiers
+        missedLeg.TripId = nextTripStopData.TripId;
+        missedLeg.ServiceId = nextTripStopData.ServiceId;
+        missedLeg.ShapeId = nextTripStopData.ShapeId;
+        missedLeg.RawGtfsDepartureSeconds = nextTripStopData.DepSecs.Value;
+        missedLeg.RawGtfsArrivalSeconds = nextTripStopData.ArrSecs.Value;
 
-        // Shift all subsequent legs by shiftSeconds (naive shift, but works if no more transfers).
-        // If there are transfers, this naive shift might break them. 
-        // For Phase 1 of this implementation, we will just return the shifted itinerary and re-validate catchability.
-        for (int i = missedLegIndex + 1; i < itinerary.Legs.Count; i++)
+        // Determine if it was a previous day trip based on the matching condition
+        bool isPreviousDay = previousDayServiceIds.Contains(nextTripStopData.ServiceId) && nextTripStopData.DepSecs.Value >= 86400;
+        var baseDate = isPreviousDay ? searchDate.AddDays(-1) : searchDate;
+
+        var depDt = baseDate.AddSeconds(nextTripStopData.DepSecs.Value);
+        var arrDt = baseDate.AddSeconds(nextTripStopData.ArrSecs.Value);
+
+        missedLeg.DepartureTime = new DateTimeOffset(depDt, tzi.GetUtcOffset(depDt));
+        missedLeg.ArrivalTime = new DateTimeOffset(arrDt, tzi.GetUtcOffset(arrDt));
+        missedLeg.ServiceDate = baseDate.ToString("yyyy-MM-dd");
+
+        // Domino Effect: Only update the immediate NEXT WALK leg's DepartureTime if it exists.
+        // The evaluation loop in EvaluateOsrmWalksAsync will recalculate the WALK's ArrivalTime 
+        // and recursively trigger FindNextTripForPatternAsync if the next transit is missed!
+        if (missedLegIndex + 1 < itinerary.Legs.Count)
         {
-            var leg = itinerary.Legs[i];
-            leg.DepartureTime = leg.DepartureTime?.AddSeconds(shiftSeconds);
-            if (leg.ArrivalTime.HasValue) leg.ArrivalTime = leg.ArrivalTime.Value.AddSeconds(shiftSeconds);
-            if (leg.RawGtfsDepartureSeconds.HasValue) leg.RawGtfsDepartureSeconds += shiftSeconds;
-            if (leg.RawGtfsArrivalSeconds.HasValue) leg.RawGtfsArrivalSeconds += shiftSeconds;
+            var nextLeg = itinerary.Legs[missedLegIndex + 1];
+            if (nextLeg.Mode == "WALK")
+            {
+                nextLeg.DepartureTime = missedLeg.ArrivalTime;
+            }
         }
 
         return itinerary;
@@ -1432,15 +1483,15 @@ public class JourneyPlanningService : IJourneyPlanningService
             var nextTransit = transitLegs[i + 1];
             
             var walkBetween = itinerary.Legs.FirstOrDefault(l => l.Mode == "WALK" && l.DepartureTime == currentTransit.ArrivalTime);
-            var arrivedAtNextStop = walkBetween != null ? walkBetween.ArrivalTime.Value : currentTransit.ArrivalTime.Value;
+            var arrivedAtNextStop = walkBetween != null ? walkBetween.ArrivalTime!.Value : currentTransit.ArrivalTime!.Value;
             
-            var wait = (int)(nextTransit.DepartureTime.Value - arrivedAtNextStop).TotalSeconds;
+            var wait = (int)(nextTransit.DepartureTime!.Value - arrivedAtNextStop).TotalSeconds;
             transferWaitTimes.Add(wait < 0 ? 0 : wait);
         }
 
         itinerary.TotalWalkingDistanceMeters = walkLegs.Sum(l => l.DistanceMeters);
-        itinerary.TotalWalkingTimeSeconds = walkLegs.Sum(l => (int)(l.ArrivalTime.Value - l.DepartureTime.Value).TotalSeconds);
-        itinerary.TotalInVehicleTimeSeconds = transitLegs.Sum(l => (int)(l.ArrivalTime.Value - l.DepartureTime.Value).TotalSeconds);
+        itinerary.TotalWalkingTimeSeconds = walkLegs.Sum(l => (int)(l.ArrivalTime!.Value - l.DepartureTime!.Value).TotalSeconds);
+        itinerary.TotalInVehicleTimeSeconds = transitLegs.Sum(l => (int)(l.ArrivalTime!.Value - l.DepartureTime!.Value).TotalSeconds);
         itinerary.InitialWaitTimeSeconds = initialWait;
         itinerary.TransferWaitTimes = transferWaitTimes;
         itinerary.TotalWaitingTimeSeconds = initialWait + transferWaitTimes.Sum();
@@ -1486,7 +1537,7 @@ public class JourneyPlanningService : IJourneyPlanningService
                     tgtLat = stop2.StopLat; tgtLon = stop2.StopLon;
                 }
 
-                var osrmResult = await _walkingRoutingService.CalculateWalkingRouteAsync(srcLat, srcLon, tgtLat, tgtLon, false, cancellationToken);
+                var osrmResult = await _walkingRoutingService.CalculateWalkingRouteAsync(srcLat, srcLon, tgtLat, tgtLon, request.IncludeWalkingGeometry, cancellationToken);
                 
                 if (osrmResult.State.ErrorCode == "UNROUTABLE_LOCATION" || osrmResult.State.ErrorCode == "NO_ROUTE")
                 {
@@ -1499,6 +1550,7 @@ public class JourneyPlanningService : IJourneyPlanningService
                     leg.DistanceMeters = (int)osrmResult.DistanceMeters;
                     leg.DurationSeconds = (int)osrmResult.DurationSeconds;
                     leg.DurationMinutes = leg.DurationSeconds / 60;
+                    leg.GeometryGeoJson = osrmResult.GeometryGeoJson;
                     
                     // Update Arrival Time based on actual walk duration
                     leg.ArrivalTime = leg.DepartureTime?.AddSeconds(leg.DurationSeconds);
@@ -1513,10 +1565,20 @@ public class JourneyPlanningService : IJourneyPlanningService
                 if (i + 1 < itinerary.Legs.Count)
                 {
                     var nextTransit = itinerary.Legs[i + 1];
-                    if (leg.ArrivalTime > nextTransit.DepartureTime)
+                    
+                    if (!leg.ArrivalTime.HasValue) 
+                    {
+                        dropItinerary = true;
+                        break;
+                    }
+
+                    int currentBufferSeconds = (i > 0) ? _configuration.GetValue<int>("JourneyPlan:TransferBufferMinutes", 3) * 60 : 0;
+                    var earliestCatchableTime = leg.ArrivalTime.Value.AddSeconds(currentBufferSeconds);
+                    
+                    if (earliestCatchableTime > nextTransit.DepartureTime)
                     {
                         // MISSED CONNECTION!
-                        var newItinerary = await FindNextTripForPatternAsync(itinerary, i + 1, leg.ArrivalTime.Value, importId, cancellationToken);
+                        var newItinerary = await FindNextTripForPatternAsync(itinerary, i + 1, earliestCatchableTime, importId, cancellationToken);
                         if (newItinerary == null)
                         {
                             dropItinerary = true;

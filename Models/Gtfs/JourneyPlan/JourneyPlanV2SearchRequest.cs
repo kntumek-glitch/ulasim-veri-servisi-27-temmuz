@@ -3,7 +3,7 @@ using System.ComponentModel.DataAnnotations;
 
 namespace TransportDataService.Models.Gtfs.JourneyPlan;
 
-public class JourneyPlanSearchRequest
+public class JourneyPlanV2SearchRequest
 {
     [Required]
     public CoordinateDto Origin { get; set; } = null!;
@@ -11,12 +11,11 @@ public class JourneyPlanSearchRequest
     [Required]
     public CoordinateDto Destination { get; set; } = null!;
 
-    [Required(ErrorMessage = "Geçerli bir tarih ve saat (departureDateTime) belirtilmelidir.")]
-    public DateTimeOffset? DepartureDateTime { get; set; }
+    [Required(ErrorMessage = "Geçerli bir tarih ve saat (dateTime) belirtilmelidir.")]
+    public DateTimeOffset? DateTime { get; set; }
 
-    /// <summary>
-    /// Maksimum aktarma sayısı (0 veya 1).
-    /// </summary>
+    public RoutingMode SearchMode { get; set; } = RoutingMode.DEPART_AT;
+
     [Range(0, 2, ErrorMessage = "Sistem en fazla 2 aktarmalı (toplam 3 bacak) rotaları desteklemektedir.")]
     public int MaxTransfers { get; set; } = 1;
 
@@ -26,12 +25,7 @@ public class JourneyPlanSearchRequest
     [Range(1, 50, ErrorMessage = "Sonuç limiti 1 ile 50 arasında olmalıdır.")]
     public int MaxResults { get; set; } = 10;
 
-    /// <summary>
-    /// Eğer true gönderilirse transit bacaklar (legs) içerisine geçilen ara duraklar eklenir. Varsayılanı false'tur.
-    /// </summary>
     public bool IncludeIntermediateStops { get; set; } = false;
-
-    // Used internally by V2, but harmless if present in V1.
-    [System.Text.Json.Serialization.JsonIgnore]
+    
     public bool IncludeWalkingGeometry { get; set; } = false;
 }

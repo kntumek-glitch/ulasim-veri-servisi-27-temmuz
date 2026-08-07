@@ -8,6 +8,7 @@ using System.Text.Json;
 using TransportDataService;
 using TransportDataService.Domain;
 using TransportDataService.Models.Gtfs.JourneyPlan;
+using ulasim_veri_servisi.Services.Interfaces;
 
 namespace TransportDataService.Tests.IntegrationTests;
 
@@ -58,7 +59,7 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private async Task SeedDataAsync(AppDbContext db, int runId)
+    private Task SeedDataAsync(AppDbContext db, int runId)
     {
         db.GtfsAgencies.Add(new GtfsAgency { AgencyId = "AG1", AgencyName = "Test", AgencyTimezone = "Europe/Istanbul", GtfsImportRunId = runId });
         
@@ -113,6 +114,7 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
             new GtfsStopTime { Trip = t9, Stop = s1, TripId = "T9", StopId = "S1", StopSequence = 1, ArrivalSeconds = 25*3600 + 1800, DepartureSeconds = 25*3600 + 1800, ArrivalTimeRaw = "25:30:00", DepartureTimeRaw = "25:30:00", GtfsImportRunId = runId },
             new GtfsStopTime { Trip = t9, Stop = s3, TripId = "T9", StopId = "S3", StopSequence = 2, ArrivalSeconds = 26*3600, DepartureSeconds = 26*3600, ArrivalTimeRaw = "26:00:00", DepartureTimeRaw = "26:00:00", GtfsImportRunId = runId }
         );
+        return Task.CompletedTask;
     }
 
     [Fact]
@@ -135,6 +137,95 @@ public class JourneyPlanningIntegrationTests : IAsyncLifetime
         result.Itineraries.Should().Contain(i => i.Legs.Any(l => l.TripId == "T1"));
     }
 
+    [Fact]
+    public async Task V2_DepartAt_ShouldMapToV1Logic_AndReturnSameItineraries()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var journeyService = scope.ServiceProvider.GetRequiredService<IJourneyPlanningService>();
+        
+        var origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 };
+        var dest = new CoordinateDto { Lat = 38.41, Lon = 27.11 };
+        var reqTime = new DateTimeOffset(2024, 1, 1, 7, 50, 0, TimeSpan.FromHours(3));
+
+        var v1Request = new JourneyPlanSearchRequest
+        {
+            Origin = origin,
+            Destination = dest,
+            DepartureDateTime = reqTime,
+            MaxTransfers = 0, // Direct routes only
+            IncludeIntermediateStops = false
+        };
+
+        var v2Request = new JourneyPlanV2SearchRequest
+        {
+            Origin = origin,
+            Destination = dest,
+            DateTime = reqTime,
+            SearchMode = RoutingMode.DEPART_AT,
+            MaxTransfers = 0,
+            IncludeIntermediateStops = false,
+            IncludeWalkingGeometry = true
+        };
+
+        // Act
+        var result1 = await journeyService.SearchJourneyAsync(v1Request, CancellationToken.None);
+        var result2 = await journeyService.SearchJourneyV2Async(v2Request, CancellationToken.None);
+
+        // Assert
+        result2.Should().NotBeNull();
+        result2.ReasonCode.Should().Be("SUCCESS");
+        result2.Itineraries.Should().NotBeEmpty();
+        
+        // Ensure V2 returns the exact same number of itineraries as V1
+        result2.Itineraries.Count.Should().Be(result1.Itineraries.Count);
+    }
+
+    [Fact]
+    public async Task V2_ArriveBy_ShouldFindLatestPossibleDeparture()
+    {
+        // Arrange
+        using var scope = _factory.Services.CreateScope();
+        var journeyService = scope.ServiceProvider.GetRequiredService<IJourneyPlanningService>();
+        
+        var origin = new CoordinateDto { Lat = 38.4, Lon = 27.1 };
+        var dest = new CoordinateDto { Lat = 38.41, Lon = 27.11 };
+        
+        // Target arrival: 09:30 on 2024-01-01
+        var targetArrivalTime = new DateTimeOffset(2024, 1, 1, 9, 30, 0, TimeSpan.FromHours(3));
+
+        var request = new JourneyPlanV2SearchRequest
+        {
+            Origin = origin,
+            Destination = dest,
+            DateTime = targetArrivalTime,
+            SearchMode = RoutingMode.ARRIVE_BY,
+            MaxTransfers = 0,
+            IncludeWalkingGeometry = true
+        };
+
+        // Act
+        var result = await journeyService.SearchJourneyV2Async(request, CancellationToken.None);
+
+        // Assert
+        result.Should().NotBeNull();
+        result.ReasonCode.Should().Be("SUCCESS");
+        result.Itineraries.Should().NotBeEmpty();
+        
+        // All itineraries should arrive BEFORE OR AT target arrival time
+        foreach (var itinerary in result.Itineraries)
+        {
+            itinerary.ArrivalTime.Should().BeOnOrBefore(targetArrivalTime);
+        }
+
+        // The first result should be the one with the LATEST departure time (most optimal for ArriveBy)
+        if (result.Itineraries.Count > 1)
+        {
+            var first = result.Itineraries.First();
+            var second = result.Itineraries.Skip(1).First();
+            first.DepartureTime.Should().BeOnOrAfter(second.DepartureTime);
+        }
+    }
     [Fact]
     public async Task R2_ReverseDirectionTrips_ShouldBeFilteredOut()
     {

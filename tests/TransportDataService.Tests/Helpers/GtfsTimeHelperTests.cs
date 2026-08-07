@@ -1,4 +1,4 @@
-﻿using ulasim_veri_servisi.Helpers;
+using ulasim_veri_servisi.Helpers;
 using Xunit;
 
 namespace TransportDataService.Tests.Helpers
@@ -30,7 +30,7 @@ namespace TransportDataService.Tests.Helpers
         public void ParseGtfsTimeToSeconds_ShouldReturnNull_WhenFormatIsInvalid(string? invalidTimeStr)
         {
             // Act
-            var result = GtfsTimeHelper.ParseGtfsTimeToSeconds(invalidTimeStr);
+            var result = GtfsTimeHelper.ParseGtfsTimeToSeconds(invalidTimeStr!);
 
             // Assert
             Assert.Null(result);

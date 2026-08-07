@@ -114,7 +114,12 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
 
             return new WalkingResult { State = ErrorState.Failure("Bilinmeyen yanıt formatı.", "INVALID_FORMAT") };
         }
-        catch (TaskCanceledException ex) when (ex.InnerException is TimeoutException || !cancellationToken.IsCancellationRequested)
+        catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(ex, "OSRM API request was cancelled by the client.");
+            throw;
+        }
+        catch (TaskCanceledException ex)
         {
             _logger.LogError(ex, "OSRM API request timed out.");
             return new WalkingResult { State = ErrorState.Failure("Yönlendirme isteği zaman aşımına uğradı.", "TIMEOUT") };

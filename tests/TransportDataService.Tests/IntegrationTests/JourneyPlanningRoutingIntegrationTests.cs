@@ -65,7 +65,7 @@ public class JourneyPlanningRoutingIntegrationTests : IAsyncLifetime
 
     public Task DisposeAsync() => Task.CompletedTask;
 
-    private async Task SeedDataAsync(AppDbContext db, int runId)
+    private Task SeedDataAsync(AppDbContext db, int runId)
     {
         db.GtfsAgencies.Add(new GtfsAgency { AgencyId = "AG1", AgencyName = "Test", AgencyTimezone = "Europe/Istanbul", GtfsImportRunId = runId });
         
@@ -98,6 +98,7 @@ public class JourneyPlanningRoutingIntegrationTests : IAsyncLifetime
             new GtfsStopTime { Trip = t2, Stop = s1, TripId = "T2", StopId = "S1", StopSequence = 1, ArrivalSeconds = 8*3600 + 900, DepartureSeconds = 8*3600 + 900, GtfsImportRunId = runId }, // 08:15
             new GtfsStopTime { Trip = t2, Stop = s2, TripId = "T2", StopId = "S2", StopSequence = 2, ArrivalSeconds = 8*3600 + 2700, DepartureSeconds = 8*3600 + 2700, GtfsImportRunId = runId } // 08:45
         );
+        return Task.CompletedTask;
     }
 
     private JourneyPlanningService CreateServiceWithMockRouting()

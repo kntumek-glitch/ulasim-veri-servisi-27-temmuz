@@ -130,7 +130,7 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
 
         _logger.LogInformation("Spatial grid built. Calculating transfers with radius {MaxMeters}m using parallel processing.", maxWalkMeters);
 
-        await Parallel.ForEachAsync(stops, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken }, async (originStop, ct) =>
+        await Parallel.ForEachAsync(stops, new ParallelOptions { MaxDegreeOfParallelism = Environment.ProcessorCount, CancellationToken = cancellationToken }, (originStop, ct) =>
         {
             var originLat = originStop.StopLat;
             var originLon = originStop.StopLon;
@@ -179,6 +179,8 @@ public class GtfsTransferCalculationService : IGtfsTransferCalculationService
             {
                 _logger.LogInformation("Processed {Count}/{Total} stops...", calculatedCount, stops.Count);
             }
+            
+            return ValueTask.CompletedTask;
         });
 
         return transfersDict.Values.ToList();

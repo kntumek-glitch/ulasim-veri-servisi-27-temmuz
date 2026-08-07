@@ -88,6 +88,8 @@ builder.Services.AddHttpClient<IExternalEshotService, ExternalEshotService>(clie
     client.Timeout = TimeSpan.FromSeconds(10);
 });
 builder.Services.AddSingleton<ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource>();
+builder.Services.AddSingleton<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager, ulasim_veri_servisi.Services.RoutingSnapshotManager>();
+builder.Services.AddScoped<ulasim_veri_servisi.Services.Interfaces.IRaptorRoutingEngine, ulasim_veri_servisi.Services.RaptorRoutingEngine>();
 builder.Services.AddMemoryCache(options => { options.SizeLimit = 10000; });
 builder.Services.AddScoped<ApproachingBusService>();
 builder.Services.AddScoped<RouteVehiclesService>();
@@ -116,6 +118,7 @@ builder.Services.AddScoped<ulasim_veri_servisi.Filters.AdminKeyAuthAttribute>();
 builder.Services.AddScoped<IGtfsTransferCalculationService, GtfsTransferCalculationService>();
 
 builder.Services.AddHostedService<GtfsAutoUpdateWorker>();
+builder.Services.AddHostedService<ulasim_veri_servisi.Services.SnapshotWarmupService>();
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" })
