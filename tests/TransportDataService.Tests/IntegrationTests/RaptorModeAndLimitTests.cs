@@ -106,7 +106,7 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
             MaxWalkingMeters = 2000
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         response.EnsureSuccessStatusCode();
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
@@ -137,7 +137,7 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
             MaxWalkingMeters = 500 // Too small to reach S_FAR
         };
 
-        var resFail = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", reqFail);
+        var resFail = await client.PostAsJsonAsync("/api/v2/journey-plans/search", reqFail);
         var bodyFail = await resFail.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         
         // Should yield NO_NEARBY_DESTINATION_STOP or NO_ROUTE_FOUND based on how early it prunes
@@ -153,7 +153,7 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
             MaxWalkingMeters = 15000 // Very large
         };
 
-        var resPass = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", reqPass);
+        var resPass = await client.PostAsJsonAsync("/api/v2/journey-plans/search", reqPass);
         resPass.EnsureSuccessStatusCode();
         var bodyPass = await resPass.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         

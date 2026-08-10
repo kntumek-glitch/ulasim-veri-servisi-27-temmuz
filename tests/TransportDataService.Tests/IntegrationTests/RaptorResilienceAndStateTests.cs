@@ -88,10 +88,10 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
             MaxWalkingMeters = 2000
         };
 
-        var response1 = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response1 = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         var res1 = await response1.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         
-        var response2 = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response2 = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         var res2 = await response2.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
         var id1 = res1!.Itineraries.First().PlanId;
@@ -120,7 +120,7 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
             IncludeWalkingGeometry = false // No geometry requested
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         
         var itin = res!.Itineraries.First();
@@ -154,7 +154,7 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
 
         // HttpClient doesn't natively forward CancellationToken to POST body, 
         // but we can pass it to SendAsync. The server will see the request aborted if we cancel the client request.
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/v1/JourneyPlans/search/v2")
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, "/api/v2/journey-plans/search")
         {
             Content = JsonContent.Create(req)
         };

@@ -125,7 +125,7 @@ public class RaptorTemporalConstraintTests : IAsyncLifetime
             MaxWalkingMeters = 1000
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         response.EnsureSuccessStatusCode();
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
@@ -152,7 +152,7 @@ public class RaptorTemporalConstraintTests : IAsyncLifetime
             MaxWalkingMeters = 1000
         };
 
-        var resFail = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", reqFail);
+        var resFail = await client.PostAsJsonAsync("/api/v2/journey-plans/search", reqFail);
         var bodyFail = await resFail.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         bodyFail!.ReasonCode.Should().Be("NO_ACTIVE_SERVICE");
 
@@ -166,7 +166,7 @@ public class RaptorTemporalConstraintTests : IAsyncLifetime
             MaxWalkingMeters = 1000
         };
 
-        var resPass = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", reqPass);
+        var resPass = await client.PostAsJsonAsync("/api/v2/journey-plans/search", reqPass);
         resPass.EnsureSuccessStatusCode();
         var bodyPass = await resPass.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
         bodyPass!.Itineraries.Should().NotBeEmpty();
@@ -186,7 +186,7 @@ public class RaptorTemporalConstraintTests : IAsyncLifetime
             MaxWalkingMeters = 3000
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         response.EnsureSuccessStatusCode();
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 

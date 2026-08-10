@@ -151,7 +151,7 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
             IncludeWalkingGeometry = false
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         response.EnsureSuccessStatusCode();
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
@@ -178,7 +178,7 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
             MaxWalkingMeters = 2000
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         response.EnsureSuccessStatusCode();
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
@@ -202,7 +202,7 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
             MaxWalkingMeters = 1000
         };
 
-        var response = await client.PostAsJsonAsync("/api/v1/JourneyPlans/search/v2", req);
+        var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
         response.EnsureSuccessStatusCode();
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
