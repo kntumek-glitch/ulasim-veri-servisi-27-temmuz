@@ -1,0 +1,475 @@
+diff --git a/Services/RaptorRoutingEngine.cs b/Services/RaptorRoutingEngine.cs
+index 393f703..432bf4d 100644
+--- a/Services/RaptorRoutingEngine.cs
++++ b/Services/RaptorRoutingEngine.cs
+@@ -1,4 +1,4 @@
+-using System;
++﻿using System;
+ using System.Collections.Generic;
+ using System.Linq;
+ using System.Security.Cryptography;
+@@ -33,7 +33,96 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         _configuration = configuration;
+     }
+ 
++    
+     public async Task<JourneyPlanSearchResponse> SearchJourneyV2Async(JourneyPlanV2SearchRequest request, CancellationToken cancellationToken)
++    {
++        var telemetry = new ulasim_veri_servisi.Models.Routing.V2TelemetryPayload { SearchMode = request.SearchMode.ToString() };
++        var sw = System.Diagnostics.Stopwatch.StartNew();
++        try
++        {
++            var snapshot = _snapshotManager.GetActiveSnapshot();
++            if (snapshot != null)
++            {
++                telemetry.FeedImportId = snapshot.ActiveImportId;
++                telemetry.FeedHash = snapshot.FeedHash;
++            }
++            
++            var response = await SearchJourneyV2AsyncInternal(request, cancellationToken, telemetry);
++            
++            telemetry.ResultCount = response.Itineraries.Count;
++            if (telemetry.ResultCount == 0) telemetry.ReasonCode = "NO_ROUTE_FOUND";
++            
++            foreach (var it in response.Itineraries)
++            {
++                foreach (var leg in it.Legs)
++                {
++                    if (leg.Mode == "WALK")
++                    {
++                        if (leg.IsApproximate) telemetry.ApproximateWalkingLegCount++;
++                        else telemetry.ExactWalkingLegCount++;
++                    }
++                }
++            }
++            return response;
++        }
++        catch(Exception ex)
++        {
++            telemetry.ReasonCode = ex.GetType().Name;
++            throw;
++        }
++        finally
++        {
++            sw.Stop();
++            telemetry.CalculationDurationMs = sw.ElapsedMilliseconds;
++            _logger.LogInformation("V2 Routing Telemetry: {@Telemetry}", telemetry);
++        }
++    }
++
++    public async Task<JourneyPlanSearchResponse> SearchArriveByJourneyV2Async(JourneyPlanV2SearchRequest request, CancellationToken cancellationToken)
++    {
++        var telemetry = new ulasim_veri_servisi.Models.Routing.V2TelemetryPayload { SearchMode = request.SearchMode.ToString() };
++        var sw = System.Diagnostics.Stopwatch.StartNew();
++        try
++        {
++            var snapshot = _snapshotManager.GetActiveSnapshot();
++            if (snapshot != null)
++            {
++                telemetry.FeedImportId = snapshot.ActiveImportId;
++                telemetry.FeedHash = snapshot.FeedHash;
++            }
++            
++            var response = await SearchArriveByJourneyV2AsyncInternal(request, cancellationToken, telemetry);
++            
++            telemetry.ResultCount = response.Itineraries.Count;
++            if (telemetry.ResultCount == 0) telemetry.ReasonCode = "NO_ROUTE_FOUND";
++            
++            foreach (var it in response.Itineraries)
++            {
++                foreach (var leg in it.Legs)
++                {
++                    if (leg.Mode == "WALK")
++                    {
++                        if (leg.IsApproximate) telemetry.ApproximateWalkingLegCount++;
++                        else telemetry.ExactWalkingLegCount++;
++                    }
++                }
++            }
++            return response;
++        }
++        catch(Exception ex)
++        {
++            telemetry.ReasonCode = ex.GetType().Name;
++            throw;
++        }
++        finally
++        {
++            sw.Stop();
++            telemetry.CalculationDurationMs = sw.ElapsedMilliseconds;
++            _logger.LogInformation("V2 Routing Telemetry: {@Telemetry}", telemetry);
++        }
++    }
++
++    private async Task<JourneyPlanSearchResponse> SearchJourneyV2AsyncInternal(JourneyPlanV2SearchRequest request, CancellationToken cancellationToken, ulasim_veri_servisi.Models.Routing.V2TelemetryPayload telemetry)
+     {
+         var snapshot = _snapshotManager.GetActiveSnapshot();
+         if (snapshot == null)
+@@ -44,7 +133,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+ 
+         if (request.SearchMode == RoutingMode.ARRIVE_BY)
+         {
+-            return await SearchArriveByJourneyV2Async(request, cancellationToken);
++            return await SearchArriveByJourneyV2AsyncInternal(request, cancellationToken, telemetry);
+         }
+         else if (request.SearchMode != RoutingMode.DEPART_AT)
+         {
+@@ -69,9 +158,11 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+ 
+         // 2. Find nearby origin stops (Walking)
+         var originStops = FindNearbyStops(snapshot, request.Origin.Lat, request.Origin.Lon, request.MaxWalkingMeters);
++        telemetry.OriginCandidateStopCount = originStops.Count;
+         if (!originStops.Any()) throw new NoNearbyStopException("No valid transit stops found within the specified origin walking radius.", true);
+         
+         var destinationStops = FindNearbyStops(snapshot, request.Destination.Lat, request.Destination.Lon, request.MaxWalkingMeters);
++        telemetry.DestinationCandidateStopCount = destinationStops.Count;
+         if (!destinationStops.Any()) throw new NoNearbyStopException("No valid transit stops found within the specified destination walking radius.", false);
+ 
+         var destStopsSet = destinationStops.Select(s => s.StopId).ToHashSet();
+@@ -125,6 +216,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         int maxRounds = Math.Min(3, request.MaxTransfers + 1); // 0 = Direct, 1 = 1-Transfer, 2 = 2-Transfer
+         for (int k = 0; k < maxRounds; k++)
+         {
++            telemetry.RoundCount++;
+             if (activeStops.Count == 0) break; // Pruning condition
+ 
+             var newlyActiveStops = new HashSet<int>();
+@@ -150,6 +242,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+             // Iterate active patterns
+             foreach (var patternId in activePatterns)
+             {
++                telemetry.PatternScannedCount++;
+                 // In a real RAPTOR, we board at the earliest active stop and propagate.
+                 // For simplicity, we just evaluate all trip departures from active stops on this pattern.
+                 var stopsOnPattern = snapshot.PatternToStops[patternId];
+@@ -196,6 +289,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+ 
+                         if (Dominates(newLabel, labels[stopIdx]))
+                         {
++                            telemetry.LabelUpdateCount++;
+                             labels[stopIdx] = newLabel;
+                             newlyActiveStops.Add(stopIdx);
+                             
+@@ -215,6 +309,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+                         // However, prepBuffer is added at Origin.
+ 
+                         int bestTripIndex = FindEarliestTripIndex(snapshot, patternId, stopId, ebt, activeServicesToday, activeServicesYesterday, out int offsetSeconds);
++                        telemetry.TripScannedCount++;
+                         if (bestTripIndex != -1)
+                         {
+                             if (!currentTripIndex.HasValue || bestTripIndex < currentTripIndex.Value)
+@@ -237,6 +332,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+                 {
+                     foreach (var tr in transfers)
+                     {
++                        telemetry.TransferRelaxationCount++;
+                         if (snapshot.StopIdToIndex.TryGetValue(tr.ToStopId, out int toIdx))
+                         {
+                             // Apply transfer safety buffer here
+@@ -255,6 +351,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+ 
+                             if (Dominates(newLabel, labels[toIdx]))
+                             {
++                                telemetry.LabelUpdateCount++;
+                                 labels[toIdx] = newLabel;
+                                 transferActiveStops.Add(toIdx);
+                                 
+@@ -493,54 +590,70 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         return newLabel.TotalWaitDurationSeconds < oldLabel.TotalWaitDurationSeconds;
+     }
+ 
+-    private int FindEarliestTripIndex(RoutingSnapshot snapshot, string patternId, string stopId, int ebt, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
++                    private int FindEarliestTripIndex(RoutingSnapshot snapshot, string patternId, string stopId, int ebt, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
+     {
+         var trips = snapshot.PatternToTrips[patternId];
+         offsetSeconds = 0;
+         
+-        int bestTodayIdx = -1;
+-        int bestTodayDep = int.MaxValue;
++        string pKey = $"{stopId}_{patternId}";
++        if (!snapshot.PatternStopDepartureIndices.TryGetValue(pKey, out var sortedIndices)) return -1;
+         
+-        for(int i = 0; i < trips.Count; i++)
++        var stops = snapshot.PatternToStops[patternId];
++        int stopIdx = -1;
++        for (int i = 0; i < stops.Count; i++)
+         {
+-            string tId = trips[i];
+-            var st = snapshot.TripTimetables[tId].FirstOrDefault(x => x.StopId == stopId);
+-            if (st == null) continue;
+-            
+-            if (st.DepartureSeconds >= ebt)
++            if (stops[i] == stopId)
+             {
+-                string sId = snapshot.TripToServiceId[tId];
+-                if (activeToday.Contains(sId))
+-                {
+-                    bestTodayIdx = i;
+-                    bestTodayDep = st.DepartureSeconds;
+-                    break;
+-                }
++                stopIdx = i;
++                break;
+             }
+         }
++        if (stopIdx == -1) return -1;
+         
+-        int bestYesterdayIdx = -1;
+-        int bestYesterdayDep = int.MaxValue;
+-        
+-        int yesterdayEbt = ebt + 86400;
+-        for(int i = 0; i < trips.Count; i++)
++        int FindValidTrip(int targetTime, HashSet<string> activeSet)
+         {
+-            string tId = trips[i];
+-            var st = snapshot.TripTimetables[tId].FirstOrDefault(x => x.StopId == stopId);
+-            if (st == null) continue;
++            int low = 0;
++            int high = trips.Count - 1;
++            int bestArrIdx = -1;
+             
+-            if (st.DepartureSeconds >= yesterdayEbt)
++            while (low <= high)
+             {
+-                string sId = snapshot.TripToServiceId[tId];
+-                if (activeYesterday.Contains(sId))
++                int mid = low + (high - low) / 2;
++                int originalIndex = sortedIndices[mid];
++                string tId = trips[originalIndex];
++                
++                var st = snapshot.TripTimetables[tId][stopIdx];
++                
++                if (st.DepartureSeconds >= targetTime)
+                 {
+-                    bestYesterdayIdx = i;
+-                    bestYesterdayDep = st.DepartureSeconds - 86400;
+-                    break;
++                    bestArrIdx = mid;
++                    high = mid - 1;
++                }
++                else
++                {
++                    low = mid + 1;
++                }
++            }
++            
++            if (bestArrIdx != -1)
++            {
++                for (int i = bestArrIdx; i < sortedIndices.Length; i++)
++                {
++                    int originalIndex = sortedIndices[i];
++                    string tId = trips[originalIndex];
++                    string sId = snapshot.TripToServiceId[tId];
++                    if (activeSet.Contains(sId)) return originalIndex;
+                 }
+             }
++            return -1;
+         }
+         
++        int bestTodayIdx = FindValidTrip(ebt, activeToday);
++        int bestYesterdayIdx = FindValidTrip(ebt + 86400, activeYesterday);
++        
++        int bestTodayDep = bestTodayIdx != -1 ? snapshot.TripTimetables[trips[bestTodayIdx]][stopIdx].DepartureSeconds : int.MaxValue;
++        int bestYesterdayDep = bestYesterdayIdx != -1 ? snapshot.TripTimetables[trips[bestYesterdayIdx]][stopIdx].DepartureSeconds - 86400 : int.MaxValue;
++        
+         if (bestTodayIdx != -1 && bestYesterdayIdx != -1)
+         {
+             if (bestYesterdayDep < bestTodayDep)
+@@ -565,7 +678,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         return -1;
+     }
+ 
+-    private class LocalWalkEdge
++private class LocalWalkEdge
+     {
+         public string StopId { get; set; } = string.Empty;
+         public int WalkingDurationSeconds { get; set; }
+@@ -664,68 +777,79 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         return newLabel.TotalWaitDurationSeconds < oldLabel.TotalWaitDurationSeconds;
+     }
+ 
+-    private int FindLatestTripIndex(RoutingSnapshot snapshot, string patternId, string stopId, int latestArrival, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
++                    private int FindLatestTripIndex(RoutingSnapshot snapshot, string patternId, string stopId, int latestArrival, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
+     {
+         var trips = snapshot.PatternToTrips[patternId];
+         offsetSeconds = 0;
+         
+-        int bestTodayIdx = -1;
+-        int bestTodayArr = -1;
++        string pKey = $"{stopId}_{patternId}";
++        if (!snapshot.PatternStopArrivalIndices.TryGetValue(pKey, out var sortedIndices)) return -1;
+         
+-        for(int i = 0; i < trips.Count; i++)
++        var stops = snapshot.PatternToStops[patternId];
++        int stopIdx = -1;
++        for (int i = 0; i < stops.Count; i++)
+         {
+-            string tId = trips[i];
+-            var st = snapshot.TripTimetables[tId].FirstOrDefault(x => x.StopId == stopId);
+-            if (st == null) continue;
+-            
+-            if (st.ArrivalSeconds <= latestArrival)
++            if (stops[i] == stopId)
+             {
+-                string sId = snapshot.TripToServiceId[tId];
+-                if (activeToday.Contains(sId))
+-                {
+-                    // Update if it's a later trip
+-                    if (st.ArrivalSeconds > bestTodayArr || (st.ArrivalSeconds == bestTodayArr && i > bestTodayIdx))
+-                    {
+-                        bestTodayIdx = i;
+-                        bestTodayArr = st.ArrivalSeconds;
+-                    }
+-                }
++                stopIdx = i;
++                break;
+             }
+         }
++        if (stopIdx == -1) return -1;
+         
+-        int bestYesterdayIdx = -1;
+-        int bestYesterdayArr = -1;
+-        
+-        int yesterdayArrival = latestArrival + 86400;
+-        for(int i = 0; i < trips.Count; i++)
++        int FindValidTrip(int targetArrival, HashSet<string> activeSet)
+         {
+-            string tId = trips[i];
+-            var st = snapshot.TripTimetables[tId].FirstOrDefault(x => x.StopId == stopId);
+-            if (st == null) continue;
++            int low = 0;
++            int high = trips.Count - 1;
++            int bestArrIdx = -1;
+             
+-            if (st.ArrivalSeconds <= yesterdayArrival)
++            while (low <= high)
+             {
+-                string sId = snapshot.TripToServiceId[tId];
+-                if (activeYesterday.Contains(sId))
++                int mid = low + (high - low) / 2;
++                int originalIndex = sortedIndices[mid];
++                string tId = trips[originalIndex];
++                
++                var st = snapshot.TripTimetables[tId][stopIdx];
++                
++                if (st.ArrivalSeconds <= targetArrival)
+                 {
+-                    if (st.ArrivalSeconds > bestYesterdayArr || (st.ArrivalSeconds == bestYesterdayArr && i > bestYesterdayIdx))
+-                    {
+-                        bestYesterdayIdx = i;
+-                        bestYesterdayArr = st.ArrivalSeconds;
+-                    }
++                    bestArrIdx = mid;
++                    low = mid + 1;
++                }
++                else
++                {
++                    high = mid - 1;
++                }
++            }
++            
++            if (bestArrIdx != -1)
++            {
++                for (int i = bestArrIdx; i >= 0; i--)
++                {
++                    int originalIndex = sortedIndices[i];
++                    string tId = trips[originalIndex];
++                    string sId = snapshot.TripToServiceId[tId];
++                    if (activeSet.Contains(sId)) return originalIndex;
+                 }
+             }
++            return -1;
+         }
+         
++        int bestTodayIdx = FindValidTrip(latestArrival, activeToday);
++        int bestYesterdayIdx = FindValidTrip(latestArrival + 86400, activeYesterday);
++        
++        int bestTodayArr = bestTodayIdx != -1 ? snapshot.TripTimetables[trips[bestTodayIdx]][stopIdx].ArrivalSeconds : -1;
++        int bestYesterdayArr = bestYesterdayIdx != -1 ? snapshot.TripTimetables[trips[bestYesterdayIdx]][stopIdx].ArrivalSeconds - 86400 : -1;
++        
+         if (bestTodayIdx != -1 && bestYesterdayIdx != -1)
+         {
+-            if (bestTodayArr > (bestYesterdayArr - 86400))
++            if (bestYesterdayArr > bestTodayArr)
+             {
+-                offsetSeconds = 0;
+-                return bestTodayIdx;
++                offsetSeconds = -86400;
++                return bestYesterdayIdx;
+             }
+-            offsetSeconds = -86400;
+-            return bestYesterdayIdx;
++            offsetSeconds = 0;
++            return bestTodayIdx;
+         }
+         else if (bestTodayIdx != -1)
+         {
+@@ -862,7 +986,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         
+         return iti;
+     }
+-    public async Task<JourneyPlanSearchResponse> SearchArriveByJourneyV2Async(JourneyPlanV2SearchRequest request, CancellationToken cancellationToken)
++    private async Task<JourneyPlanSearchResponse> SearchArriveByJourneyV2AsyncInternal(JourneyPlanV2SearchRequest request, CancellationToken cancellationToken, ulasim_veri_servisi.Models.Routing.V2TelemetryPayload telemetry)
+     {
+         var snapshot = _snapshotManager.GetActiveSnapshot();
+         if (snapshot == null)
+@@ -884,9 +1008,11 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         }
+ 
+         var originStops = FindNearbyStops(snapshot, request.Origin.Lat, request.Origin.Lon, request.MaxWalkingMeters);
++        telemetry.OriginCandidateStopCount = originStops.Count;
+         if (!originStops.Any()) throw new NoNearbyStopException("No valid transit stops found within the specified origin walking radius.", true);
+         
+         var destinationStops = FindNearbyStops(snapshot, request.Destination.Lat, request.Destination.Lon, request.MaxWalkingMeters);
++        telemetry.DestinationCandidateStopCount = destinationStops.Count;
+         if (!destinationStops.Any()) throw new NoNearbyStopException("No valid transit stops found within the specified destination walking radius.", false);
+ 
+         var origStopsSet = originStops.Select(s => s.StopId).ToHashSet();
+@@ -939,6 +1065,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+         int maxRounds = Math.Min(3, request.MaxTransfers + 1);
+         for (int k = 0; k < maxRounds; k++)
+         {
++            telemetry.RoundCount++;
+             if (activeStops.Count == 0) break;
+ 
+             var newlyActiveStops = new HashSet<int>();
+@@ -958,6 +1085,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+             // Iterate active patterns backwards
+             foreach (var patternId in activePatterns)
+             {
++                telemetry.PatternScannedCount++;
+                 var stopsOnPattern = snapshot.PatternToStops[patternId];
+                 
+                 int? currentTripIndex = null;
+@@ -1004,6 +1132,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+ 
+                         if (DominatesBackward(newLabel, labels[stopIdx]))
+                         {
++                            telemetry.LabelUpdateCount++;
+                             labels[stopIdx] = newLabel;
+                             newlyActiveStops.Add(stopIdx);
+                             
+@@ -1021,6 +1150,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+                         int targetAlightTime = labels[stopIdx].AbsoluteDepartureSeconds;
+ 
+                         int bestTripIndex = FindLatestTripIndex(snapshot, patternId, stopId, targetAlightTime, activeServicesToday, activeServicesYesterday, out int offsetSeconds);
++                        telemetry.TripScannedCount++;
+                         if (bestTripIndex != -1)
+                         {
+                             // If we weren't on a trip, or this new trip is a LATER trip (index is greater), we switch!
+@@ -1045,6 +1175,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+                 {
+                     foreach (var tr in revTransfers)
+                     {
++                        telemetry.TransferRelaxationCount++;
+                         if (snapshot.StopIdToIndex.TryGetValue(tr.FromStopId, out int fromIdx))
+                         {
+                             // Must arrive at FromStop early enough to walk and transfer
+@@ -1063,6 +1194,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
+ 
+                             if (DominatesBackward(newLabel, labels[fromIdx]))
+                             {
++                                telemetry.LabelUpdateCount++;
+                                 labels[fromIdx] = newLabel;
+                                 transferActiveStops.Add(fromIdx);
+                                 

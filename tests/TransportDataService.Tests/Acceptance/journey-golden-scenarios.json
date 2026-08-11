@@ -1,0 +1,1002 @@
+[
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-001",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-002",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-003",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-004",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-005",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-006",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-007",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-008",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-009",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "08:45:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-010",
+        "category":  "0-transfer",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4343,
+                                            "lon":  27.1422
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-011",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-012",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-013",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-014",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-015",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-016",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-017",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-018",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-019",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  "10:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-020",
+        "category":  "1-transfer",
+        "request":  {
+                        "search_time":  "08:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4552,
+                                            "lon":  27.1179
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.3846,
+                                       "lon":  27.1687
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-021",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-022",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-023",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-024",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-025",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-026",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-027",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  2,
+                           "latest_arrival_time":  "12:00:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-028",
+        "category":  "2-transfer",
+        "request":  {
+                        "search_time":  "09:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4891,
+                                            "lon":  27.0543
+                                        },
+                        "max_transfers":  2,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.39,
+                                       "lon":  27.045
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  "06:00:00"
+                       },
+        "scenario_id":  "SCENARIO-029",
+        "category":  "ARRIVE_BY",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4636,
+                                            "lon":  27.2185
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "ARRIVE_BY",
+                        "origin":  {
+                                       "lat":  38.3241,
+                                       "lon":  27.1328
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  "06:00:00"
+                       },
+        "scenario_id":  "SCENARIO-030",
+        "category":  "ARRIVE_BY",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4636,
+                                            "lon":  27.2185
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "ARRIVE_BY",
+                        "origin":  {
+                                       "lat":  38.3241,
+                                       "lon":  27.1328
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  "06:00:00"
+                       },
+        "scenario_id":  "SCENARIO-031",
+        "category":  "ARRIVE_BY",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4636,
+                                            "lon":  27.2185
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "ARRIVE_BY",
+                        "origin":  {
+                                       "lat":  38.3241,
+                                       "lon":  27.1328
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  1,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  "06:00:00"
+                       },
+        "scenario_id":  "SCENARIO-032",
+        "category":  "ARRIVE_BY",
+        "request":  {
+                        "search_time":  "08:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4636,
+                                            "lon":  27.2185
+                                        },
+                        "max_transfers":  1,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "ARRIVE_BY",
+                        "origin":  {
+                                       "lat":  38.3241,
+                                       "lon":  27.1328
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "25:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-033",
+        "category":  "Night",
+        "request":  {
+                        "search_time":  "24:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.3846,
+                                            "lon":  27.1687
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "25:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-034",
+        "category":  "Night",
+        "request":  {
+                        "search_time":  "24:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.3846,
+                                            "lon":  27.1687
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "25:30:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-035",
+        "category":  "Night",
+        "request":  {
+                        "search_time":  "24:30:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.3846,
+                                            "lon":  27.1687
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.4192,
+                                       "lon":  27.1287
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-036",
+        "category":  "NoRoute",
+        "request":  {
+                        "search_time":  "12:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38,
+                                            "lon":  26.01
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38,
+                                       "lon":  26
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-037",
+        "category":  "NoRoute",
+        "request":  {
+                        "search_time":  "12:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38,
+                                            "lon":  26.01
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38,
+                                       "lon":  26
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  false,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  null,
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-038",
+        "category":  "NoRoute",
+        "request":  {
+                        "search_time":  "12:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38,
+                                            "lon":  26.01
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38,
+                                       "lon":  26
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "14:15:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-039",
+        "category":  "WalkingOptimization",
+        "request":  {
+                        "search_time":  "14:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4205,
+                                            "lon":  27.1305
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.42,
+                                       "lon":  27.13
+                                   }
+                    }
+    },
+    {
+        "assertions":  {
+                           "is_route_found":  true,
+                           "max_allowed_transfers":  0,
+                           "latest_arrival_time":  "14:15:00",
+                           "min_departure_time_for_arrive_by":  null
+                       },
+        "scenario_id":  "SCENARIO-040",
+        "category":  "WalkingOptimization",
+        "request":  {
+                        "search_time":  "14:00:00",
+                        "search_date":  "2024-10-15",
+                        "destination":  {
+                                            "lat":  38.4205,
+                                            "lon":  27.1305
+                                        },
+                        "max_transfers":  0,
+                        "max_walking_meters":  2000,
+                        "search_mode":  "DEPART_AT",
+                        "origin":  {
+                                       "lat":  38.42,
+                                       "lon":  27.13
+                                   }
+                    }
+    }
+]

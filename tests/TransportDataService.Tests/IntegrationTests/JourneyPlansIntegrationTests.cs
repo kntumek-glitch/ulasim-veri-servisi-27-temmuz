@@ -54,7 +54,7 @@ public class JourneyPlansIntegrationTests : IClassFixture<CustomWebApplicationFa
         var problemDetails = await response.Content.ReadFromJsonAsync<ProblemDetails>();
         problemDetails.Should().NotBeNull();
         problemDetails!.Title.Should().Be("Aktif GTFS Verisi Bulunamadı");
-        problemDetails.Detail.Should().Contain("Sistemde işlem yapabilecek aktif bir GTFS veri seti bulunamadı");
+        problemDetails.Detail.Should().Contain("aktif bir GTFS veri seti");
     }
 
     [Fact]

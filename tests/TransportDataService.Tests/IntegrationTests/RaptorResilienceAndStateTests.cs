@@ -32,10 +32,19 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
         await _seedLock.WaitAsync();
         try
         {
-            if (_seedRunId != 0) { _runId = _seedRunId; return; }
+            if (_seedRunId != 0)
+            {
+                _runId = _seedRunId;
+                using var innerScope = _factory.Services.CreateScope();
+                var sm = innerScope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>();
+                var innerCandidate = await sm.BuildCandidateSnapshotAsync(_seedRunId, "RAPTOR_RESILIENCE_HASH", System.Threading.CancellationToken.None);
+                sm.PromoteSnapshot(innerCandidate);
+                return;
+            }
             using var scope = _factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+            await db.GtfsImportRuns.ExecuteUpdateAsync(s => s.SetProperty(r => r.IsActive, false));
             var run = new GtfsImportRun { FileHash = "RAPTOR_RESILIENCE_HASH", IsActive = true, Status = "Completed", StartedAt = DateTime.UtcNow };
             db.GtfsImportRuns.Add(run);
             await db.SaveChangesAsync();
@@ -46,6 +55,10 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
 
             var transferService = scope.ServiceProvider.GetRequiredService<IGtfsTransferCalculationService>();
             await transferService.CalculateTransfersAsync(_seedRunId, CancellationToken.None);
+            
+            var snapshotManager = scope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>();
+            var candidate = await snapshotManager.BuildCandidateSnapshotAsync(_seedRunId, "RAPTOR_STATE_HASH", CancellationToken.None);
+            snapshotManager.PromoteSnapshot(candidate);
             
             _runId = _seedRunId;
         }
@@ -81,8 +94,8 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.010, Lon = 29.010 },
-            Destination = new GeoCoordinate { Lat = 41.030, Lon = 29.030 },
+            Origin = new CoordinateDto { Lat = 41.010, Lon = 29.010 },
+            Destination = new CoordinateDto { Lat = 41.030, Lon = 29.030 },
             DateTime = new DateTime(2024, 8, 8, 7, 0, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
             MaxWalkingMeters = 2000
@@ -112,8 +125,8 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.010, Lon = 29.010 },
-            Destination = new GeoCoordinate { Lat = 41.030, Lon = 29.030 },
+            Origin = new CoordinateDto { Lat = 41.010, Lon = 29.010 },
+            Destination = new CoordinateDto { Lat = 41.030, Lon = 29.030 },
             DateTime = new DateTime(2024, 8, 8, 7, 0, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
             MaxWalkingMeters = 2000,
@@ -145,8 +158,8 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.010, Lon = 29.010 },
-            Destination = new GeoCoordinate { Lat = 41.030, Lon = 29.030 },
+            Origin = new CoordinateDto { Lat = 41.010, Lon = 29.010 },
+            Destination = new CoordinateDto { Lat = 41.030, Lon = 29.030 },
             DateTime = new DateTime(2024, 8, 8, 7, 0, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
             MaxWalkingMeters = 2000
@@ -167,3 +180,4 @@ public class RaptorResilienceAndStateTests : IAsyncLifetime
         await act.Should().ThrowAsync<TaskCanceledException>();
     }
 }
+

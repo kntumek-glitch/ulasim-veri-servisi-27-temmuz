@@ -26,8 +26,9 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
 
     public RoutingSnapshot? GetActiveSnapshot() => _activeSnapshot;
 
-    public async Task BuildAndSwapSnapshotAsync(int importRunId, string feedHash, CancellationToken cancellationToken)
+    public async Task<RoutingSnapshot> BuildCandidateSnapshotAsync(int importRunId, string feedHash, CancellationToken cancellationToken)
     {
+        var sw = System.Diagnostics.Stopwatch.StartNew();
         _logger.LogInformation("Building in-memory routing snapshot for Run ID {RunId}", importRunId);
         var snapshot = new RoutingSnapshot
         {
@@ -123,8 +124,9 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
 
         foreach (var trip in trips)
         {
-            // Create pattern ID: ShapeId + RouteId + DirectionId
-            string patternId = $"P_{trip.ShapeId ?? "noshape"}_{trip.Route?.RouteId}_{trip.DirectionId}";
+            var stopsSeq = trip.StopTimes.Select(st => st.StopId).ToList();
+            string stopSequenceHash = string.Join(",", stopsSeq).GetHashCode().ToString("X");
+            string patternId = $"P_{trip.ShapeId ?? "noshape"}_{trip.Route?.RouteId}_{trip.DirectionId}_{stopSequenceHash}";
             
             if (!snapshot.PatternMetadata.ContainsKey(patternId))
             {
@@ -140,16 +142,18 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
                 };
                 
                 snapshot.PatternToTrips[patternId] = new List<string>();
-                snapshot.PatternToStops[patternId] = trip.StopTimes.Select(st => st.StopId).ToList();
-                
-                // Map each stop in this pattern back to the pattern
-                foreach (var stopId in snapshot.PatternToStops[patternId])
+                if (!snapshot.PatternToStops.ContainsKey(patternId))
                 {
-                    if (!snapshot.StopToPatterns.ContainsKey(stopId))
-                        snapshot.StopToPatterns[stopId] = new List<string>();
+                    snapshot.PatternToStops[patternId] = stopsSeq;
                     
-                    if (!snapshot.StopToPatterns[stopId].Contains(patternId))
-                        snapshot.StopToPatterns[stopId].Add(patternId);
+                    foreach (var stopId in stopsSeq)
+                    {
+                        if (!snapshot.StopToPatterns.ContainsKey(stopId))
+                            snapshot.StopToPatterns[stopId] = new List<string>();
+                        
+                        if (!snapshot.StopToPatterns[stopId].Contains(patternId))
+                            snapshot.StopToPatterns[stopId].Add(patternId);
+                    }
                 }
             }
 
@@ -168,24 +172,70 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
                     ArrivalTimeRaw = st.ArrivalTimeRaw,
                     DepartureTimeRaw = st.DepartureTimeRaw
                 });
-                
-                var pKey = $"{st.StopId}_{patternId}";
-                if (!snapshot.PatternStopDepartures.ContainsKey(pKey))
-                    snapshot.PatternStopDepartures[pKey] = new List<int>();
-                    
-                snapshot.PatternStopDepartures[pKey].Add(st.DepartureSeconds ?? 0);
             }
             snapshot.TripTimetables[trip.TripId] = timetables;
         }
-
-        // Sort PatternStopDepartures for fast O(log N) Binary Search lookups
-        foreach (var kvp in snapshot.PatternStopDepartures)
+        // Build bullet-proof O(log N) lookup indices for each stop on each pattern
+        foreach (var patternId in snapshot.PatternToTrips.Keys)
         {
-            kvp.Value.Sort();
+            var patternTrips = snapshot.PatternToTrips[patternId];
+            var patternStops = snapshot.PatternToStops[patternId];
+            
+            for (int s = 0; s < patternStops.Count; s++)
+            {
+                string pKey = $"{patternStops[s]}_{patternId}";
+                int[] depIndices = new int[patternTrips.Count];
+                int[] arrIndices = new int[patternTrips.Count];
+                
+                for (int i = 0; i < patternTrips.Count; i++)
+                {
+                    depIndices[i] = i;
+                    arrIndices[i] = i;
+                }
+                
+                Array.Sort(depIndices, (i1, i2) => 
+                {
+                    var st1 = snapshot.TripTimetables[patternTrips[i1]];
+                    var st2 = snapshot.TripTimetables[patternTrips[i2]];
+                    int dep1 = st1.Count > s ? st1[s].DepartureSeconds : 0;
+                    int dep2 = st2.Count > s ? st2[s].DepartureSeconds : 0;
+                    int comp = dep1.CompareTo(dep2);
+                    if (comp == 0) return i1.CompareTo(i2);
+                    return comp;
+                });
+                
+                Array.Sort(arrIndices, (i1, i2) => 
+                {
+                    var st1 = snapshot.TripTimetables[patternTrips[i1]];
+                    var st2 = snapshot.TripTimetables[patternTrips[i2]];
+                    int arr1 = st1.Count > s ? st1[s].ArrivalSeconds : 0;
+                    int arr2 = st2.Count > s ? st2[s].ArrivalSeconds : 0;
+                    int comp = arr1.CompareTo(arr2);
+                    if (comp == 0) return i1.CompareTo(i2);
+                    return comp;
+                });
+                
+                snapshot.PatternStopDepartureIndices[pKey] = depIndices;
+                snapshot.PatternStopArrivalIndices[pKey] = arrIndices;
+            }
         }
 
-        // Atomic Swap
-        Interlocked.Exchange(ref _activeSnapshot, snapshot);
-        _logger.LogInformation("Routing snapshot swapped successfully. Feed Hash: {FeedHash}, Patterns: {PatternCount}, Trips: {TripCount}", feedHash, snapshot.PatternMetadata.Count, snapshot.TripTimetables.Count);
+        sw.Stop();
+        snapshot.BuildDurationMs = sw.ElapsedMilliseconds;
+        
+        // Very rough memory estimation based on counts (assuming ~100 bytes per entry on average)
+        snapshot.EstimatedMemoryBytes = (snapshot.Stops.Count * 120L) + 
+                                        (snapshot.StopTransfers.Count * 150L) + 
+                                        (snapshot.PatternMetadata.Count * 200L) + 
+                                        (snapshot.TripTimetables.Count * 800L); // arrays of stoptimes
+
+        _logger.LogInformation("Routing candidate snapshot built successfully. Patterns: {PatternCount}, Trips: {TripCount}, Duration: {BuildMs}ms", snapshot.PatternMetadata.Count, snapshot.TripTimetables.Count, snapshot.BuildDurationMs);
+        return snapshot;
+    }
+
+    public void PromoteSnapshot(RoutingSnapshot candidate)
+    {
+        Interlocked.Exchange(ref _activeSnapshot, candidate);
+        _logger.LogInformation("Routing snapshot swapped successfully. Feed Hash: {FeedHash}, Patterns: {PatternCount}", candidate.FeedHash, candidate.PatternMetadata.Count);
     }
 }

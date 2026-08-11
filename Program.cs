@@ -101,6 +101,10 @@ builder.Services.AddScoped<ITripStopsRepository, TripStopsRepository>();
 builder.Services.AddScoped<ITripStopsService, TripStopsService>();
 builder.Services.AddScoped<IRouteDeparturesService, RouteDeparturesService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Services.Interfaces.IJourneyPlanningService, ulasim_veri_servisi.Services.JourneyPlanningService>();
+builder.Services.AddScoped<ulasim_veri_servisi.Services.JourneyPlanning.Spatial.ISpatialCalculatorService, ulasim_veri_servisi.Services.JourneyPlanning.Spatial.SpatialCalculatorService>();
+builder.Services.AddScoped<ulasim_veri_servisi.Services.JourneyPlanning.DataAccess.IJourneyCacheService, ulasim_veri_servisi.Services.JourneyPlanning.DataAccess.JourneyCacheService>();
+builder.Services.AddScoped<ulasim_veri_servisi.Services.JourneyPlanning.Algorithms.IJourneyRoutingEngine, ulasim_veri_servisi.Services.JourneyPlanning.Algorithms.JourneyRoutingEngine>();
+builder.Services.AddScoped<ulasim_veri_servisi.Services.JourneyPlanning.Mapping.IJourneyResultMapper, ulasim_veri_servisi.Services.JourneyPlanning.Mapping.JourneyResultMapper>();
 
 builder.Services.Configure<ulasim_veri_servisi.Models.WalkingRoutingCacheConfiguration>(builder.Configuration.GetSection("WalkingRoutingCache"));
 builder.Services.Configure<ulasim_veri_servisi.Models.OsrmConfiguration>(builder.Configuration.GetSection("Osrm"));
@@ -122,6 +126,7 @@ builder.Services.AddHostedService<ulasim_veri_servisi.Services.SnapshotWarmupSer
 
 builder.Services.AddHealthChecks()
     .AddCheck<DatabaseHealthCheck>("database", tags: new[] { "ready" })
+    .AddCheck<RoutingEngineHealthCheck>("routing_engine", tags: new[] { "ready" })
     .AddCheck<EshotApiHealthCheck>("eshot_api", failureStatus: HealthStatus.Degraded, tags: new[] { "dependencies" })
     .AddCheck<GtfsDataHealthCheck>("gtfs_data", tags: new[] { "dependencies" });
 

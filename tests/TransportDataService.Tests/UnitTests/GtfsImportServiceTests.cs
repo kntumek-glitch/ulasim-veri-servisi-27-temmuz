@@ -51,7 +51,7 @@ public class GtfsImportServiceTests : IAsyncLifetime
         var cache = sp.GetRequiredService<Microsoft.Extensions.Caching.Memory.IMemoryCache>();
         var configuration = new Microsoft.Extensions.Configuration.ConfigurationBuilder().Build();
         
-        _service = new GtfsImportService(_scopeFactory, _httpClient, logger, cache, configuration);
+        _service = new GtfsImportService(_scopeFactory, _httpClient, logger, cache, configuration, new Moq.Mock<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>().Object);
     }
 
     public Task DisposeAsync()

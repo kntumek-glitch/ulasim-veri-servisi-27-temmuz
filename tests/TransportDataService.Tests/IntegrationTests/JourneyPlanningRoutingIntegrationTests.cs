@@ -121,7 +121,12 @@ public class JourneyPlanningRoutingIntegrationTests : IAsyncLifetime
         var options = Microsoft.Extensions.Options.Options.Create(new WalkingRoutingCacheConfiguration { TtlMinutes = 1, MaxCapacity = 10 });
         var walkingRoutingService = new WalkingRoutingService(_mockRoutingProvider.Object, cache, options, Microsoft.Extensions.Logging.Abstractions.NullLogger<WalkingRoutingService>.Instance);
         
-        return new JourneyPlanningService(db, config, cache, logger, new ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource(), walkingRoutingService);
+        var spatialService = new ulasim_veri_servisi.Services.JourneyPlanning.Spatial.SpatialCalculatorService();
+        var cacheService = new ulasim_veri_servisi.Services.JourneyPlanning.DataAccess.JourneyCacheService(db, cache, spatialService);
+        var routingEngine = new ulasim_veri_servisi.Services.JourneyPlanning.Algorithms.JourneyRoutingEngine(db, Microsoft.Extensions.Logging.Abstractions.NullLogger<ulasim_veri_servisi.Services.JourneyPlanning.Algorithms.JourneyRoutingEngine>.Instance);
+        var mapper = new ulasim_veri_servisi.Services.JourneyPlanning.Mapping.JourneyResultMapper(db, walkingRoutingService, config);
+        
+        return new JourneyPlanningService(db, config, cache, logger, new ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource(), walkingRoutingService, cacheService, spatialService, routingEngine, mapper);
     }
 
     [Fact]

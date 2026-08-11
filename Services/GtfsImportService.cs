@@ -757,6 +757,10 @@ namespace ulasim_veri_servisi.Services
                 await transferCalcService.CalculateTransfersAsync(importRun.Id, cancellationToken);
                 await CompletePhaseAsync(_context, activePhase, cancellationToken);
                 
+                activePhase = await StartPhaseAsync(_context, importRun.Id, "Building Snapshot", cancellationToken);
+                var candidateSnapshot = await _snapshotManager.BuildCandidateSnapshotAsync(importRun.Id, importRun.FileHash, cancellationToken);
+                await CompletePhaseAsync(_context, activePhase, cancellationToken);
+
                 activePhase = await StartPhaseAsync(_context, importRun.Id, "Activating", cancellationToken);
 
                 // Agresif olarak eski tüm önbellek kalıntılarını siler.
@@ -783,8 +787,8 @@ namespace ulasim_veri_servisi.Services
                 // Aktivasyonu atomik olarak commitliyoruz. Artık canlı API'ler bu yeni veriyi kullanacak.
                 await swapTransaction.CommitAsync(cancellationToken);
                 
-                activePhase = await StartPhaseAsync(_context, importRun.Id, "Building Snapshot", cancellationToken);
-                await _snapshotManager.BuildAndSwapSnapshotAsync(importRun.Id, importRun.FileHash, cancellationToken);
+                // DB Commit başarılıysa Snapshot referansını da atomik olarak güncelliyoruz (Promote)
+                _snapshotManager.PromoteSnapshot(candidateSnapshot);
                 
                 await CompletePhaseAsync(_context, activePhase, cancellationToken);
                 activePhase = null;

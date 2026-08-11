@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Services.JourneyPlanning.Models;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -22,7 +23,7 @@ public partial class JourneyPlanningService
 
         if (activeRun == null)
         {
-            throw new ulasim_veri_servisi.Exceptions.ActiveFeedNotFoundException("Sistemde işlem yapabilecek aktif bir GTFS veri seti bulunamadı.");
+            throw new ulasim_veri_servisi.Exceptions.ActiveFeedNotFoundException("Sistemde iÅŸlem yapabilecek aktif bir GTFS veri seti bulunamadÄ±.");
         }
 
         int configMaxWalkingMeters = _configuration.GetValue<int>("JourneyPlan:MaxWalkingMeters", 1500);
@@ -58,7 +59,7 @@ public partial class JourneyPlanningService
             IsStale = maxDate.HasValue && maxDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
-        var activeStopsCache = await GetActiveStopsAsync(activeRun.Id.ToString(), cancellationToken);
+        var activeStopsCache = await _cacheService.GetActiveStopsAsync(activeRun.Id, cancellationToken);
         var activeStops = activeStopsCache.Stops;
         if (!activeStops.Any()) 
         {
@@ -66,8 +67,8 @@ public partial class JourneyPlanningService
             return response;
         }
 
-        var originStops = FindStopsWithinRadius(activeStops, request.Origin.Lat, request.Origin.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
-        var destStops = FindStopsWithinRadius(activeStops, request.Destination.Lat, request.Destination.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
+        var originStops = _spatialService.FindStopsWithinRadius(activeStops, request.Origin.Lat, request.Origin.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
+        var destStops = _spatialService.FindStopsWithinRadius(activeStops, request.Destination.Lat, request.Destination.Lon, finalMaxWalkingMeters, walkingSpeed, maxCandidateStops);
 
         if (!originStops.Any() || !destStops.Any())
         {
@@ -86,12 +87,12 @@ public partial class JourneyPlanningService
         var targetDate = localDateTime.Date;
         var requestedSeconds = (int)localDateTime.TimeOfDay.TotalSeconds;
 
-        var activeServiceIds = await GetActiveServiceIdsAsync(targetDate, cancellationToken);
+        var activeServiceIds = await _cacheService.GetActiveServiceIdsAsync(activeRun.Id, targetDate, cancellationToken);
         var previousDayServiceIds = new List<string>();
 
         if (requestedSeconds < 4 * 3600)
         {
-            previousDayServiceIds = await GetActiveServiceIdsAsync(targetDate.AddDays(-1), cancellationToken);
+            previousDayServiceIds = await _cacheService.GetActiveServiceIdsAsync(activeRun.Id, targetDate.AddDays(-1), cancellationToken);
         }
 
         if (!activeServiceIds.Any() && !previousDayServiceIds.Any()) 

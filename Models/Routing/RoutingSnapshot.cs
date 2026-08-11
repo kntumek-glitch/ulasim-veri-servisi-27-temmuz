@@ -10,14 +10,17 @@ public class RoutingSnapshot
     public string FeedHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
     public string AlgorithmVersion { get; set; } = "1.0";
+    public long BuildDurationMs { get; set; }
+    public long EstimatedMemoryBytes { get; set; }
 
     // O(1) / O(log N) Indexed Data Structures
     public Dictionary<string, List<string>> StopToPatterns { get; set; } = new();
     public Dictionary<string, List<string>> PatternToStops { get; set; } = new();
     public Dictionary<string, List<string>> PatternToTrips { get; set; } = new();
+    public Dictionary<string, int[]> PatternStopDepartureIndices { get; set; } = new();
+    public Dictionary<string, int[]> PatternStopArrivalIndices { get; set; } = new();
     public Dictionary<string, string> TripToServiceId { get; set; } = new();
     public Dictionary<string, List<SnapshotStopTime>> TripTimetables { get; set; } = new();
-    public Dictionary<string, List<int>> PatternStopDepartures { get; set; } = new();
     public Dictionary<string, List<SnapshotTransfer>> StopTransfers { get; set; } = new();
     public Dictionary<string, List<SnapshotTransfer>> StopTransfersReverse { get; set; } = new();
     public Dictionary<string, PatternMetadata> PatternMetadata { get; set; } = new();

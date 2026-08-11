@@ -44,7 +44,8 @@ public class SnapshotWarmupService : BackgroundService
             }
 
             _logger.LogInformation("Found active GTFS Import Run ID: {RunId}. Initiating snapshot build...", activeRun.Id);
-            await snapshotManager.BuildAndSwapSnapshotAsync(activeRun.Id, activeRun.FileHash ?? "UNKNOWN_HASH", stoppingToken);
+            var candidate = await snapshotManager.BuildCandidateSnapshotAsync(activeRun.Id, activeRun.FileHash ?? "UNKNOWN_HASH", stoppingToken);
+            snapshotManager.PromoteSnapshot(candidate);
             _logger.LogInformation("Snapshot warmup completed successfully.");
         }
         catch (Exception ex)

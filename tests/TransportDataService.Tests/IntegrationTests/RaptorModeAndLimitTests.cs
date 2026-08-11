@@ -32,10 +32,19 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
         await _seedLock.WaitAsync();
         try
         {
-            if (_seedRunId != 0) { _runId = _seedRunId; return; }
+            if (_seedRunId != 0)
+            {
+                _runId = _seedRunId;
+                using var innerScope = _factory.Services.CreateScope();
+                var sm = innerScope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>();
+                var innerCandidate = await sm.BuildCandidateSnapshotAsync(_seedRunId, "RAPTOR_MODE_HASH", System.Threading.CancellationToken.None);
+                sm.PromoteSnapshot(innerCandidate);
+                return;
+            }
             using var scope = _factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+            await db.GtfsImportRuns.ExecuteUpdateAsync(s => s.SetProperty(r => r.IsActive, false));
             var run = new GtfsImportRun { FileHash = "RAPTOR_MODE_HASH", IsActive = true, Status = "Completed", StartedAt = DateTime.UtcNow };
             db.GtfsImportRuns.Add(run);
             await db.SaveChangesAsync();
@@ -46,6 +55,10 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
 
             var transferService = scope.ServiceProvider.GetRequiredService<IGtfsTransferCalculationService>();
             await transferService.CalculateTransfersAsync(_seedRunId, CancellationToken.None);
+            
+            var snapshotManager = scope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>();
+            var candidate = await snapshotManager.BuildCandidateSnapshotAsync(_seedRunId, "RAPTOR_LIMIT_HASH", CancellationToken.None);
+            snapshotManager.PromoteSnapshot(candidate);
             
             _runId = _seedRunId;
         }
@@ -99,11 +112,11 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
         // In ARRIVE_BY, the engine MUST select TRIP_LATE because it allows the user to depart much later (12:00 vs 08:00).
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.010, Lon = 29.010 },
-            Destination = new GeoCoordinate { Lat = 41.030, Lon = 29.030 },
+            Origin = new CoordinateDto { Lat = 41.010, Lon = 29.010 },
+            Destination = new CoordinateDto { Lat = 41.030, Lon = 29.030 },
             DateTime = new DateTime(2024, 6, 6, 14, 0, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.ARRIVE_BY,
-            MaxWalkingMeters = 2000
+            MaxWalkingMeters = 500
         };
 
         var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
@@ -130,27 +143,25 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
         // Let's set MaxWalkingMeters very low.
         var reqFail = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.010, Lon = 29.010 },
-            Destination = new GeoCoordinate { Lat = 41.160, Lon = 29.160 }, // Even further!
+            Origin = new CoordinateDto { Lat = 41.010, Lon = 29.010 },
+            Destination = new CoordinateDto { Lat = 41.160, Lon = 29.160 }, // Even further!
             DateTime = new DateTime(2024, 6, 6, 8, 0, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
-            MaxWalkingMeters = 500 // Too small to reach S_FAR
+            MaxWalkingMeters = 100 // Too small to reach S_FAR or any stop
         };
 
         var resFail = await client.PostAsJsonAsync("/api/v2/journey-plans/search", reqFail);
-        var bodyFail = await resFail.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
-        
-        // Should yield NO_NEARBY_DESTINATION_STOP or NO_ROUTE_FOUND based on how early it prunes
-        bodyFail!.ReasonCode.Should().BeOneOf("NO_NEARBY_DESTINATION_STOP", "NO_ROUTE_FOUND");
+        var problemDetailsFail = await resFail.Content.ReadFromJsonAsync<Microsoft.AspNetCore.Mvc.ProblemDetails>();
+        problemDetailsFail!.Detail.Should().Contain("No valid transit stops found");
 
         // Set high max walking meters -> should find the route
         var reqPass = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.010, Lon = 29.010 },
-            Destination = new GeoCoordinate { Lat = 41.160, Lon = 29.160 },
+            Origin = new CoordinateDto { Lat = 41.010, Lon = 29.010 },
+            Destination = new CoordinateDto { Lat = 41.160, Lon = 29.160 },
             DateTime = new DateTime(2024, 6, 6, 8, 0, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
-            MaxWalkingMeters = 15000 // Very large
+            MaxWalkingMeters = 2000 // High enough to reach S_FAR
         };
 
         var resPass = await client.PostAsJsonAsync("/api/v2/journey-plans/search", reqPass);
@@ -160,3 +171,4 @@ public class RaptorModeAndLimitTests : IAsyncLifetime
         bodyPass!.Itineraries.Should().NotBeEmpty();
     }
 }
+

@@ -37,14 +37,19 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
             if (_seedRunId != 0)
             {
                 _runId = _seedRunId;
+                using var innerScope = _factory.Services.CreateScope();
+                var sm = innerScope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>();
+                var innerCandidate = await sm.BuildCandidateSnapshotAsync(_seedRunId, "RAPTOR_ALG_HASH", System.Threading.CancellationToken.None);
+                sm.PromoteSnapshot(innerCandidate);
                 return;
             }
             using var scope = _factory.Services.CreateScope();
             var db = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+            await db.GtfsImportRuns.ExecuteUpdateAsync(s => s.SetProperty(r => r.IsActive, false));
             var run = new GtfsImportRun
             {
-                FileHash = "RAPTOR_ALGO_LOGIC_HASH",
+                FileHash = "RAPTOR_ALG_HASH",
                 IsActive = true,
                 Status = "Completed",
                 StartedAt = DateTime.UtcNow
@@ -58,6 +63,10 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
 
             var transferService = scope.ServiceProvider.GetRequiredService<IGtfsTransferCalculationService>();
             await transferService.CalculateTransfersAsync(_seedRunId, CancellationToken.None);
+            
+            var snapshotManager = scope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager>();
+            var candidate = await snapshotManager.BuildCandidateSnapshotAsync(_seedRunId, "RAPTOR_ALG_HASH", CancellationToken.None);
+            snapshotManager.PromoteSnapshot(candidate);
             
             _runId = _seedRunId;
         }
@@ -143,9 +152,9 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.000, Lon = 29.000 },
-            Destination = new GeoCoordinate { Lat = 41.020, Lon = 29.020 },
-            DateTime = new DateTime(2024, 5, 5, 7, 50, 0, DateTimeKind.Utc),
+            Origin = new CoordinateDto { Lat = 41.000, Lon = 29.000 },
+            Destination = new CoordinateDto { Lat = 41.020, Lon = 29.020 },
+            DateTime = new DateTime(2024, 5, 5, 7, 45, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
             MaxWalkingMeters = 2000,
             IncludeWalkingGeometry = false
@@ -171,11 +180,11 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.030, Lon = 29.030 },
-            Destination = new GeoCoordinate { Lat = 41.050, Lon = 29.050 },
+            Origin = new CoordinateDto { Lat = 41.030, Lon = 29.030 },
+            Destination = new CoordinateDto { Lat = 41.050, Lon = 29.050 },
             DateTime = new DateTime(2024, 5, 5, 8, 55, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
-            MaxWalkingMeters = 2000
+            MaxWalkingMeters = 500
         };
 
         var response = await client.PostAsJsonAsync("/api/v2/journey-plans/search", req);
@@ -183,6 +192,11 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
         var res = await response.Content.ReadFromJsonAsync<JourneyPlanSearchResponse>();
 
         var bestItin = res!.Itineraries.First();
+        Console.WriteLine($"Itinerary count: {res.Itineraries.Count}");
+        foreach (var leg in bestItin.Legs)
+        {
+            Console.WriteLine($"Leg Mode: {leg.Mode}, TripId: {leg.TripId}, RouteId: {leg.RouteId}");
+        }
         var transitLegs = bestItin.Legs.Where(l => l.Mode == "TRANSIT").ToList();
         transitLegs.Should().HaveCount(2);
         transitLegs[0].TripId.Should().Be("TRIP_TR1");
@@ -195,8 +209,8 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
         var client = _factory.CreateClient();
         var req = new JourneyPlanV2SearchRequest
         {
-            Origin = new GeoCoordinate { Lat = 41.060, Lon = 29.060 },
-            Destination = new GeoCoordinate { Lat = 41.070, Lon = 29.070 },
+            Origin = new CoordinateDto { Lat = 41.060, Lon = 29.060 },
+            Destination = new CoordinateDto { Lat = 41.070, Lon = 29.070 },
             DateTime = new DateTime(2024, 5, 5, 10, 50, 0, DateTimeKind.Utc),
             SearchMode = RoutingMode.DEPART_AT,
             MaxWalkingMeters = 1000
@@ -211,3 +225,4 @@ public class RaptorAlgorithmLogicTests : IAsyncLifetime
         transitLeg.TripId.Should().Be("TRIP_EXP_N");
     }
 }
+
