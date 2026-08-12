@@ -340,8 +340,8 @@ public class AlgorithmEdgeCaseTests : IAsyncLifetime
         var response = await client.PostAsJsonAsync("/api/v1/journey-plans/search", request);
 
         // Either 503 (server timeout) or 200 if it completed before the timeout
-        // With MaxSearchTimeSeconds=0, it should almost always be 503
-        if (response.StatusCode == HttpStatusCode.ServiceUnavailable)
+        // With MaxSearchTimeSeconds=0, it should almost always be 408
+        if (response.StatusCode == HttpStatusCode.RequestTimeout)
         {
             var json = await response.Content.ReadAsStringAsync();
             using var doc = JsonDocument.Parse(json);
@@ -349,7 +349,7 @@ public class AlgorithmEdgeCaseTests : IAsyncLifetime
             // Verify it's a proper ProblemDetails response
             doc.RootElement.TryGetProperty("title", out var titleProp).Should().BeTrue("ProblemDetails içinde 'title' olmalı");
             doc.RootElement.TryGetProperty("status", out var statusProp).Should().BeTrue("ProblemDetails içinde 'status' olmalı");
-            statusProp.GetInt32().Should().Be(503, "Sunucu tarafı timeout 503 döndürmeli");
+            statusProp.GetInt32().Should().Be(408, "Sunucu tarafı timeout 408 döndürmeli");
         }
         else
         {

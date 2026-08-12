@@ -110,15 +110,14 @@ public class RaptorTemporalConstraintTests : IAsyncLifetime
             new GtfsStopTime { Trip = tBuf1, Stop = sT, TripId = "TRIP_BUF1", StopId = "S_T", StopSequence = 2, ArrivalSeconds = 13 * 3600, DepartureSeconds = 13 * 3600, GtfsImportRunId = runId }  // 13:00
         );
         
-        // Connects to S_T. 
-        // Invalid Trip: Leaves at 13:16 (Misses 17m constraint by 1 min)
+        // Invalid Trip: Leaves at 13:01 (Misses 2m transfer buffer by 1 min)
         var tBuf2_Invalid = new GtfsTrip { Route = rNight, TripId = "TRIP_BUF2_INV", RouteId = "R_NIGHT", ServiceId = "SRV_TEMP_MON", DirectionId = 0, GtfsImportRunId = runId };
         // Valid Trip: Leaves at 13:20 (Satisfies constraint)
         var tBuf2_Valid = new GtfsTrip { Route = rNight, TripId = "TRIP_BUF2_VAL", RouteId = "R_NIGHT", ServiceId = "SRV_TEMP_MON", DirectionId = 0, GtfsImportRunId = runId };
         db.GtfsTrips.AddRange(tBuf2_Invalid, tBuf2_Valid);
         
         db.GtfsStopTimes.AddRange(
-            new GtfsStopTime { Trip = tBuf2_Invalid, Stop = sT, TripId = "TRIP_BUF2_INV", StopId = "S_T", StopSequence = 1, ArrivalSeconds = 13 * 3600 + 960, DepartureSeconds = 13 * 3600 + 960, GtfsImportRunId = runId }, // 13:16
+            new GtfsStopTime { Trip = tBuf2_Invalid, Stop = sT, TripId = "TRIP_BUF2_INV", StopId = "S_T", StopSequence = 1, ArrivalSeconds = 13 * 3600 + 60, DepartureSeconds = 13 * 3600 + 60, GtfsImportRunId = runId }, // 13:01
             new GtfsStopTime { Trip = tBuf2_Invalid, Stop = sD, TripId = "TRIP_BUF2_INV", StopId = "S_D", StopSequence = 2, ArrivalSeconds = 14 * 3600, DepartureSeconds = 14 * 3600, GtfsImportRunId = runId },
             
             new GtfsStopTime { Trip = tBuf2_Valid, Stop = sT, TripId = "TRIP_BUF2_VAL", StopId = "S_T", StopSequence = 1, ArrivalSeconds = 13 * 3600 + 1200, DepartureSeconds = 13 * 3600 + 1200, GtfsImportRunId = runId }, // 13:20

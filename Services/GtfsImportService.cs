@@ -868,8 +868,15 @@ namespace ulasim_veri_servisi.Services
                     await errorContext.GtfsAgencies.Where(x => x.GtfsImportRunId == importRun.Id).ExecuteDeleteAsync(CancellationToken.None);
 
                     var failedRun = await errorContext.GtfsImportRuns
-                        .SingleAsync(x => x.Id == importRun.Id, CancellationToken.None);
+                        .FirstOrDefaultAsync(x => x.Id == importRun.Id, CancellationToken.None);
                     
+                    if (failedRun == null)
+                    {
+                        _logger.LogCritical("CRITICAL BUG: importRun (Id={Id}) NOT FOUND in errorContext! Transaction was {Tx}", importRun.Id, transaction != null ? "Started" : "Not Started");
+                        // We must recreate it so the status can be updated
+                        failedRun = importRun;
+                        errorContext.GtfsImportRuns.Attach(failedRun);
+                    }
                     if (ex is OperationCanceledException)
                     {
                         if (cancellationToken.IsCancellationRequested)

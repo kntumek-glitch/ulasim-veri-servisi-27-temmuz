@@ -1,183 +1,65 @@
-# Journey Planning V2 - Standard Operating Procedure (SOP) & Runbook
+# Ulaşım Veri Servisi - V2 Engine Operations Runbook
 
-This document provides backend engineers with actionable diagnostic and mitigation steps for 10 specific incident scenarios regarding the V2 Raptor Routing Engine and the GTFS data pipeline.
+## 1. Overview
+This runbook provides comprehensive operational guidelines for managing the Ulaşım Veri Servisi V2 Routing Engine. The V2 Engine uses the RAPTOR algorithm optimized with binary search indices and strict state synchronization.
 
----
+## 2. Health & Readiness Monitoring
+The system exposes multiple endpoints to monitor the engine's health and snapshot readiness.
 
-## 1. Data Pipeline & State
+### `/health/live`
+- **Purpose**: Liveness probe for orchestrators (e.g., Kubernetes).
+- **Behavior**: Returns HTTP 200 immediately if the API process is running. Does not check database or snapshot states.
 
-### 1.1 GTFS Import Fails
-**Diagnosis:**
-The scheduled or triggered GTFS import fails to process the zip file. Check the system logs or query the DB for failed runs.
-```sql
--- Check the latest failed imports and their error messages
-SELECT id, source_url, started_at, error_message 
-FROM "GtfsImportRuns" 
-WHERE status = 'FAILED' 
-ORDER BY started_at DESC LIMIT 5;
-```
-**Mitigation:**
-1. Check if the external GTFS source URL is accessible (`curl -I <gtfs_url>`).
-2. If it was a network timeout, manually trigger a new import using the Admin API:
-```bash
-curl -X POST https://api.domain.com/api/v1/admin/gtfs/import \
-     -H "Authorization: Bearer <ADMIN_KEY>"
-```
+### `/health/ready`
+- **Purpose**: Readiness probe. Used to verify if the V2 Routing Engine is fully initialized and safe to route traffic.
+- **Validates**:
+  1. PostgreSQL database connectivity.
+  2. Applied EF Core migrations.
+  3. External ESHOT API availability (returns HTTP 200 Degraded if down, but does not block traffic).
+  4. GTFS Feed validity (Stale feeds older than 48 hours return HTTP 200 Degraded).
+  5. V2 Engine Memory Snapshot integrity (Fails with HTTP 503 if snapshot is missing, mismatched with DB, or building).
 
-### 1.2 Candidate Snapshot Build Fails
-**Diagnosis:**
-The GTFS data was imported into SQL, but building the in-memory `RoutingSnapshot` failed (often due to OOM or bad data relationships).
-```sql
--- Identify runs that are stuck at DB import but failed snapshot generation
-SELECT id, status, error_message 
-FROM "GtfsImportRuns" 
-WHERE status = 'COMPLETED_IMPORT' AND is_active = false;
-```
-**Mitigation:**
-1. Check available server RAM (`free -h`). If OOM, increase Docker/VM memory limits.
-2. Restart the application service to re-trigger the `SnapshotWarmupService` for pending runs.
-```bash
-systemctl restart ulasim-veri-servisi
-```
+### Admin Snapshot Endpoint
+- **URL**: `GET /api/v2/admin/routing/snapshot`
+- **Security**: Requires `x-admin-key` header matching the `Security:AdminKey` configuration value.
+- **Response**: Provides exact memory blueprint telemetry:
+  - `active_import_id`: The ID of the currently loaded feed.
+  - `feed_hash`: SHA256 hash of the loaded GTFS feed.
+  - `build_duration_ms`: Time taken to build the snapshot in memory.
+  - `estimated_memory_bytes`: Approximate RAM footprint of the routing structures.
 
-### 1.3 Active Snapshot is Missing
-**Diagnosis:**
-The Journey Planning API returns `FEED_NOT_AVAILABLE` (HTTP 503). This means the graph is not loaded into memory.
-**Mitigation:**
-1. Check if an active feed exists in the database:
-```sql
-SELECT id FROM "GtfsImportRuns" WHERE is_active = true;
-```
-2. If it exists but is not loaded into memory, force a memory reload by restarting the application instance.
-```bash
-docker restart ulasim-api
-```
+## 3. GTFS Import Lifecycle & Troubleshooting
+The GTFS import process is automated and uses an atomic promotion model to prevent "split-brain" states.
 
-### 1.4 Active Feed is Marked as Stale
-**Diagnosis:**
-The Journey Planning API returns `FEED_STALE` and routes are rejected because the search date exceeds the GTFS calendar. Response metadata shows `"isFeedStale": true`.
-**Mitigation:**
-1. The GTFS calendar has expired. A fresh GTFS file must be imported immediately.
-2. Trigger an emergency import, ensuring the source URL points to the updated file:
-```bash
-curl -X POST https://api.domain.com/api/v1/admin/gtfs/import \
-     -H "Authorization: Bearer <ADMIN_KEY>"
-```
+### Process Flow
+1. **Acquire Lock**: A PostgreSQL advisory lock (`123456`) ensures only one import runs simultaneously.
+2. **Download & Check**: The `ETag` and `LastModified` headers are checked. If unchanged, the import skips.
+3. **Truncate & Load**: Old GTFS tables are truncated. The new ZIP is parsed and loaded.
+4. **Snapshot Generation**: A candidate routing snapshot is built in-memory.
+5. **Atomic Promotion**: If the snapshot succeeds, the DB `GtfsImportRuns` status is marked as "Completed" and the active snapshot is swapped pointer-wise. If it fails, the transaction is rolled back and the old snapshot remains active.
 
----
+### Troubleshooting Scenarios
+#### Scenario 1: Import stuck in "Running" status
+- **Cause**: The process crashed unexpectedly (e.g., OOM kill, pod eviction) before releasing the DB lock or updating the status.
+- **Resolution**: The `GtfsImportService` will automatically detect abandoned runs during the next scheduled import and mark them as "Failed" with the message "Automatically marked as Failed (Abandoned)".
 
-## 2. Infrastructure & External Dependencies
+#### Scenario 2: Sequence Contains No Elements / Duplicate PK Errors
+- **Cause**: A hardcoded Entity Framework ID collided with the PostgreSQL sequence generation.
+- **Resolution**: Resolved in Phase 8. Ensure no explicit `Id` assignments exist in `GtfsImportRun` insertion logic.
 
-### 2.1 PostgreSQL Database is Unreachable (Down)
-**Diagnosis:**
-API endpoints return `500 Internal Server Error`. The application logs show `NpgsqlException: Connection refused`.
-**Mitigation:**
-1. Verify the database service status:
-```bash
-sudo systemctl status postgresql
-# Or if running in Docker: docker ps | grep postgres
-```
-2. Restart the database service:
-```bash
-sudo systemctl restart postgresql
-```
-3. Verify connection locally from the application server:
-```bash
-psql -h localhost -U postgres -d TransportDb -W
-```
+#### Scenario 3: Memory Exhaustion (OOM) during Snapshot Build
+- **Cause**: The GTFS feed size exceeded available system memory.
+- **Resolution**: Check the `estimated_memory_bytes` in the Admin Endpoint for previous runs. If it approaches the container memory limit, increase the RAM allocation for the application pod.
 
-### 2.2 External Walking Routing Provider is Down
-**Diagnosis:**
-API logs show timeout exceptions (`TaskCanceledException`) originating from `OsrmWalkingRouteProvider`. Walking routes fail to generate.
-**Mitigation:**
-1. Test the current OSRM endpoint directly:
-```bash
-curl -I http://router.project-osrm.org/route/v1/foot/27.1,38.4;27.2,38.5
-```
-2. If the primary OSRM server is down, update `appsettings.json` to point to a fallback instance or increase the timeout limit:
-```json
-"Osrm": { 
-  "BaseUrl": "http://fallback-osrm.com", 
-  "TimeoutSeconds": 10 
-}
-```
-3. Restart the application to apply the new configuration.
+## 4. Security Controls & Rate Limiting
+### Exception Masking
+All internal errors are masked to prevent stack trace leaks. The application uses a global Exception Middleware that catches all unhandled exceptions and returns a generic `ProblemDetails` response (RFC 7807) with HTTP 500.
 
----
+### Rate Limiting
+- Configured via `RateLimiting` section in `appsettings.json`.
+- Limits traffic based on client IP or `X-Forwarded-For` headers.
+- Breaches result in `HTTP 429 Too Many Requests`.
 
-## 3. Runtime & Performance
-
-### 3.1 V2 Journey Planning Endpoint Timeouts
-**Diagnosis:**
-Clients receive `408 Request Timeout` and `SEARCH_TIMEOUT` metadata codes due to prolonged Raptor graph traversal.
-**Mitigation:**
-1. Inspect CPU load and active threads (`htop`).
-2. If caused by an automated burst, lower the rate limiting thresholds in `appsettings.json` to aggressively throttle traffic:
-```json
-"RateLimit": {
-    "PermitLimit": 20,
-    "WindowSeconds": 10
-}
-```
-3. If heavy queries are the root cause, temporarily reduce the fail-fast timeout threshold to free up threads:
-```json
-"JourneyPlan": { 
-    "MaxSearchTimeSeconds": 5 
-}
-```
-
-### 3.2 High Memory Consumption (OOM Risk)
-**Diagnosis:**
-The application process RAM usage exceeds critical thresholds (e.g., >80%). Logs might show high Garbage Collection overhead.
-**Mitigation:**
-1. The `WalkingRoutingCache` might be hoarding memory. Restart the service to flush the in-memory dictionaries immediately:
-```bash
-systemctl restart ulasim-veri-servisi
-```
-2. To prevent recurrence, reduce the maximum cache capacity in `appsettings.json`:
-```json
-"WalkingRoutingCache": { 
-    "MaxCapacity": 2000 
-}
-```
-
----
-
-## 4. Disaster Recovery
-
-### 4.1 Rollback Procedure for a Newly Promoted, Faulty Feed
-**Diagnosis:**
-A new GTFS feed was imported and set to active, but clients are reporting missing routes, zero trips, or incorrect topologies.
-**Mitigation:**
-1. Identify the ID of the previous stable run:
-```sql
-SELECT id, started_at FROM "GtfsImportRuns" 
-WHERE status = 'COMPLETED_ALL' 
-ORDER BY id DESC LIMIT 5;
-```
-2. Trigger the manual activation of the previous known-good run via the API (which automatically deactivates the faulty one):
-```bash
-curl -X POST https://api.domain.com/api/v1/admin/gtfs/activate/{STABLE_RUN_ID} \
-     -H "Authorization: Bearer <ADMIN_KEY>"
-```
-
-### 4.2 Revert Procedure to a Previous Stable Snapshot (DB Level)
-**Diagnosis:**
-The active feed is corrupt and the API is entirely unresponsive, preventing the use of the Admin API for rollback.
-**Mitigation:**
-1. Stop the API service to stop serving corrupt data:
-```bash
-systemctl stop ulasim-veri-servisi
-```
-2. Directly intervene in the SQL database to swap the active flags:
-```sql
--- Step 1: Deactivate the current faulty run
-UPDATE "GtfsImportRuns" SET is_active = false WHERE is_active = true;
-
--- Step 2: Activate the previous stable run (replace 12 with the stable ID)
-UPDATE "GtfsImportRuns" SET is_active = true WHERE id = 12;
-```
-3. Restart the API service. The `SnapshotWarmupService` will rebuild the memory graph using the newly marked stable run:
-```bash
-systemctl start ulasim-veri-servisi
-```
+### CORS Policy
+- Configured via `Cors:AllowedOrigins` in `appsettings.json`.
+- Rejecting unauthorized origins is strictly enforced for web traffic.

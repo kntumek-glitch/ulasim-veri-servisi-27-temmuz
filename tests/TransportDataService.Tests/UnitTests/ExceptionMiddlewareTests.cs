@@ -1,4 +1,4 @@
-﻿using FluentAssertions;
+using FluentAssertions;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Logging;
@@ -130,8 +130,8 @@ public class ExceptionMiddlewareTests
         
         var problem = JsonSerializer.Deserialize<ProblemDetails>(responseBody, _jsonOptions);
         problem.Should().NotBeNull();
-        problem!.Title.Should().Be("Beklenmeyen hata");
-        problem.Detail.Should().Be("Beklenmeyen bir uygulama hatası oluştu.");
+        problem!.Title.Should().Be("INTERNAL_ERROR");
+        problem.Detail.Should().Be("An unexpected error occurred on the server.");
         problem.Status.Should().Be(500);
         
         responseBody.Should().NotContain(exceptionMessage);
