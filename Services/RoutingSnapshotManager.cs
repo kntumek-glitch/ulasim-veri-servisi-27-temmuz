@@ -230,6 +230,21 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
                                         (snapshot.TripTimetables.Count * 800L); // arrays of stoptimes
 
         _logger.LogInformation("Routing candidate snapshot built successfully. Patterns: {PatternCount}, Trips: {TripCount}, Duration: {BuildMs}ms", snapshot.PatternMetadata.Count, snapshot.TripTimetables.Count, snapshot.BuildDurationMs);
+        
+        long totalStopTimes = snapshot.TripTimetables.Values.Sum(t => (long)t.Count);
+        long peakMemory = System.Diagnostics.Process.GetCurrentProcess().PeakWorkingSet64;
+        
+        _logger.LogInformation("--- BENCHMARK METRICS ---");
+        _logger.LogInformation("Build Duration: {BuildMs} ms", snapshot.BuildDurationMs);
+        _logger.LogInformation("Peak Memory Usage: {PeakMem} bytes", peakMemory);
+        _logger.LogInformation("Final Estimated Footprint: {Footprint} bytes", snapshot.EstimatedMemoryBytes);
+        _logger.LogInformation("Stop Count: {StopCount}", snapshot.Stops.Count);
+        _logger.LogInformation("Pattern Count: {PatternCount}", snapshot.PatternMetadata.Count);
+        _logger.LogInformation("Trip Count: {TripCount}", snapshot.TripTimetables.Count);
+        _logger.LogInformation("Stop-Time Count: {StopTimeCount}", totalStopTimes);
+        _logger.LogInformation("Transfer Edge Count: {TransferCount}", snapshot.StopTransfers.Count);
+        _logger.LogInformation("-------------------------");
+        
         return snapshot;
     }
 

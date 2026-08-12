@@ -63,6 +63,11 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                     }
                 }
             }
+            if (response != null)
+            {
+                response.Metadata ??= new JourneyPlanMetadataDto();
+                response.Metadata.InternalCalculationMs = sw.ElapsedMilliseconds;
+            }
             return response;
         }
         catch(Exception ex)
@@ -106,6 +111,11 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         else telemetry.ExactWalkingLegCount++;
                     }
                 }
+            }
+            if (response != null)
+            {
+                response.Metadata ??= new JourneyPlanMetadataDto();
+                response.Metadata.InternalCalculationMs = sw.ElapsedMilliseconds;
             }
             return response;
         }

@@ -121,7 +121,7 @@ builder.Services.AddScoped<ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttrib
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.AdminKeyAuthAttribute>();
 builder.Services.AddScoped<IGtfsTransferCalculationService, GtfsTransferCalculationService>();
 
-builder.Services.AddHostedService<GtfsAutoUpdateWorker>();
+// builder.Services.AddHostedService<GtfsAutoUpdateWorker>();
 builder.Services.AddHostedService<ulasim_veri_servisi.Services.SnapshotWarmupService>();
 
 builder.Services.AddHealthChecks()
@@ -140,7 +140,7 @@ if (app.Environment.IsDevelopment())
     app.UseSwaggerUI();
 }
 
-app.UseHttpsRedirection();
+// app.UseHttpsRedirection();
 
 app.UseResponseCompression();
 app.UseCors("AllowAll");

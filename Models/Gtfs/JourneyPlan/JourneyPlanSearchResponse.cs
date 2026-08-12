@@ -34,6 +34,7 @@ public class JourneyPlanMetadataDto
     public bool IsStale { get; set; }
     public string Timezone { get; set; } = null!;
     public string DataSourceWarning { get; set; } = "Sonuçlar statik (planlı) tarife verisine dayanmaktadır, canlı araç konumu/trafiği içermez.";
+    public long InternalCalculationMs { get; set; }
 }
 
 public class ItineraryDto
