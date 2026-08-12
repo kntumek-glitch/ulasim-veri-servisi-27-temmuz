@@ -10,11 +10,13 @@ using Microsoft.Extensions.Configuration;
 using System;
 using System.Linq;
 using System.Collections.Generic;
+using Microsoft.AspNetCore.RateLimiting;
 
 namespace ulasim_veri_servisi.Controllers;
 
 [ApiController]
 [Route("api/v1/journey-plans")]
+[EnableRateLimiting("JourneyPlanPolicy")]
 public class JourneyPlansController : ControllerBase
 {
     private readonly IJourneyPlanningService _journeyPlanningService;

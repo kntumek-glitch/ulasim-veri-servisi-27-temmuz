@@ -12,6 +12,8 @@ using Microsoft.AspNetCore.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using ulasim_veri_servisi.HealthChecks;
 using ulasim_veri_servisi.Workers;
+using Microsoft.AspNetCore.RateLimiting;
+using System.Threading.RateLimiting;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine("ContentRoot: " + builder.Environment.ContentRootPath);
@@ -34,12 +36,42 @@ builder.Services.AddResponseCompression(options =>
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("AllowAll", policy =>
+    var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
+    
+    options.AddPolicy("DynamicCors", policy =>
     {
-        policy.AllowAnyOrigin()
-              .AllowAnyMethod()
-              .AllowAnyHeader();
+        if (builder.Environment.IsDevelopment())
+        {
+            policy.AllowAnyOrigin()
+                  .AllowAnyMethod()
+                  .AllowAnyHeader();
+        }
+        else
+        {
+            if (allowedOrigins.Length > 0)
+            {
+                policy.WithOrigins(allowedOrigins)
+                      .AllowAnyMethod()
+                      .AllowAnyHeader();
+            }
+        }
     });
+});
+
+var permitLimit = builder.Configuration.GetValue<int>("RateLimit:PermitLimit", 50);
+var windowSeconds = builder.Configuration.GetValue<int>("RateLimit:WindowSeconds", 10);
+
+builder.Services.AddRateLimiter(options =>
+{
+    options.AddFixedWindowLimiter(policyName: "JourneyPlanPolicy", config =>
+    {
+        config.PermitLimit = permitLimit;
+        config.Window = TimeSpan.FromSeconds(windowSeconds);
+        config.QueueProcessingOrder = QueueProcessingOrder.OldestFirst;
+        config.QueueLimit = 2; // Allow a tiny queue before rejecting
+    });
+    
+    options.RejectionStatusCode = StatusCodes.Status429TooManyRequests;
 });
 
 
@@ -143,7 +175,8 @@ if (app.Environment.IsDevelopment())
 // app.UseHttpsRedirection();
 
 app.UseResponseCompression();
-app.UseCors("AllowAll");
+app.UseCors("DynamicCors");
+app.UseRateLimiter();
 
 app.UseAuthorization();
 
