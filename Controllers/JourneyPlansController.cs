@@ -85,6 +85,11 @@ public class JourneyPlansController : ControllerBase
         {
             var response = await raptorEngine.SearchJourneyV2Async(request, cts.Token);
             
+            if (response.ReasonCode == "FEED_STALE" || response.ReasonCode == "NO_ACTIVE_SERVICE")
+            {
+                return BadRequest(response);
+            }
+
             if (!response.Itineraries.Any())
             {
                 response.ReasonCode = JourneyPlanResolutionCode.NO_ROUTE_FOUND.ToString();
@@ -113,10 +118,7 @@ public class JourneyPlansController : ControllerBase
             var code = ex.IsOrigin ? JourneyPlanResolutionCode.NO_NEARBY_ORIGIN_STOP : JourneyPlanResolutionCode.NO_NEARBY_DESTINATION_STOP;
             return GenerateErrorResponse(code, StatusCodes.Status400BadRequest, ex.Message);
         }
-        catch (NoActiveServiceException ex)
-        {
-            return GenerateErrorResponse(JourneyPlanResolutionCode.NO_ACTIVE_SERVICE, StatusCodes.Status400BadRequest, ex.Message);
-        }
+
         catch (Exception ex)
         {
             return GenerateErrorResponse(JourneyPlanResolutionCode.INTERNAL_ERROR, StatusCodes.Status500InternalServerError, ex.Message);

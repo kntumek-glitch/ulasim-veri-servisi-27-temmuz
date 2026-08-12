@@ -54,9 +54,9 @@ public partial class JourneyPlanningService
             ActiveImportId = activeRun.Id,
             FeedHash = activeRun.FileHash ?? "UNKNOWN",
             Timezone = timezone,
-            StartDate = minDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
-            EndDate = maxDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
-            IsStale = maxDate.HasValue && maxDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)
+            FeedValidFrom = minDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
+            FeedValidTo = maxDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
+            IsFeedStale = maxDate.HasValue && maxDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
         var activeStopsCache = await _cacheService.GetActiveStopsAsync(activeRun.Id, cancellationToken);

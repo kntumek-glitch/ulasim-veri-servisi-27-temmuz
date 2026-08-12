@@ -21,3 +21,8 @@ public class NoActiveServiceException : Exception
 {
     public NoActiveServiceException(string message) : base(message) { }
 }
+
+public class FeedStaleException : Exception
+{
+    public FeedStaleException(string message) : base(message) { }
+}

@@ -50,7 +50,8 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             var response = await SearchJourneyV2AsyncInternal(request, cancellationToken, telemetry);
             
             telemetry.ResultCount = response.Itineraries.Count;
-            if (telemetry.ResultCount == 0) telemetry.ReasonCode = "NO_ROUTE_FOUND";
+            if (telemetry.ResultCount == 0 && response.ReasonCode == "SUCCESS") telemetry.ReasonCode = "NO_ROUTE_FOUND";
+            else telemetry.ReasonCode = response.ReasonCode;
             
             foreach (var it in response.Itineraries)
             {
@@ -67,6 +68,14 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             {
                 response.Metadata ??= new JourneyPlanMetadataDto();
                 response.Metadata.InternalCalculationMs = sw.ElapsedMilliseconds;
+                if (snapshot != null)
+                {
+                    response.Metadata.ActiveImportId = snapshot.ActiveImportId;
+                    response.Metadata.FeedHash = snapshot.FeedHash;
+                    response.Metadata.FeedValidFrom = snapshot.FeedValidFrom.ToString("yyyy-MM-dd");
+                    response.Metadata.FeedValidTo = snapshot.FeedValidTo.ToString("yyyy-MM-dd");
+                    response.Metadata.IsFeedStale = request.DateTime?.Date > snapshot.FeedValidTo.Date;
+                }
             }
             return response;
         }
@@ -99,7 +108,8 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             var response = await SearchArriveByJourneyV2AsyncInternal(request, cancellationToken, telemetry);
             
             telemetry.ResultCount = response.Itineraries.Count;
-            if (telemetry.ResultCount == 0) telemetry.ReasonCode = "NO_ROUTE_FOUND";
+            if (telemetry.ResultCount == 0 && response.ReasonCode == "SUCCESS") telemetry.ReasonCode = "NO_ROUTE_FOUND";
+            else telemetry.ReasonCode = response.ReasonCode;
             
             foreach (var it in response.Itineraries)
             {
@@ -116,6 +126,14 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             {
                 response.Metadata ??= new JourneyPlanMetadataDto();
                 response.Metadata.InternalCalculationMs = sw.ElapsedMilliseconds;
+                if (snapshot != null)
+                {
+                    response.Metadata.ActiveImportId = snapshot.ActiveImportId;
+                    response.Metadata.FeedHash = snapshot.FeedHash;
+                    response.Metadata.FeedValidFrom = snapshot.FeedValidFrom.ToString("yyyy-MM-dd");
+                    response.Metadata.FeedValidTo = snapshot.FeedValidTo.ToString("yyyy-MM-dd");
+                    response.Metadata.IsFeedStale = request.DateTime?.Date > snapshot.FeedValidTo.Date;
+                }
             }
             return response;
         }
@@ -139,6 +157,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         {
             _logger.LogWarning("Routing snapshot is not available. Search cannot be performed.");
             throw new SnapshotUnavailableException("Routing graph is not loaded or is currently updating.");
+        }
+
+        DateTime searchDate = request.DateTime!.Value.Date;
+        if (searchDate < snapshot.FeedValidFrom.Date || searchDate > snapshot.FeedValidTo.Date)
+        {
+            return new JourneyPlanSearchResponse { ReasonCode = "FEED_STALE" };
         }
 
         if (request.SearchMode == RoutingMode.ARRIVE_BY)
@@ -193,7 +217,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         
         if (!activeServicesToday.Any() && !activeServicesYesterday.Any())
         {
-            throw new NoActiveServiceException("There are no active public transit services operating on this date.");
+            return new JourneyPlanSearchResponse { ReasonCode = "NO_ACTIVE_SERVICE" };
         }
         
         int prepBuffer = _configuration.GetValue<int>("JourneyPlan:BoardingPrepBufferSeconds", 60);
@@ -1022,6 +1046,12 @@ private class LocalWalkEdge
         if (snapshot == null)
             throw new SnapshotUnavailableException("Routing graph is not loaded or is currently updating.");
 
+        DateTime searchDate = request.DateTime!.Value.Date;
+        if (searchDate < snapshot.FeedValidFrom.Date || searchDate > snapshot.FeedValidTo.Date)
+        {
+            return new JourneyPlanSearchResponse { ReasonCode = "FEED_STALE" };
+        }
+
         int numStops = snapshot.StopsByIndex.Length;
         var labels = new BackwardRouteLabel[numStops];
         for (int i = 0; i < numStops; i++)
@@ -1062,7 +1092,7 @@ private class LocalWalkEdge
         }
         
         if (!activeServicesToday.Any() && !activeServicesYesterday.Any())
-            throw new NoActiveServiceException("There are no active public transit services operating on this date.");
+            return new JourneyPlanSearchResponse { ReasonCode = "NO_ACTIVE_SERVICE" };
 
         int prepBuffer = _configuration.GetValue<int>("JourneyPlan:BoardingPrepBufferSeconds", 60);
         int transferBuffer = _configuration.GetValue<int>("JourneyPlan:TransferSafetyBufferSeconds", 120);

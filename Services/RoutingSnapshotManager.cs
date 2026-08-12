@@ -40,6 +40,13 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
         using var scope = _scopeFactory.CreateScope();
         var context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
 
+        var run = await context.GtfsImportRuns.AsNoTracking().IgnoreQueryFilters().FirstOrDefaultAsync(x => x.Id == importRunId, cancellationToken);
+        if (run != null)
+        {
+            snapshot.FeedValidFrom = run.FeedStartDate?.ToDateTime(TimeOnly.MinValue) ?? DateTime.MinValue;
+            snapshot.FeedValidTo = run.FeedEndDate?.ToDateTime(TimeOnly.MaxValue) ?? DateTime.MaxValue;
+        }
+
         // We use IgnoreQueryFilters to ensure we can build the snapshot even if the run is still in "Staging" (IsActive = false)
         var stops = await context.GtfsStops.IgnoreQueryFilters().Where(x => x.GtfsImportRunId == importRunId).AsNoTracking().ToListAsync(cancellationToken);
         

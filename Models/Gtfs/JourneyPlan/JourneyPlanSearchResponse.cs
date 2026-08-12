@@ -29,9 +29,9 @@ public class JourneyPlanMetadataDto
 {
     public int ActiveImportId { get; set; }
     public string FeedHash { get; set; } = null!;
-    public string StartDate { get; set; } = null!;
-    public string EndDate { get; set; } = null!;
-    public bool IsStale { get; set; }
+    public string FeedValidFrom { get; set; } = null!;
+    public string FeedValidTo { get; set; } = null!;
+    public bool IsFeedStale { get; set; }
     public string Timezone { get; set; } = null!;
     public string DataSourceWarning { get; set; } = "Sonuçlar statik (planlı) tarife verisine dayanmaktadır, canlı araç konumu/trafiği içermez.";
     public long InternalCalculationMs { get; set; }

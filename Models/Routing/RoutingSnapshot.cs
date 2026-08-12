@@ -9,6 +9,8 @@ public class RoutingSnapshot
     public int ActiveImportId { get; set; }
     public string FeedHash { get; set; } = string.Empty;
     public DateTime CreatedAt { get; set; }
+    public DateTime FeedValidFrom { get; set; }
+    public DateTime FeedValidTo { get; set; }
     public string AlgorithmVersion { get; set; } = "1.0";
     public long BuildDurationMs { get; set; }
     public long EstimatedMemoryBytes { get; set; }

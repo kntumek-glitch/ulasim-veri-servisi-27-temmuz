@@ -119,9 +119,9 @@ public partial class JourneyPlanningService : IJourneyPlanningService
             ActiveImportId = activeRun.Id,
             FeedHash = activeRun.FileHash ?? "UNKNOWN",
             Timezone = timezone,
-            StartDate = minDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
-            EndDate = maxDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
-            IsStale = maxDate.HasValue && maxDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)
+            FeedValidFrom = minDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
+            FeedValidTo = maxDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
+            IsFeedStale = maxDate.HasValue && maxDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)
         };
 
         // 1. Get Active Stops from Cache or DB
