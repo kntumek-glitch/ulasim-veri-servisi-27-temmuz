@@ -101,27 +101,10 @@ public class JourneyPlansController : ControllerBase
             
             return Ok(response);
         }
-        catch (OperationCanceledException)
-        {
-            var code = cancellationToken.IsCancellationRequested 
-                ? JourneyPlanResolutionCode.CLIENT_CANCELLED 
-                : JourneyPlanResolutionCode.SEARCH_TIMEOUT;
-                
-            return GenerateErrorResponse(code, StatusCodes.Status408RequestTimeout, "Search time limit exceeded.");
-        }
-        catch (SnapshotUnavailableException)
-        {
-            return GenerateErrorResponse(JourneyPlanResolutionCode.FEED_NOT_AVAILABLE, StatusCodes.Status503ServiceUnavailable, "Routing graph is not loaded or is currently updating.");
-        }
         catch (NoNearbyStopException ex)
         {
             var code = ex.IsOrigin ? JourneyPlanResolutionCode.NO_NEARBY_ORIGIN_STOP : JourneyPlanResolutionCode.NO_NEARBY_DESTINATION_STOP;
             return GenerateErrorResponse(code, StatusCodes.Status400BadRequest, ex.Message);
-        }
-
-        catch (Exception ex)
-        {
-            return GenerateErrorResponse(JourneyPlanResolutionCode.INTERNAL_ERROR, StatusCodes.Status500InternalServerError, ex.Message);
         }
     }
 

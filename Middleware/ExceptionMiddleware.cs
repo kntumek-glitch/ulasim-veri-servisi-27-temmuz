@@ -1,6 +1,7 @@
 using System.Text.Json;
 using Microsoft.AspNetCore.Mvc;
 using ulasim_veri_servisi.Exceptions;
+using TransportDataService.Models.Exceptions;
 
 namespace ulasim_veri_servisi.Middleware;
 
@@ -25,7 +26,7 @@ public class ExceptionMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, ex.Message);
+            _logger.LogError(ex, "Unhandled exception occurred. TraceId: {TraceId}", context.TraceIdentifier);
 
             await HandleExceptionAsync(context, ex);
         }
@@ -63,6 +64,13 @@ public class ExceptionMiddleware
                 problem.Status = StatusCodes.Status503ServiceUnavailable;
                 break;
                 
+            case SnapshotUnavailableException:
+                problem.Title = "FEED_NOT_AVAILABLE";
+                problem.Detail = "Routing graph is not loaded or is currently updating.";
+                problem.Status = StatusCodes.Status503ServiceUnavailable;
+                problem.Extensions["resolutionCode"] = "FEED_NOT_AVAILABLE";
+                break;
+                
             case ArgumentException ex:
                 problem.Title = "Geçersiz İstek";
                 problem.Detail = ex.Message;
@@ -72,22 +80,25 @@ public class ExceptionMiddleware
             case OperationCanceledException:
                 if (context.RequestAborted.IsCancellationRequested)
                 {
-                    problem.Title = "İstek iptal edildi";
-                    problem.Detail = "İstemci tarafında işlem iptal edildiği için sonuçlandırılamadı.";
+                    problem.Title = "CLIENT_CANCELLED";
+                    problem.Detail = "The client cancelled the request.";
                     problem.Status = 499; // Client Closed Request
+                    problem.Extensions["resolutionCode"] = "CLIENT_CANCELLED";
                 }
                 else
                 {
-                    problem.Title = "Zaman aşımı (Timeout)";
-                    problem.Detail = "Sunucu arama süresi aşıldığı için işlem iptal edildi.";
-                    problem.Status = StatusCodes.Status503ServiceUnavailable;
+                    problem.Title = "SEARCH_TIMEOUT";
+                    problem.Detail = "Search time limit exceeded.";
+                    problem.Status = StatusCodes.Status408RequestTimeout;
+                    problem.Extensions["resolutionCode"] = "SEARCH_TIMEOUT";
                 }
                 break;
 
             default:
-                problem.Title = "Beklenmeyen hata";
-                problem.Detail = "Beklenmeyen bir uygulama hatası oluştu.";
+                problem.Title = "INTERNAL_ERROR";
+                problem.Detail = "An unexpected error occurred on the server.";
                 problem.Status = StatusCodes.Status500InternalServerError;
+                problem.Extensions["resolutionCode"] = "INTERNAL_ERROR";
                 break;
         }
 
