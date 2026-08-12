@@ -116,11 +116,12 @@ public partial class JourneyPlanningService : IJourneyPlanningService
 
         response.Metadata = new JourneyPlanMetadataDto
         {
+            AlgorithmVersion = "dijkstra-v1",
+            DataSource = "STATIC_GTFS",
             ActiveImportId = activeRun.Id,
             FeedHash = activeRun.FileHash ?? "UNKNOWN",
-            Timezone = timezone,
-            FeedValidFrom = minDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
-            FeedValidTo = maxDate?.ToString("yyyy-MM-dd") ?? "UNKNOWN",
+            SnapshotCreatedAt = activeRun.StartedAt.ToString("o"),
+            SearchMode = "DEPART_AT",
             IsFeedStale = maxDate.HasValue && maxDate.Value < DateOnly.FromDateTime(DateTime.UtcNow)
         };
 

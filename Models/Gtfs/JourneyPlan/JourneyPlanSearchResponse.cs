@@ -27,14 +27,14 @@ public class JourneyPlanSearchResponse
 
 public class JourneyPlanMetadataDto
 {
+    public string AlgorithmVersion { get; set; } = "raptor-v2";
+    public string DataSource { get; set; } = "STATIC_GTFS";
     public int ActiveImportId { get; set; }
     public string FeedHash { get; set; } = null!;
-    public string FeedValidFrom { get; set; } = null!;
-    public string FeedValidTo { get; set; } = null!;
+    public string SnapshotCreatedAt { get; set; } = null!;
+    public string SearchMode { get; set; } = null!;
+    public long CalculationDurationMs { get; set; }
     public bool IsFeedStale { get; set; }
-    public string Timezone { get; set; } = null!;
-    public string DataSourceWarning { get; set; } = "Sonuçlar statik (planlı) tarife verisine dayanmaktadır, canlı araç konumu/trafiği içermez.";
-    public long InternalCalculationMs { get; set; }
 }
 
 public class ItineraryDto

@@ -67,13 +67,14 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             if (response != null)
             {
                 response.Metadata ??= new JourneyPlanMetadataDto();
-                response.Metadata.InternalCalculationMs = sw.ElapsedMilliseconds;
+                response.Metadata.CalculationDurationMs = sw.ElapsedMilliseconds;
+                response.Metadata.SearchMode = request.SearchMode.ToString();
+                
                 if (snapshot != null)
                 {
                     response.Metadata.ActiveImportId = snapshot.ActiveImportId;
                     response.Metadata.FeedHash = snapshot.FeedHash;
-                    response.Metadata.FeedValidFrom = snapshot.FeedValidFrom.ToString("yyyy-MM-dd");
-                    response.Metadata.FeedValidTo = snapshot.FeedValidTo.ToString("yyyy-MM-dd");
+                    response.Metadata.SnapshotCreatedAt = snapshot.CreatedAt.ToString("o");
                     response.Metadata.IsFeedStale = request.DateTime?.Date > snapshot.FeedValidTo.Date;
                 }
             }
@@ -125,13 +126,14 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             if (response != null)
             {
                 response.Metadata ??= new JourneyPlanMetadataDto();
-                response.Metadata.InternalCalculationMs = sw.ElapsedMilliseconds;
+                response.Metadata.CalculationDurationMs = sw.ElapsedMilliseconds;
+                response.Metadata.SearchMode = request.SearchMode.ToString();
+                
                 if (snapshot != null)
                 {
                     response.Metadata.ActiveImportId = snapshot.ActiveImportId;
                     response.Metadata.FeedHash = snapshot.FeedHash;
-                    response.Metadata.FeedValidFrom = snapshot.FeedValidFrom.ToString("yyyy-MM-dd");
-                    response.Metadata.FeedValidTo = snapshot.FeedValidTo.ToString("yyyy-MM-dd");
+                    response.Metadata.SnapshotCreatedAt = snapshot.CreatedAt.ToString("o");
                     response.Metadata.IsFeedStale = request.DateTime?.Date > snapshot.FeedValidTo.Date;
                 }
             }
