@@ -47,7 +47,8 @@ namespace ulasim_veri_servisi.Services
         {
             await using var scope = _scopeFactory.CreateAsyncScope();
             var _context = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            
+            _context.ChangeTracker.AutoDetectChangesEnabled = false;
+            _context.ChangeTracker.QueryTrackingBehavior = Microsoft.EntityFrameworkCore.QueryTrackingBehavior.NoTracking;
             bool lockAcquired = false;
             GtfsImportRun? importRun = null;
             GtfsImportPhase? activePhase = null;
@@ -222,7 +223,7 @@ namespace ulasim_veri_servisi.Services
 
                     using var csv = new CsvReader(
        reader,
-       CultureInfo.InvariantCulture);
+                        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
 
                     var agencies =
                         csv.GetRecords<GtfsAgencyRow>()
@@ -259,7 +260,7 @@ namespace ulasim_veri_servisi.Services
 
                     using var csv = new CsvReader(
                         reader,
-                        CultureInfo.InvariantCulture);
+                        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
 
                     var routes =
                         csv.GetRecords<GtfsRouteRow>()
@@ -358,7 +359,7 @@ namespace ulasim_veri_servisi.Services
 
                     using var csv = new CsvReader(
                         reader,
-                        CultureInfo.InvariantCulture);
+                        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
 
                     var trips =
                         csv.GetRecords<GtfsTripRow>()
@@ -422,7 +423,7 @@ namespace ulasim_veri_servisi.Services
 
                     using var csv = new CsvReader(
                         reader,
-                        CultureInfo.InvariantCulture);
+                        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
 
                     var stopTimes = csv.GetRecords<GtfsStopTimeRow>();
                     var stopLookup = await _context.GtfsStops
@@ -523,7 +524,7 @@ namespace ulasim_veri_servisi.Services
                     using var csv =
     new CsvReader(
         reader,
-        CultureInfo.InvariantCulture);
+        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
                     var calendars =
     csv.GetRecords<GtfsCalendarRow>()
        .ToList();
@@ -571,7 +572,7 @@ namespace ulasim_veri_servisi.Services
                     using var stream = calendarDatesEntry.Open();
 
                     using var reader = new StreamReader(stream);
-                    using var csv = new CsvReader(reader, CultureInfo.InvariantCulture);
+                    using var csv = new CsvReader(reader, new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
                     
                     var calendarDates = csv.GetRecords<GtfsCalendarDateRow>().ToList();
                     
@@ -599,7 +600,7 @@ namespace ulasim_veri_servisi.Services
 
                     using var csv = new CsvReader(
                         reader,
-                        CultureInfo.InvariantCulture);
+                        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
 
                     var shapes = csv.GetRecords<GtfsShapePointRow>();
 
@@ -674,7 +675,7 @@ namespace ulasim_veri_servisi.Services
 
                     using var csv = new CsvReader(
                         reader,
-                        CultureInfo.InvariantCulture);
+                        new CsvConfiguration(CultureInfo.InvariantCulture) { HeaderValidated = null, MissingFieldFound = null });
 
                     var feedInfo =
                         csv.GetRecords<GtfsFeedInfoRow>()

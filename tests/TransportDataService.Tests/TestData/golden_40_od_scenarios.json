@@ -1,0 +1,922 @@
+[
+  {
+    "scenario_id": "SCENARIO-0T-1",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3573027382889,
+        "Lon": 27.1356215135284
+      },
+      "destination": {
+        "Lat": 38.4059,
+        "Lon": 27.1003
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-ARRIVE-1",
+    "category": "ARRIVE_BY",
+    "request": {
+      "origin": {
+        "Lat": 38.3980994549583,
+        "Lon": 27.0833149655536
+      },
+      "destination": {
+        "Lat": 38.3862,
+        "Lon": 27.0759
+      },
+      "search_mode": "ARRIVE_BY",
+      "search_date": "2026-08-14",
+      "search_time": "09:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-2",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3982,
+        "Lon": 27.0732
+      },
+      "destination": {
+        "Lat": 38.4049,
+        "Lon": 27.1194
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-1",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.0770971585809,
+        "Lon": 26.940125537737
+      },
+      "destination": {
+        "Lat": 38.3875718641562,
+        "Lon": 27.0774552579097
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-1",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3976380498994,
+        "Lon": 27.0711215287053
+      },
+      "destination": {
+        "Lat": 38.2861,
+        "Lon": 27.1364
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-2",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.1862511706026,
+        "Lon": 27.1832963956444
+      },
+      "destination": {
+        "Lat": 38.4057005200398,
+        "Lon": 27.1213004996243
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-3",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3902,
+        "Lon": 27.0756
+      },
+      "destination": {
+        "Lat": 38.4034095040425,
+        "Lon": 27.1132335386852
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-4",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.4233006292295,
+        "Lon": 27.162700273705
+      },
+      "destination": {
+        "Lat": 38.4059,
+        "Lon": 27.1209
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-5",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3861,
+        "Lon": 27.0772
+      },
+      "destination": {
+        "Lat": 38.416466,
+        "Lon": 27.127236
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-2",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.28995,
+        "Lon": 27.12754
+      },
+      "destination": {
+        "Lat": 38.41078,
+        "Lon": 27.159625
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-3",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.425881779462,
+        "Lon": 27.1474849119918
+      },
+      "destination": {
+        "Lat": 38.3986,
+        "Lon": 27.0904
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-6",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.4239945470502,
+        "Lon": 27.1388195260945
+      },
+      "destination": {
+        "Lat": 38.3113944930973,
+        "Lon": 27.1421253867396
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-4",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.28984,
+        "Lon": 27.12721
+      },
+      "destination": {
+        "Lat": 38.4302163394397,
+        "Lon": 27.1407603953991
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-7",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.416121,
+        "Lon": 27.126002
+      },
+      "destination": {
+        "Lat": 38.3061,
+        "Lon": 27.1418
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-ARRIVE-2",
+    "category": "ARRIVE_BY",
+    "request": {
+      "origin": {
+        "Lat": 38.4070354792479,
+        "Lon": 27.1041271474191
+      },
+      "destination": {
+        "Lat": 38.242699865602,
+        "Lon": 27.2728002090047
+      },
+      "search_mode": "ARRIVE_BY",
+      "search_date": "2026-08-14",
+      "search_time": "09:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-5",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3247,
+        "Lon": 27.1366
+      },
+      "destination": {
+        "Lat": 38.3861,
+        "Lon": 27.0772
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-6",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.1539057421194,
+        "Lon": 27.1795910880089
+      },
+      "destination": {
+        "Lat": 38.415883,
+        "Lon": 27.126331
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-7",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.4014,
+        "Lon": 27.1054
+      },
+      "destination": {
+        "Lat": 38.4078281681461,
+        "Lon": 27.1570703640515
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-8",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.287749,
+        "Lon": 27.125579
+      },
+      "destination": {
+        "Lat": 38.415144105211,
+        "Lon": 27.1277200912719
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-8",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3907,
+        "Lon": 27.0696
+      },
+      "destination": {
+        "Lat": 38.28887,
+        "Lon": 27.13404
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-3",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.264704,
+        "Lon": 27.132348
+      },
+      "destination": {
+        "Lat": 38.4240006380928,
+        "Lon": 27.1662002563712
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-9",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.4009,
+        "Lon": 27.093
+      },
+      "destination": {
+        "Lat": 38.4154863086942,
+        "Lon": 27.1267884624464
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-0T-10",
+    "category": "0-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.146886,
+        "Lon": 27.184758
+      },
+      "destination": {
+        "Lat": 38.251729,
+        "Lon": 27.134173
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-ARRIVE-3",
+    "category": "ARRIVE_BY",
+    "request": {
+      "origin": {
+        "Lat": 38.38229,
+        "Lon": 27.134537
+      },
+      "destination": {
+        "Lat": 38.4106410673222,
+        "Lon": 27.1211217131073
+      },
+      "search_mode": "ARRIVE_BY",
+      "search_date": "2026-08-14",
+      "search_time": "09:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-9",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3982,
+        "Lon": 27.0948
+      },
+      "destination": {
+        "Lat": 38.3641114523702,
+        "Lon": 27.1375615024853
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-ARRIVE-4",
+    "category": "ARRIVE_BY",
+    "request": {
+      "origin": {
+        "Lat": 38.4054782175979,
+        "Lon": 27.0995685235213
+      },
+      "destination": {
+        "Lat": 38.416121,
+        "Lon": 27.126002
+      },
+      "search_mode": "ARRIVE_BY",
+      "search_date": "2026-08-14",
+      "search_time": "09:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-NO-1",
+    "category": "No-route",
+    "request": {
+      "origin": {
+        "Lat": 38,
+        "Lon": 26
+      },
+      "destination": {
+        "Lat": 38,
+        "Lon": 26.1
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "NO_NEARBY_ORIGIN_STOP",
+      "route_found": false,
+      "transit_leg_count": 0
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-4",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.146886,
+        "Lon": 27.184758
+      },
+      "destination": {
+        "Lat": 38.44027,
+        "Lon": 27.1508
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-NO-2",
+    "category": "No-route",
+    "request": {
+      "origin": {
+        "Lat": 38,
+        "Lon": 26
+      },
+      "destination": {
+        "Lat": 38,
+        "Lon": 26.1
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "NO_NEARBY_ORIGIN_STOP",
+      "route_found": false,
+      "transit_leg_count": 0
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-NO-3",
+    "category": "No-route",
+    "request": {
+      "origin": {
+        "Lat": 38,
+        "Lon": 26
+      },
+      "destination": {
+        "Lat": 38,
+        "Lon": 26.1
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "NO_NEARBY_ORIGIN_STOP",
+      "route_found": false,
+      "transit_leg_count": 0
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-NIGHT-1",
+    "category": "Night / 24\u002B hour",
+    "request": {
+      "origin": {
+        "Lat": 38.4269505935683,
+        "Lon": 27.1416703523392
+      },
+      "destination": {
+        "Lat": 38.2029070509682,
+        "Lon": 27.1712015488002
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "02:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 3,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 4
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-NIGHT-2",
+    "category": "Night / 24\u002B hour",
+    "request": {
+      "origin": {
+        "Lat": 38.4305,
+        "Lon": 27.1359
+      },
+      "destination": {
+        "Lat": 37.963707,
+        "Lon": 27.37308
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "02:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 6,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 7
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-NIGHT-3",
+    "category": "Night / 24\u002B hour",
+    "request": {
+      "origin": {
+        "Lat": 38.4319,
+        "Lon": 27.1375
+      },
+      "destination": {
+        "Lat": 38.432826,
+        "Lon": 27.16962
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "02:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-WALK-1",
+    "category": "Walk-to-further-stop",
+    "request": {
+      "origin": {
+        "Lat": 38.415174494138,
+        "Lon": 27.1272489250589
+      },
+      "destination": {
+        "Lat": 38.173,
+        "Lon": 27.4959
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 4,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 5
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-1T-10",
+    "category": "1-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.4335016652769,
+        "Lon": 27.1690442084261
+      },
+      "destination": {
+        "Lat": 38.3875718641562,
+        "Lon": 27.0774552579097
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 1,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 2
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-WALK-2",
+    "category": "Walk-to-further-stop",
+    "request": {
+      "origin": {
+        "Lat": 38.3932159020534,
+        "Lon": 27.072046176132
+      },
+      "destination": {
+        "Lat": 38.4151,
+        "Lon": 27.1275
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 0,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 1
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-5",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.3908,
+        "Lon": 27.0696
+      },
+      "destination": {
+        "Lat": 38.4277055368482,
+        "Lon": 27.1494676209314
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-6",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.2543979628482,
+        "Lon": 27.2578632288475
+      },
+      "destination": {
+        "Lat": 38.4156035734003,
+        "Lon": 27.1270134583032
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-7",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.2500417270388,
+        "Lon": 27.2639986467982
+      },
+      "destination": {
+        "Lat": 38.412928,
+        "Lon": 27.127281
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  },
+  {
+    "scenario_id": "SCENARIO-2T-8",
+    "category": "2-transfer",
+    "request": {
+      "origin": {
+        "Lat": 38.2325,
+        "Lon": 27.294
+      },
+      "destination": {
+        "Lat": 38.048608,
+        "Lon": 27.438298
+      },
+      "search_mode": "DEPART_AT",
+      "search_date": "2026-08-14",
+      "search_time": "08:00:00"
+    },
+    "expected_results": {
+      "transfer_count": 2,
+      "reason_code": "SUCCESS",
+      "route_found": true,
+      "transit_leg_count": 3
+    }
+  }
+]

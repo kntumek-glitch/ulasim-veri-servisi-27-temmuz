@@ -746,7 +746,6 @@ private class LocalWalkEdge
         {
             var stop = snapshot.StopsByIndex[i];
             double dist = GetHaversineDistance(lat, lon, stop.StopLat, stop.StopLon);
-            Console.WriteLine($"[FindNearby] To Stop {stop.StopId} ({stop.StopLat}, {stop.StopLon}): dist {dist}m");
             if (dist <= maxMeters)
             {
                 result.Add(new LocalWalkEdge

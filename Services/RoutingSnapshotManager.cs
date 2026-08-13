@@ -232,7 +232,7 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
         
         // Very rough memory estimation based on counts (assuming ~100 bytes per entry on average)
         snapshot.EstimatedMemoryBytes = (snapshot.Stops.Count * 120L) + 
-                                        (snapshot.StopTransfers.Count * 150L) + 
+                                        (snapshot.StopTransfers.Values.Sum(x => (long)x.Count) * 150L) + 
                                         (snapshot.PatternMetadata.Count * 200L) + 
                                         (snapshot.TripTimetables.Count * 800L); // arrays of stoptimes
 
@@ -249,7 +249,7 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
         _logger.LogInformation("Pattern Count: {PatternCount}", snapshot.PatternMetadata.Count);
         _logger.LogInformation("Trip Count: {TripCount}", snapshot.TripTimetables.Count);
         _logger.LogInformation("Stop-Time Count: {StopTimeCount}", totalStopTimes);
-        _logger.LogInformation("Transfer Edge Count: {TransferCount}", snapshot.StopTransfers.Count);
+        _logger.LogInformation("Transfer Edge Count: {TransferCount}", snapshot.StopTransfers.Values.Sum(x => (long)x.Count));
         _logger.LogInformation("-------------------------");
         
         return snapshot;

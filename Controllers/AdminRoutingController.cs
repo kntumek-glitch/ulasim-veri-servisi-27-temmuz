@@ -38,7 +38,7 @@ public class AdminRoutingController : ControllerBase
             stop_count = snapshot.Stops.Count,
             pattern_count = snapshot.PatternMetadata.Count,
             trip_count = snapshot.TripTimetables.Count,
-            transfer_count = snapshot.StopTransfers.Count,
+            transfer_count = snapshot.StopTransfers.Values.Sum(x => x.Count),
             build_duration_ms = snapshot.BuildDurationMs,
             estimated_memory_bytes = snapshot.EstimatedMemoryBytes
         });
