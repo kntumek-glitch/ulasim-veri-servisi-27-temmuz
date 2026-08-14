@@ -1,4 +1,4 @@
-﻿using System.Text.Json.Serialization;
+using System.Text.Json.Serialization;
 
 namespace ulasim_veri_servisi.Models.Gtfs
 {
@@ -22,16 +22,23 @@ namespace ulasim_veri_servisi.Models.Gtfs
 
     public class GeoJsonFeature
     {
+        [JsonPropertyName("type")]
         public string Type { get; set; } = "Feature";
+        
+        [JsonPropertyName("geometry")]
         public GeoJsonGeometry Geometry { get; set; } = new();
+
+        [JsonPropertyName("properties")]
+        public object Properties { get; set; } = new { };
     }
 
     public class GeoJsonGeometry
     {
+        [JsonPropertyName("type")]
         public string Type { get; set; } = "LineString";
         
         // GeoJSON uses [longitude, latitude]
+        [JsonPropertyName("coordinates")]
         public List<double[]> Coordinates { get; set; } = new();
     }
 }
-

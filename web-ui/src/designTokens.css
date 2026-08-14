@@ -1,0 +1,35 @@
+/* designTokens.css */
+/* Light theme */
+:root {
+  --color-primary-h: 200; /* teal hue */
+  --color-primary-s: 70%;
+  --color-primary-l: 45%;
+  --color-primary: hsl(var(--color-primary-h), var(--color-primary-s), var(--color-primary-l));
+
+  --color-bg: hsl(0, 0%, 100%);
+  --color-surface: hsl(0, 0%, 98%);
+  --color-text-main: hsl(0, 0%, 10%);
+  --color-text-muted: hsl(0, 0%, 40%);
+  --color-accent-primary: hsl(var(--color-primary-h), var(--color-primary-s), calc(var(--color-primary-l) + 15%));
+
+  --spacing-xxs: 4px;
+  --spacing-xs: 8px;
+  --spacing-sm: 12px;
+  --spacing-md: 16px;
+  --spacing-lg: 24px;
+  --spacing-xl: 32px;
+
+  --border-radius: 8px;
+  --font-family: 'Inter', system-ui, sans-serif;
+  --font-size-base: 14px;
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --color-bg: hsl(0, 0%, 10%);
+  --color-surface: hsl(0, 0%, 15%);
+  --color-text-main: hsl(0, 0%, 90%);
+  --color-text-muted: hsl(0, 0%, 60%);
+  --color-primary: hsl(var(--color-primary-h), var(--color-primary-s), 55%);
+  --color-accent-primary: hsl(var(--color-primary-h), var(--color-primary-s), 70%);
+}

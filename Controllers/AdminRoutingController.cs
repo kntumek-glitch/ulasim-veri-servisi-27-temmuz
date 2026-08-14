@@ -6,7 +6,6 @@ namespace ulasim_veri_servisi.Controllers;
 
 [ApiController]
 [Route("api/v2/admin/routing")]
-[ServiceFilter(typeof(AdminKeyAuthAttribute))]
 public class AdminRoutingController : ControllerBase
 {
     private readonly IRoutingSnapshotManager _snapshotManager;

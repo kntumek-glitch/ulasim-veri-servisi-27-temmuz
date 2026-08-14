@@ -37,7 +37,10 @@ builder.Services.AddResponseCompression(options =>
 builder.Services.AddCors(options =>
 {
     var allowedOrigins = builder.Configuration.GetSection("AllowedOrigins").Get<string[]>() ?? Array.Empty<string>();
-    
+    if (!builder.Environment.IsDevelopment() && allowedOrigins.Length == 0)
+    {
+        throw new InvalidOperationException("AllowedOrigins must be configured for production CORS.");
+    }
     options.AddPolicy("DynamicCors", policy =>
     {
         if (builder.Environment.IsDevelopment())
