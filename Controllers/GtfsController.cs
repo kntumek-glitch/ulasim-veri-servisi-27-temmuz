@@ -1,4 +1,4 @@
-﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Cryptography;
 using System.Text;
@@ -436,7 +436,16 @@ public class GtfsController : ControllerBase
             .FirstOrDefaultAsync();
 
         if (string.IsNullOrEmpty(shapeId))
-            return Problem(detail: "No shape geometry found for the given route and direction.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak bulunamadı");
+        {
+            // Fallback to any direction
+            shapeId = await _context.GtfsTrips
+                .Where(t => t.RouteId == routeId && t.ShapeId != null)
+                .Select(t => t.ShapeId)
+                .FirstOrDefaultAsync();
+        }
+
+        if (string.IsNullOrEmpty(shapeId))
+            return Problem(detail: "No shape geometry found for the given route.", statusCode: StatusCodes.Status404NotFound, title: "Kaynak bulunamadı");
 
         var shapePoints = await _context.GtfsShapePoints
             .Where(sp => sp.ShapeId == shapeId)

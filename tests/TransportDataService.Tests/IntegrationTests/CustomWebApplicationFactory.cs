@@ -63,7 +63,7 @@ public class CustomWebApplicationFactory : WebApplicationFactory<Program>, IAsyn
 
 public class MockWalkingRouteProvider : ulasim_veri_servisi.Services.IWalkingRouteProvider
 {
-    public Task<ulasim_veri_servisi.Models.Gtfs.JourneyPlan.WalkingResult> GetWalkingRouteAsync(double srcLat, double srcLon, double tgtLat, double tgtLon, bool returnGeometry, CancellationToken cancellationToken)
+    public Task<ulasim_veri_servisi.Models.Gtfs.JourneyPlan.WalkingResult> GetWalkingRouteAsync(double srcLat, double srcLon, double tgtLat, double tgtLon, bool returnGeometry = false, string profile = "foot", CancellationToken cancellationToken = default)
     {
         // Simple Haversine approximation to maintain backwards compatibility with older tests
         double r = 6371e3;

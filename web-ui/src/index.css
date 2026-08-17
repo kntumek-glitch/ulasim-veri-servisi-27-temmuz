@@ -25,6 +25,29 @@
   
   --transition-fast: 0.2s ease;
   --transition-medium: 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  
+  --color-glass-bg: rgba(0, 0, 0, 0.3);
+  --color-glass-border: rgba(255, 255, 255, 0.1);
+  --color-glass-hover: rgba(255, 255, 255, 0.05);
+}
+
+body[data-theme="light"] {
+  --color-bg-base: #f5f6fa;
+  --color-panel-bg: rgba(255, 255, 255, 0.85);
+  --color-panel-border: rgba(0, 0, 0, 0.08);
+  
+  --color-text-main: #1a1a24;
+  --color-text-muted: #6e6e7d;
+  
+  --color-accent-primary: #0088cc;
+  --color-accent-secondary: #8a2be2;
+  --color-accent-hover: #00aaff;
+  
+  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.1);
+  
+  --color-glass-bg: rgba(255, 255, 255, 0.5);
+  --color-glass-border: rgba(0, 0, 0, 0.15);
+  --color-glass-hover: rgba(0, 0, 0, 0.05);
 }
 
 * {
@@ -128,6 +151,27 @@ h1, h2, h3, h4 {
   display: flex;
   flex-direction: column;
   padding: 24px;
+  transition: width 0.3s cubic-bezier(0.4, 0, 0.2, 1), padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  position: relative;
+}
+
+.sidebar.collapsed {
+  width: 80px;
+  padding-left: 12px;
+  padding-right: 12px;
+}
+
+.sidebar.collapsed .logo h2 {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item span {
+  display: none;
+}
+
+.sidebar.collapsed .nav-item {
+  justify-content: center;
+  padding: 14px 0;
 }
 
 .logo {
@@ -242,8 +286,8 @@ h1, h2, h3, h4 {
   transform: translateY(-50%);
   width: 28px;
   height: 60px;
-  background: rgba(20, 20, 20, 0.85);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-panel-bg);
+  border: 1px solid var(--color-glass-border);
   border-left: none;
   border-radius: 0 8px 8px 0;
   backdrop-filter: blur(16px);
@@ -291,8 +335,8 @@ h1, h2, h3, h4 {
 .glass-input {
   width: 100%;
   padding: 16px 16px 16px 48px;
-  background: rgba(0, 0, 0, 0.3);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--color-glass-bg);
+  border: 1px solid var(--color-glass-border);
   border-radius: var(--border-radius-md);
   color: var(--color-text-main);
   font-family: var(--font-family-main);
@@ -376,11 +420,16 @@ h1, h2, h3, h4 {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
   gap: 16px;
+  overflow-y: auto;
+  flex: 1;
+  margin-top: 16px;
+  padding-bottom: 16px;
+  padding-right: 8px;
 }
 
 .status-card {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--color-glass-bg);
+  border: 1px solid var(--color-glass-border);
   border-radius: var(--border-radius-md);
   padding: 20px;
 }
@@ -428,7 +477,7 @@ h1, h2, h3, h4 {
 
 .action-btn {
   flex: 1;
-  background: rgba(255,255,255,0.05);
+  background: var(--color-glass-hover);
   border: none;
   border-radius: var(--border-radius-sm);
   color: var(--color-accent-primary);
@@ -531,8 +580,8 @@ h1, h2, h3, h4 {
 
 /* Itinerary Timeline */
 .itinerary-card {
-  background: rgba(0,0,0,0.3);
-  border: 1px solid rgba(255,255,255,0.05);
+  background: var(--color-glass-bg);
+  border: 1px solid var(--color-glass-border);
   border-radius: var(--border-radius-md);
   padding: 16px;
   margin-bottom: 16px;

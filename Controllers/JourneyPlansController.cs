@@ -99,6 +99,7 @@ public class JourneyPlansController : ControllerBase
             else 
             {
                 response.ReasonCode = JourneyPlanResolutionCode.SUCCESS.ToString();
+                response.Itineraries = response.Itineraries.OrderBy(i => i.TotalJourneyTimeSeconds).ToList();
             }
             
             return Ok(response);

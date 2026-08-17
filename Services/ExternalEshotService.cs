@@ -13,7 +13,7 @@ namespace ulasim_veri_servisi.Services
 {
     public class ExternalEshotService : IExternalEshotService
     {
-        private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(3);
+        private static readonly TimeSpan CacheDuration = TimeSpan.FromSeconds(1);
         private readonly HttpClient _httpClient;
         private readonly AppDbContext _context;
         private readonly IMemoryCache _memoryCache;

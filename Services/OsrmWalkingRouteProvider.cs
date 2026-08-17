@@ -24,7 +24,7 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
         _logger = logger;
     }
 
-    public async Task<WalkingResult> GetWalkingRouteAsync(double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry = false, CancellationToken cancellationToken = default)
+    public async Task<WalkingResult> GetWalkingRouteAsync(double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry = false, string profile = "foot", CancellationToken cancellationToken = default)
     {
         try
         {
@@ -39,10 +39,13 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
             var tgtLatStr = targetLat.ToString(CultureInfo.InvariantCulture);
             var tgtLonStr = targetLon.ToString(CultureInfo.InvariantCulture);
 
+            // Use the passed profile, fallback to config if not provided (though default is foot)
+            var actualProfile = string.IsNullOrWhiteSpace(profile) ? _config.Profile : profile;
+
             // OSRM format: /route/v1/{profile}/{coordinates}?overview=full
             // Coordinates format: {longitude},{latitude};{longitude},{latitude}
             var geometries = includeGeometry ? "geojson" : "polyline";
-            var path = $"/route/v1/{_config.Profile}/{srcLonStr},{srcLatStr};{tgtLonStr},{tgtLatStr}?overview=full&geometries={geometries}";
+            var path = $"/route/v1/{actualProfile}/{srcLonStr},{srcLatStr};{tgtLonStr},{tgtLatStr}?overview=full&geometries={geometries}&alternatives=3";
             
             var response = await _httpClient.GetAsync(path, cancellationToken);
             if (!response.IsSuccessStatusCode)
@@ -66,9 +69,10 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
                         {
                             if (waypoint.TryGetProperty("distance", out var distElement))
                             {
-                                if (distElement.GetDouble() > 100) // 100m snap tolerance
+                                if (distElement.GetDouble() > 2000) // 2000m snap tolerance (relaxed for car/far points)
                                 {
-                                    return new WalkingResult { State = ErrorState.Failure("Verilen koordinatlar yürüyüş yollarına çok uzak.", "UNROUTABLE_LOCATION") };
+                                    _logger.LogWarning("OSRM waypoint distance {Distance} exceeds 2000m threshold", distElement.GetDouble());
+                                    return new WalkingResult { State = ErrorState.Failure("Verilen koordinatlar yol ağına çok uzak.", "UNROUTABLE_LOCATION") };
                                 }
                             }
                         }
@@ -79,13 +83,25 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
                         var route = routesElement[0];
                         var distance = route.GetProperty("distance").GetDouble();
                         var duration = route.GetProperty("duration").GetDouble();
+                        
+                        // Hack for public OSRM: public server routes 'foot' as 'driving' and returns car durations.
+                        // We must recalculate duration based on realistic walking speed (1.2 m/s).
+                        double originalDuration = duration;
+                        if (actualProfile == "foot")
+                        {
+                            duration = distance / 1.2;
+                        }
+                        
+                        Console.WriteLine($"[OSRM Walking] Profile: {profile}, ActualProfile: {actualProfile}, Distance: {distance}, OriginalDuration: {originalDuration}, NewDuration: {duration}");
+                        
                         var geometryProp = route.GetProperty("geometry");
 
                         var result = new WalkingResult
                         {
                             State = ErrorState.Success(),
                             DistanceMeters = distance,
-                            DurationSeconds = duration
+                            DurationSeconds = duration,
+                            Alternatives = new System.Collections.Generic.List<WalkingRouteAlternative>()
                         };
 
                         if (includeGeometry)
@@ -98,17 +114,45 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
                             result.EncodedPolyline = geometryProp.GetString();
                         }
 
+                        // Parse alternatives
+                        for (int i = 1; i < routesElement.GetArrayLength(); i++)
+                        {
+                            var altRoute = routesElement[i];
+                            var altDistance = altRoute.GetProperty("distance").GetDouble();
+                            var altDuration = altRoute.GetProperty("duration").GetDouble();
+                            
+                            if (actualProfile == "foot")
+                            {
+                                altDuration = altDistance / 1.2;
+                            }
+
+                            var altGeometryProp = altRoute.GetProperty("geometry");
+
+                            var altObj = new WalkingRouteAlternative
+                            {
+                                DistanceMeters = altDistance,
+                                DurationSeconds = altDuration
+                            };
+
+                            if (includeGeometry)
+                            {
+                                altObj.GeometryGeoJson = JsonSerializer.Deserialize<object>(altGeometryProp.GetRawText());
+                            }
+                            else
+                            {
+                                altObj.EncodedPolyline = altGeometryProp.GetString();
+                            }
+
+                            result.Alternatives.Add(altObj);
+                        }
+
                         return result;
                     }
                 }
-                else if (code == "NoRoute")
-                {
-                    return new WalkingResult { State = ErrorState.Failure("Bu iki nokta arasında yürüyüş rotası bulunamadı.", "NO_ROUTE") };
-                }
                 else
                 {
-                    _logger.LogWarning("OSRM API unhandled code: {Code}", code);
-                    return new WalkingResult { State = ErrorState.Failure("Yönlendirme hesaplanırken bir sorun oluştu.", "API_ERROR") };
+                    _logger.LogWarning("OSRM returned non-Ok code: {Code} for request {Path}", code, path);
+                    return new WalkingResult { State = ErrorState.Failure($"OSRM returned code: {code}", "NO_ROUTE") };
                 }
             }
 

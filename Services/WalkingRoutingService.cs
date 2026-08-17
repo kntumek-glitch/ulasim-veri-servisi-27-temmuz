@@ -33,7 +33,7 @@ public class WalkingRoutingService
         _logger = logger;
     }
 
-    public Task<WalkingResult> CalculateWalkingRouteAsync(double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry = false, CancellationToken cancellationToken = default)
+    public Task<WalkingResult> CalculateWalkingRouteAsync(double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry = false, string profile = "foot", CancellationToken cancellationToken = default)
     {
         var srcLatStr = sourceLat.ToString("F5", CultureInfo.InvariantCulture);
         var srcLonStr = sourceLon.ToString("F5", CultureInfo.InvariantCulture);
@@ -41,26 +41,26 @@ public class WalkingRoutingService
         var tgtLonStr = targetLon.ToString("F5", CultureInfo.InvariantCulture);
 
         var providerName = _provider.GetType().Name;
-        var cacheKey = $"walk_{srcLatStr}_{srcLonStr}_{tgtLatStr}_{tgtLonStr}_{includeGeometry}_{providerName}";
+        var cacheKey = $"route_{profile}_{srcLatStr}_{srcLonStr}_{tgtLatStr}_{tgtLonStr}_{includeGeometry}_{providerName}";
 
         if (_cache.TryGetValue(cacheKey, out WalkingResult? cachedResult) && cachedResult != null)
         {
-            _logger.LogDebug("Cache HIT for walking route: {CacheKey}", cacheKey);
+            _logger.LogDebug("Cache HIT for route: {CacheKey}", cacheKey);
             return Task.FromResult(cachedResult);
         }
 
         // Request coalescing: try to add a new task, or get the existing in-flight task
-        var lazyTask = _inflightRequests.GetOrAdd(cacheKey, k => new Lazy<Task<WalkingResult>>(() => FetchAndCacheRouteAsync(k, sourceLat, sourceLon, targetLat, targetLon, includeGeometry, cancellationToken)));
+        var lazyTask = _inflightRequests.GetOrAdd(cacheKey, k => new Lazy<Task<WalkingResult>>(() => FetchAndCacheRouteAsync(k, sourceLat, sourceLon, targetLat, targetLon, includeGeometry, profile, cancellationToken)));
         
         return lazyTask.Value;
     }
 
-    private async Task<WalkingResult> FetchAndCacheRouteAsync(string cacheKey, double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry, CancellationToken cancellationToken)
+    private async Task<WalkingResult> FetchAndCacheRouteAsync(string cacheKey, double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry, string profile, CancellationToken cancellationToken)
     {
         try
         {
-            _logger.LogDebug("Calculating walking route from {SrcLat},{SrcLon} to {TgtLat},{TgtLon}", sourceLat, sourceLon, targetLat, targetLon);
-            var result = await _provider.GetWalkingRouteAsync(sourceLat, sourceLon, targetLat, targetLon, includeGeometry, cancellationToken);
+            _logger.LogDebug("Calculating {Profile} route from {SrcLat},{SrcLon} to {TgtLat},{TgtLon}", profile, sourceLat, sourceLon, targetLat, targetLon);
+            var result = await _provider.GetWalkingRouteAsync(sourceLat, sourceLon, targetLat, targetLon, includeGeometry, profile, cancellationToken);
 
             if (result.State.IsSuccess)
             {

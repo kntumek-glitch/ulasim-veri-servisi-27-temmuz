@@ -422,7 +422,7 @@ public partial class JourneyPlanningService
                     tgtLat = stop2.StopLat; tgtLon = stop2.StopLon;
                 }
 
-                var osrmResult = await _walkingRoutingService.CalculateWalkingRouteAsync(srcLat, srcLon, tgtLat, tgtLon, request.IncludeWalkingGeometry, cancellationToken);
+                var osrmResult = await _walkingRoutingService.CalculateWalkingRouteAsync(srcLat, srcLon, tgtLat, tgtLon, request.IncludeWalkingGeometry, "foot", cancellationToken);
                 
                 if (osrmResult.State.ErrorCode == "UNROUTABLE_LOCATION" || osrmResult.State.ErrorCode == "NO_ROUTE")
                 {

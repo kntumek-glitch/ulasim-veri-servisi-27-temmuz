@@ -26,7 +26,7 @@ describe('API functions', () => {
 
     const result = await getRouteVehicles('100');
 
-    expect(globalThis.fetch).toHaveBeenCalledWith('/api/v1/routes/100/vehicles');
+    expect(globalThis.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/v1/routes/100/vehicles'));
     expect(result.vehicles).toHaveLength(1);
     expect(result.vehicles[0].busId).toBe('35 TEST 123');
   });

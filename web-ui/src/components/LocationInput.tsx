@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { MapPin, Navigation, Map as MapIcon, X } from 'lucide-react';
 import { searchStops, LocationPoint } from '../api';
+import { useMapState } from '../context/MapContext';
 
 interface LocationInputProps {
   placeholder: string;
@@ -17,6 +18,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
   const [query, setQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
+  const { setUserLocation } = useMapState();
 
   // Sync internal text state with external value if it's set by map/gps
   useEffect(() => {
@@ -51,9 +53,13 @@ const LocationInput: React.FC<LocationInputProps> = ({
       return;
     }
     navigator.geolocation.getCurrentPosition((pos) => {
-      onChange({
+      const loc = {
         latitude: pos.coords.latitude,
-        longitude: pos.coords.longitude,
+        longitude: pos.coords.longitude
+      };
+      setUserLocation(loc);
+      onChange({
+        ...loc,
         name: 'Mevcut Konumum'
       });
       setIsFocused(false);

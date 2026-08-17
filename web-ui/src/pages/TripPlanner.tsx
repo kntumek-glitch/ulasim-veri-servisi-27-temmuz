@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { Search, ArrowUpDown, Clock, ChevronDown, ChevronUp, Footprints, Bus, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, ArrowUpDown, Clock, ChevronDown, ChevronUp, Footprints, Bus, ChevronLeft, ChevronRight, X, Car } from 'lucide-react';
 import { useMutation } from '@tanstack/react-query';
 import LocationInput from '../components/LocationInput';
-import { searchJourney, JourneyPlanRequest } from '../api';
+import { searchJourney, JourneyPlanRequest, getWalkRoute, getDriveRoute } from '../api';
 import { useMapState } from '../context/MapContext';
 
 const TripPlanner: React.FC = () => {
@@ -12,7 +12,7 @@ const TripPlanner: React.FC = () => {
   const [maxTransfers, setMaxTransfers] = useState<number>(2);
   const [maxWalking, setMaxWalking] = useState<number>(1000);
 
-  const { mapOrigin, mapDestination, setMapOrigin, setMapDestination, selectedItinerary, setSelectedItinerary, itineraries, setItineraries, setPickingLocationFor } = useMapState();
+  const { mapOrigin, mapDestination, setMapOrigin, setMapDestination, selectedItinerary, setSelectedItinerary, itineraries, setItineraries, setPickingLocationFor, travelMode, setTravelMode, directRoute, setDirectRoute, selectedDirectRouteIdx, setSelectedDirectRouteIdx } = useMapState();
 
   const [expandedIdx, setExpandedIdx] = useState<number | null>(null);
   const [expandedStops, setExpandedStops] = useState<Record<string, boolean>>({});
@@ -63,6 +63,28 @@ const TripPlanner: React.FC = () => {
     }
   });
 
+  const walkMutation = useMutation({
+    mutationFn: getWalkRoute,
+    onSuccess: (data) => {
+      setSelectedDirectRouteIdx(0);
+      setDirectRoute(data);
+    },
+    onError: () => {
+      setDirectRoute(null);
+    }
+  });
+
+  const driveMutation = useMutation({
+    mutationFn: getDriveRoute,
+    onSuccess: (data) => {
+      setSelectedDirectRouteIdx(0);
+      setDirectRoute(data);
+    },
+    onError: () => {
+      setDirectRoute(null);
+    }
+  });
+
   const handleSwap = () => {
     const temp = mapOrigin;
     setMapOrigin(mapDestination);
@@ -77,28 +99,46 @@ const TripPlanner: React.FC = () => {
       return;
     }
     
-    let isoDateTime = new Date().toISOString();
-    if (dateValue && timeValue) {
-      const localDateObj = new Date(`${dateValue}T${timeValue}`);
-      isoDateTime = localDateObj.toISOString();
-    }
+    if (travelMode === 'TRANSIT') {
+      let isoDateTime = new Date().toISOString();
+      if (dateValue && timeValue) {
+        const localDateObj = new Date(`${dateValue}T${timeValue}`);
+        isoDateTime = localDateObj.toISOString();
+      }
 
-    const requestPayload: JourneyPlanRequest = {
-      origin: { lat: mapOrigin!.latitude, lon: mapOrigin!.longitude },
-      destination: { lat: mapDestination!.latitude, lon: mapDestination!.longitude },
-      dateTime: isoDateTime,
-      searchMode: timeMode === 'DEPART_AT' ? 0 : 1,
-      maxTransfers: maxTransfers,
-      maxWalkingMeters: maxWalking,
-      includeIntermediateStops: true
-    };
-    searchMutation.mutate(requestPayload);
+      const requestPayload: JourneyPlanRequest = {
+        origin: { lat: mapOrigin!.latitude, lon: mapOrigin!.longitude },
+        destination: { lat: mapDestination!.latitude, lon: mapDestination!.longitude },
+        dateTime: isoDateTime,
+        searchMode: timeMode === 'DEPART_AT' ? 0 : 1,
+        maxTransfers: maxTransfers,
+        maxWalkingMeters: maxWalking,
+        includeIntermediateStops: true
+      };
+      searchMutation.mutate(requestPayload);
+    } else if (travelMode === 'WALK') {
+      walkMutation.mutate({
+        origin: { lat: mapOrigin!.latitude, lon: mapOrigin!.longitude },
+        destination: { lat: mapDestination!.latitude, lon: mapDestination!.longitude },
+        includeGeometry: true
+      });
+    } else if (travelMode === 'DRIVE') {
+      driveMutation.mutate({
+        origin: { lat: mapOrigin!.latitude, lon: mapOrigin!.longitude },
+        destination: { lat: mapDestination!.latitude, lon: mapDestination!.longitude },
+        includeGeometry: true
+      });
+    }
   };
 
   const handleCancelResults = () => {
     searchMutation.reset();
+    walkMutation.reset();
+    driveMutation.reset();
     setSelectedItinerary(null);
     setItineraries([]);
+    setDirectRoute(null);
+    setSelectedDirectRouteIdx(0);
   };
 
   const toggleStops = (e: React.MouseEvent, key: string) => {
@@ -107,7 +147,10 @@ const TripPlanner: React.FC = () => {
   };
 
   const [isCollapsed, setIsCollapsed] = useState(false);
-  const hasResults = searchMutation.isSuccess && searchMutation.data;
+  const isPending = searchMutation.isPending || walkMutation.isPending || driveMutation.isPending;
+  const isError = searchMutation.isError || walkMutation.isError || driveMutation.isError;
+  const errorObj = searchMutation.error || walkMutation.error || driveMutation.error;
+  const hasResults = (searchMutation.isSuccess && searchMutation.data) || directRoute;
 
   return (
     <div className={`planner-container glass-panel ${isCollapsed ? 'collapsed' : ''}`}>
@@ -132,6 +175,30 @@ const TripPlanner: React.FC = () => {
       
           {!hasResults ? (
             <div className="planner-form">
+              <div className="mode-tabs" style={{ display: 'flex', marginBottom: '15px', gap: '8px' }}>
+                <button 
+                  className={`mode-tab ${travelMode === 'TRANSIT' ? 'active' : ''}`} 
+                  onClick={() => setTravelMode('TRANSIT')}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: travelMode === 'TRANSIT' ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)', color: travelMode === 'TRANSIT' ? 'white' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px' }}
+                >
+                  <Bus size={16} /> Toplu Taşıma
+                </button>
+                <button 
+                  className={`mode-tab ${travelMode === 'WALK' ? 'active' : ''}`} 
+                  onClick={() => setTravelMode('WALK')}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: travelMode === 'WALK' ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)', color: travelMode === 'WALK' ? 'white' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px' }}
+                >
+                  <Footprints size={16} /> Yürüme
+                </button>
+                <button 
+                  className={`mode-tab ${travelMode === 'DRIVE' ? 'active' : ''}`} 
+                  onClick={() => setTravelMode('DRIVE')}
+                  style={{ flex: 1, padding: '8px', borderRadius: '8px', border: 'none', background: travelMode === 'DRIVE' ? 'var(--color-primary)' : 'rgba(255,255,255,0.05)', color: travelMode === 'DRIVE' ? 'white' : 'var(--color-text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px', fontSize: '13px' }}
+                >
+                  <Car size={16} /> Araba
+                </button>
+              </div>
+
               <div>
                 <LocationInput 
                   placeholder="Başlangıç (örn. Bostanlı)" 
@@ -160,73 +227,108 @@ const TripPlanner: React.FC = () => {
                 {validationErrors.destination && <div className="error-message" style={{ color: 'var(--color-error)', fontSize: '12px', marginTop: '4px', paddingLeft: '32px' }}>Varış noktası seçmelisiniz.</div>}
               </div>
               
-              <div className="time-group">
-                <Clock className="input-icon" size={18} style={{ marginTop: '15px' }} />
-                <select 
-                  className="glass-input time-select"
-                  value={timeMode}
-                  onChange={e => setTimeMode(e.target.value as 'DEPART_AT' | 'ARRIVE_BY')}
-                >
-                  <option value="DEPART_AT">Çıkış saati</option>
-                  <option value="ARRIVE_BY">Varış saati</option>
-                </select>
-                <input 
-                  type="time" 
-                  className="glass-input time-input" 
-                  value={timeValue}
-                  onChange={e => setTimeValue(e.target.value)}
-                />
-              </div>
+              {travelMode === 'TRANSIT' && (
+                <>
+                  <div className="time-group">
+                    <Clock className="input-icon" size={18} style={{ marginTop: '15px' }} />
+                    <select 
+                      className="glass-input time-select"
+                      value={timeMode}
+                      onChange={e => setTimeMode(e.target.value as 'DEPART_AT' | 'ARRIVE_BY')}
+                    >
+                      <option value="DEPART_AT">Çıkış saati</option>
+                      <option value="ARRIVE_BY">Varış saati</option>
+                    </select>
+                    <input 
+                      type="time" 
+                      className="glass-input time-input" 
+                      value={timeValue}
+                      onChange={e => setTimeValue(e.target.value)}
+                    />
+                  </div>
 
-              <div className="filters-group">
-                <select 
-                  className="glass-input" style={{flex: 1, paddingLeft: 16}}
-                  value={maxTransfers}
-                  onChange={e => setMaxTransfers(Number(e.target.value))}
-                >
-                  <option value={0}>Aktarmasız</option>
-                  <option value={1}>1 Aktarma</option>
-                  <option value={2}>2 Aktarma</option>
-                  <option value={3}>3 Aktarma</option>
-                  <option value={4}>4 Aktarma</option>
-                  <option value={5}>5 Aktarma</option>
-                </select>
-                <select 
-                  className="glass-input" style={{flex: 1, paddingLeft: 16}}
-                  value={maxWalking}
-                  onChange={e => setMaxWalking(Number(e.target.value))}
-                >
-                  <option value={500}>Maks. yürüyüş 500m</option>
-                  <option value={1000}>Maks. yürüyüş 1km</option>
-                  <option value={2000}>Maks. yürüyüş 2km</option>
-                  <option value={5000}>Maks. yürüyüş 5km</option>
-                </select>
-              </div>
+                  <div className="filters-group">
+                    <select 
+                      className="glass-input" style={{flex: 1, paddingLeft: 16}}
+                      value={maxTransfers}
+                      onChange={e => setMaxTransfers(Number(e.target.value))}
+                    >
+                      <option value={0}>Aktarmasız</option>
+                      <option value={1}>1 Aktarma</option>
+                      <option value={2}>2 Aktarma</option>
+                      <option value={3}>3 Aktarma</option>
+                      <option value={4}>4 Aktarma</option>
+                      <option value={5}>5 Aktarma</option>
+                    </select>
+                    <select 
+                      className="glass-input" style={{flex: 1, paddingLeft: 16}}
+                      value={maxWalking}
+                      onChange={e => setMaxWalking(Number(e.target.value))}
+                    >
+                      <option value={500}>Maks. yürüyüş 500m</option>
+                      <option value={1000}>Maks. yürüyüş 1km</option>
+                      <option value={2000}>Maks. yürüyüş 2km</option>
+                      <option value={5000}>Maks. yürüyüş 5km</option>
+                    </select>
+                  </div>
+                </>
+              )}
               
-              {searchMutation.isError && (
+              {isError && (
                 <div className="error-message" style={{ color: 'var(--color-error)', marginTop: 10, fontSize: '0.9rem' }}>
-                  {searchMutation.error instanceof Error ? searchMutation.error.message : 'Arama sırasında bir hata oluştu.'}
+                  {errorObj instanceof Error ? errorObj.message : 'Arama sırasında bir hata oluştu.'}
                 </div>
               )}
 
               <button 
                 className="primary-btn" 
                 onClick={handleSearch}
-                disabled={searchMutation.isPending}
+                disabled={isPending}
               >
-                {searchMutation.isPending ? <div className="spinner"></div> : <Search size={18} />}
-                <span>{searchMutation.isPending ? 'Aranıyor...' : 'Rota Bul'}</span>
+                {isPending ? <div className="spinner"></div> : <Search size={18} />}
+                <span>{isPending ? 'Aranıyor...' : 'Rota Bul'}</span>
               </button>
             </div>
           ) : (
             <div className="planner-results" style={{ maxHeight: 'calc(100vh - 120px)' }}>
-              {searchMutation.data?.itineraries.length === 0 && (
+              {travelMode === 'TRANSIT' && searchMutation.data?.itineraries.length === 0 && (
                 <div className="empty-state">
                   Bu kriterlere uygun rota bulunamadı. Yürüme mesafesini veya aktarma sayısını artırmayı deneyin.
                 </div>
               )}
 
-              {searchMutation.data?.itineraries.map((itinerary, idx) => {
+              {travelMode !== 'TRANSIT' && directRoute && (
+                <>
+                  {[directRoute, ...(directRoute.alternatives || [])].map((route, idx) => (
+                    <div 
+                      key={idx} 
+                      className={`itinerary-card ${selectedDirectRouteIdx === idx ? 'highlighted' : ''}`} 
+                      style={{ padding: '20px', cursor: 'pointer', marginBottom: '10px' }}
+                      onClick={() => setSelectedDirectRouteIdx(idx)}
+                    >
+                      <div className="itinerary-main-info" style={{ marginBottom: '15px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                          {travelMode === 'WALK' ? <Footprints size={24} color="var(--color-primary)" /> : <Car size={24} color="var(--color-primary)" />}
+                          <span style={{ fontSize: '18px', fontWeight: 'bold' }}>
+                            {travelMode === 'WALK' ? 'Yürüme Rotası' : 'Araba Rotası'} {idx > 0 ? `(Alternatif ${idx})` : ''}
+                          </span>
+                        </div>
+                      </div>
+                      
+                      <div className="itinerary-breakdown" style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                        <div className="breakdown-item" style={{ fontSize: '16px' }}>
+                          <strong>Süre:</strong> {Math.round(route.durationSeconds / 60)} dakika
+                        </div>
+                        <div className="breakdown-item" style={{ fontSize: '16px' }}>
+                          <strong>Mesafe:</strong> {(route.distanceMeters / 1000).toFixed(1)} km
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </>
+              )}
+
+              {travelMode === 'TRANSIT' && searchMutation.data?.itineraries.map((itinerary, idx) => {
                 const walkTime = itinerary.legs.filter(l => l.mode === 'WALK').reduce((sum, l) => sum + Math.round(l.durationSeconds / 60), 0);
                 const transitTime = itinerary.legs.filter(l => l.mode === 'TRANSIT').reduce((sum, l) => sum + Math.round(l.durationSeconds / 60), 0);
                 const waitTime = Math.round(itinerary.totalWaitingTimeSeconds / 60);

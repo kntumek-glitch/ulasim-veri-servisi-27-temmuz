@@ -3,11 +3,11 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import LiveBuses from './pages/LiveBuses';
 import { MapProvider } from './context/MapContext';
+import { renderWithProviders } from './test-utils';
 import * as api from './api';
 
-// Mock the API and MapContext
-jest.mock('./api', () => ({
-  getRouteVehicles: jest.fn(),
+vi.mock('./api', () => ({
+  getRouteVehicles: vi.fn(),
 }));
 
 const queryClient = new QueryClient({

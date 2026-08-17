@@ -1,0 +1,482 @@
+[
+  {
+    "id": 1,
+    "origin": {
+      "lat": 38.2955,
+      "lon": 27.1215
+    },
+    "destination": {
+      "lat": 38.39132,
+      "lon": 27.15165
+    },
+    "description": "From Gaziemir to Konak"
+  },
+  {
+    "id": 2,
+    "origin": {
+      "lat": 38.34753,
+      "lon": 27.11022
+    },
+    "destination": {
+      "lat": 38.31932,
+      "lon": 27.10679
+    },
+    "description": "From Gaziemir to Gaziemir"
+  },
+  {
+    "id": 3,
+    "origin": {
+      "lat": 38.46143,
+      "lon": 27.18012
+    },
+    "destination": {
+      "lat": 38.43691,
+      "lon": 27.22999
+    },
+    "description": "From Bornova to Bornova"
+  },
+  {
+    "id": 4,
+    "origin": {
+      "lat": 38.37223,
+      "lon": 27.05136
+    },
+    "destination": {
+      "lat": 38.48794,
+      "lon": 27.06465
+    },
+    "description": "From Balcova to Karsiyaka"
+  },
+  {
+    "id": 5,
+    "origin": {
+      "lat": 38.45481,
+      "lon": 27.20023
+    },
+    "destination": {
+      "lat": 38.30692,
+      "lon": 27.15081
+    },
+    "description": "From Bornova to Gaziemir"
+  },
+  {
+    "id": 6,
+    "origin": {
+      "lat": 38.40699,
+      "lon": 27.1139
+    },
+    "destination": {
+      "lat": 38.4034,
+      "lon": 27.10445
+    },
+    "description": "From Konak to Konak"
+  },
+  {
+    "id": 7,
+    "origin": {
+      "lat": 38.41494,
+      "lon": 27.09048
+    },
+    "destination": {
+      "lat": 38.34934,
+      "lon": 27.10973
+    },
+    "description": "From Konak to Gaziemir"
+  },
+  {
+    "id": 8,
+    "origin": {
+      "lat": 38.39348,
+      "lon": 27.19894
+    },
+    "destination": {
+      "lat": 38.32864,
+      "lon": 27.14727
+    },
+    "description": "From Buca to Gaziemir"
+  },
+  {
+    "id": 9,
+    "origin": {
+      "lat": 38.39179,
+      "lon": 27.10694
+    },
+    "destination": {
+      "lat": 38.29879,
+      "lon": 27.11897
+    },
+    "description": "From Konak to Gaziemir"
+  },
+  {
+    "id": 10,
+    "origin": {
+      "lat": 38.3968,
+      "lon": 27.14157
+    },
+    "destination": {
+      "lat": 38.44348,
+      "lon": 27.10102
+    },
+    "description": "From Konak to Karsiyaka"
+  },
+  {
+    "id": 11,
+    "origin": {
+      "lat": 38.44236,
+      "lon": 27.25293
+    },
+    "destination": {
+      "lat": 38.33288,
+      "lon": 27.14155
+    },
+    "description": "From Bornova to Gaziemir"
+  },
+  {
+    "id": 12,
+    "origin": {
+      "lat": 38.47933,
+      "lon": 27.19107
+    },
+    "destination": {
+      "lat": 38.38177,
+      "lon": 27.07537
+    },
+    "description": "From Bornova to Balcova"
+  },
+  {
+    "id": 13,
+    "origin": {
+      "lat": 38.32742,
+      "lon": 27.14608
+    },
+    "destination": {
+      "lat": 38.34457,
+      "lon": 27.15156
+    },
+    "description": "From Gaziemir to Gaziemir"
+  },
+  {
+    "id": 14,
+    "origin": {
+      "lat": 38.4854,
+      "lon": 27.21009
+    },
+    "destination": {
+      "lat": 38.37562,
+      "lon": 27.16931
+    },
+    "description": "From Bornova to Konak"
+  },
+  {
+    "id": 15,
+    "origin": {
+      "lat": 38.37788,
+      "lon": 27.05533
+    },
+    "destination": {
+      "lat": 38.31774,
+      "lon": 27.15987
+    },
+    "description": "From Balcova to Gaziemir"
+  },
+  {
+    "id": 16,
+    "origin": {
+      "lat": 38.43349,
+      "lon": 27.08866
+    },
+    "destination": {
+      "lat": 38.46591,
+      "lon": 27.19902
+    },
+    "description": "From Karsiyaka to Bornova"
+  },
+  {
+    "id": 17,
+    "origin": {
+      "lat": 38.41287,
+      "lon": 27.03996
+    },
+    "destination": {
+      "lat": 38.42893,
+      "lon": 27.16375
+    },
+    "description": "From Balcova to Karsiyaka"
+  },
+  {
+    "id": 18,
+    "origin": {
+      "lat": 38.36445,
+      "lon": 27.01883
+    },
+    "destination": {
+      "lat": 38.41796,
+      "lon": 27.12674
+    },
+    "description": "From Balcova to Karsiyaka"
+  },
+  {
+    "id": 19,
+    "origin": {
+      "lat": 38.32978,
+      "lon": 27.12809
+    },
+    "destination": {
+      "lat": 38.46659,
+      "lon": 27.1108
+    },
+    "description": "From Gaziemir to Karsiyaka"
+  },
+  {
+    "id": 20,
+    "origin": {
+      "lat": 38.41286,
+      "lon": 27.13092
+    },
+    "destination": {
+      "lat": 38.40224,
+      "lon": 27.0569
+    },
+    "description": "From Buca to Balcova"
+  },
+  {
+    "id": 21,
+    "origin": {
+      "lat": 38.40512,
+      "lon": 27.03641
+    },
+    "destination": {
+      "lat": 38.36748,
+      "lon": 27.14265
+    },
+    "description": "From Balcova to Buca"
+  },
+  {
+    "id": 22,
+    "origin": {
+      "lat": 38.45659,
+      "lon": 27.10434
+    },
+    "destination": {
+      "lat": 38.32404,
+      "lon": 27.11572
+    },
+    "description": "From Konak to Gaziemir"
+  },
+  {
+    "id": 23,
+    "origin": {
+      "lat": 38.39884,
+      "lon": 27.14189
+    },
+    "destination": {
+      "lat": 38.33054,
+      "lon": 27.11417
+    },
+    "description": "From Konak to Gaziemir"
+  },
+  {
+    "id": 24,
+    "origin": {
+      "lat": 38.49728,
+      "lon": 27.25179
+    },
+    "destination": {
+      "lat": 38.41411,
+      "lon": 27.05194
+    },
+    "description": "From Bornova to Balcova"
+  },
+  {
+    "id": 25,
+    "origin": {
+      "lat": 38.41819,
+      "lon": 27.1003
+    },
+    "destination": {
+      "lat": 38.46753,
+      "lon": 27.15868
+    },
+    "description": "From Karsiyaka to Konak"
+  },
+  {
+    "id": 26,
+    "origin": {
+      "lat": 38.44027,
+      "lon": 27.22339
+    },
+    "destination": {
+      "lat": 38.37688,
+      "lon": 27.15119
+    },
+    "description": "From Bornova to Konak"
+  },
+  {
+    "id": 27,
+    "origin": {
+      "lat": 38.44558,
+      "lon": 27.09084
+    },
+    "destination": {
+      "lat": 38.38752,
+      "lon": 27.04899
+    },
+    "description": "From Konak to Balcova"
+  },
+  {
+    "id": 28,
+    "origin": {
+      "lat": 38.41379,
+      "lon": 27.16385
+    },
+    "destination": {
+      "lat": 38.37171,
+      "lon": 27.04836
+    },
+    "description": "From Buca to Balcova"
+  },
+  {
+    "id": 29,
+    "origin": {
+      "lat": 38.30607,
+      "lon": 27.1237
+    },
+    "destination": {
+      "lat": 38.35371,
+      "lon": 27.14399
+    },
+    "description": "From Gaziemir to Gaziemir"
+  },
+  {
+    "id": 30,
+    "origin": {
+      "lat": 38.45215,
+      "lon": 27.08879
+    },
+    "destination": {
+      "lat": 38.36284,
+      "lon": 27.01726
+    },
+    "description": "From Karsiyaka to Balcova"
+  },
+  {
+    "id": 31,
+    "origin": {
+      "lat": 38.39431,
+      "lon": 27.01643
+    },
+    "destination": {
+      "lat": 38.47763,
+      "lon": 27.18271
+    },
+    "description": "From Balcova to Bornova"
+  },
+  {
+    "id": 32,
+    "origin": {
+      "lat": 38.45496,
+      "lon": 27.08509
+    },
+    "destination": {
+      "lat": 38.3928,
+      "lon": 27.1449
+    },
+    "description": "From Konak to Konak"
+  },
+  {
+    "id": 33,
+    "origin": {
+      "lat": 38.43158,
+      "lon": 27.25284
+    },
+    "destination": {
+      "lat": 38.39326,
+      "lon": 27.04436
+    },
+    "description": "From Bornova to Balcova"
+  },
+  {
+    "id": 34,
+    "origin": {
+      "lat": 38.42604,
+      "lon": 27.07369
+    },
+    "destination": {
+      "lat": 38.45011,
+      "lon": 27.10636
+    },
+    "description": "From Karsiyaka to Karsiyaka"
+  },
+  {
+    "id": 35,
+    "origin": {
+      "lat": 38.41242,
+      "lon": 27.12935
+    },
+    "destination": {
+      "lat": 38.33277,
+      "lon": 27.10864
+    },
+    "description": "From Karsiyaka to Gaziemir"
+  },
+  {
+    "id": 36,
+    "origin": {
+      "lat": 38.34204,
+      "lon": 27.11156
+    },
+    "destination": {
+      "lat": 38.35933,
+      "lon": 27.1729
+    },
+    "description": "From Gaziemir to Buca"
+  },
+  {
+    "id": 37,
+    "origin": {
+      "lat": 38.43568,
+      "lon": 27.21501
+    },
+    "destination": {
+      "lat": 38.49445,
+      "lon": 27.07154
+    },
+    "description": "From Bornova to Karsiyaka"
+  },
+  {
+    "id": 38,
+    "origin": {
+      "lat": 38.36204,
+      "lon": 27.07596
+    },
+    "destination": {
+      "lat": 38.4526,
+      "lon": 27.1749
+    },
+    "description": "From Balcova to Konak"
+  },
+  {
+    "id": 39,
+    "origin": {
+      "lat": 38.45351,
+      "lon": 27.21651
+    },
+    "destination": {
+      "lat": 38.49017,
+      "lon": 27.2502
+    },
+    "description": "From Bornova to Bornova"
+  },
+  {
+    "id": 40,
+    "origin": {
+      "lat": 38.42117,
+      "lon": 27.20923
+    },
+    "destination": {
+      "lat": 38.49965,
+      "lon": 27.14251
+    },
+    "description": "From Bornova to Karsiyaka"
+  }
+]

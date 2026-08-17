@@ -35,8 +35,16 @@ namespace ulasim_veri_servisi.Services
                  FromCache = cacheResult.FromCache,
              };
             
-            foreach (var bus in cacheResult.Data)
+            var uniqueBuses = cacheResult.Data
+                .GroupBy(b => b.OtobusId)
+                .Select(g => g.Last());
+
+            foreach (var bus in uniqueBuses)
             {
+                var rawX = CoordinateParser.ParseNullable(bus.KoorX, -180, 180);
+                var rawY = CoordinateParser.ParseNullable(bus.KoorY, -180, 180);
+                var corrected = CoordinateParser.AutoCorrectIzmirCoordinates(rawX, rawY);
+
                 result.Buses.Add(new ApproachingBusItem
                 {
                     BusId = bus.OtobusId.ToString(),
@@ -44,8 +52,8 @@ namespace ulasim_veri_servisi.Services
                     RouteName = bus.HatAdi ?? string.Empty,
                     RemainingStopCount = bus.KalanDurakSayisi,
                     Direction = bus.HattinYonu.ToString(),
-                    Latitude = CoordinateParser.ParseNullable(bus.KoorX, -90, 90),
-                    Longitude = CoordinateParser.ParseNullable(bus.KoorY, -180, 180),
+                    Latitude = corrected.Latitude,
+                    Longitude = corrected.Longitude,
 
                     IsAccessible = bus.EngelliMi,
                     HasBicycleRack = bus.BisikletAparatliMi

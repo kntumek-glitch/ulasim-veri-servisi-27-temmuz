@@ -73,7 +73,7 @@ public class OsrmWalkingRouteProviderTests
         var provider = CreateProvider(handler.Object);
 
         // Act
-        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, true, CancellationToken.None);
+        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, true, "foot", CancellationToken.None);
 
         // Assert
         result.State.IsSuccess.Should().BeTrue();
@@ -104,7 +104,7 @@ public class OsrmWalkingRouteProviderTests
         var provider = CreateProvider(handler.Object);
 
         // Act
-        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, CancellationToken.None);
+        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, "foot", CancellationToken.None);
 
         // Assert
         result.State.IsSuccess.Should().BeFalse();
@@ -142,7 +142,7 @@ public class OsrmWalkingRouteProviderTests
         var provider = CreateProvider(handler.Object);
 
         // Act
-        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, CancellationToken.None);
+        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, "foot", CancellationToken.None);
 
         // Assert
         result.State.IsSuccess.Should().BeFalse();
@@ -168,7 +168,7 @@ public class OsrmWalkingRouteProviderTests
         var provider = CreateProvider(handler.Object);
 
         // Act
-        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, CancellationToken.None);
+        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, "foot", CancellationToken.None);
 
         // Assert
         result.State.IsSuccess.Should().BeFalse();
@@ -191,7 +191,7 @@ public class OsrmWalkingRouteProviderTests
         var provider = CreateProvider(handler.Object);
 
         // Act
-        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, CancellationToken.None);
+        var result = await provider.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, "foot", CancellationToken.None);
 
         // Assert
         result.State.IsSuccess.Should().BeFalse();
@@ -217,7 +217,7 @@ public class OsrmWalkingRouteProviderTests
         cts.Cancel(); // Mark as cancelled by client
 
         // Act & Assert
-        await provider.Invoking(p => p.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, cts.Token))
+        await provider.Invoking(p => p.GetWalkingRouteAsync(41.0, 28.9, 41.1, 29.0, false, "foot", cts.Token))
             .Should().ThrowAsync<OperationCanceledException>();
     }
 }

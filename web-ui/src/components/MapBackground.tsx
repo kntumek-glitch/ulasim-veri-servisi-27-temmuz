@@ -7,6 +7,7 @@ import { useMapState } from '../context/MapContext';
 import { Leg, Itinerary } from '../api';
 import lineSlice from '@turf/line-slice';
 import { point } from '@turf/helpers';
+import AnimatedMarker from './AnimatedMarker';
 
 const fetchShape = async (tripId: string) => {
   const res = await fetch(`/api/v1/gtfs/shapes?tripId=${encodeURIComponent(tripId)}&format=geojson`);
@@ -66,22 +67,29 @@ const TransitShapeLayer: React.FC<{ leg: Leg; color: string; opacity?: number; l
 // Component to handle Map FlyTo logic
 const MapController: React.FC = () => {
   const { current: map } = useMap();
-  const { mapOrigin, mapDestination, selectedItinerary, userLocation } = useMapState();
+  const { mapOrigin, mapDestination, selectedItinerary, userLocation, travelMode, directRoute, selectedLiveBusId, liveVehicles } = useMapState();
 
   useEffect(() => {
     if (!map) return;
     
-    // Fit bounds if both origin and destination exist and no itinerary selected yet
-    if (mapOrigin && mapDestination && !selectedItinerary) {
+    if (travelMode !== 'TRANSIT' && directRoute && mapOrigin && mapDestination) {
       map.fitBounds(
         [
-          [mapOrigin.longitude, mapOrigin.latitude],
-          [mapDestination.longitude, mapDestination.latitude]
+          [Math.min(mapOrigin.longitude, mapDestination.longitude), Math.min(mapOrigin.latitude, mapDestination.latitude)],
+          [Math.max(mapOrigin.longitude, mapDestination.longitude), Math.max(mapOrigin.latitude, mapDestination.latitude)]
+        ],
+        { padding: 100, duration: 1000 }
+      );
+    } else if (travelMode === 'TRANSIT' && mapOrigin && mapDestination && !selectedItinerary) {
+      map.fitBounds(
+        [
+          [Math.min(mapOrigin.longitude, mapDestination.longitude), Math.min(mapOrigin.latitude, mapDestination.latitude)],
+          [Math.max(mapOrigin.longitude, mapDestination.longitude), Math.max(mapOrigin.latitude, mapDestination.latitude)]
         ],
         { padding: 100, duration: 1000 }
       );
     }
-  }, [map, mapOrigin, mapDestination, selectedItinerary]);
+  }, [map, mapOrigin, mapDestination, selectedItinerary, travelMode, directRoute]);
 
   useEffect(() => {
     if (!map || !userLocation) return;
@@ -92,22 +100,44 @@ const MapController: React.FC = () => {
     });
   }, [map, userLocation]);
 
+  useEffect(() => {
+    if (!map || !selectedLiveBusId || !liveVehicles.length) return;
+    const bus = liveVehicles.find(v => v.busId === selectedLiveBusId);
+    if (bus && bus.longitude && bus.latitude) {
+      map.flyTo({
+        center: [bus.longitude, bus.latitude],
+        zoom: 16,
+        duration: 1200
+      });
+    }
+  }, [map, selectedLiveBusId, liveVehicles]);
+
   return null;
 };
 
-const MapBackground: React.FC = () => {
+export default function MapBackground({ children }: { children?: React.ReactNode }) {
   const mapRef = useRef<any>(null);
-  const { current: map } = useMap();
   const { 
-    mapOrigin, setMapOrigin,
-    mapDestination, setMapDestination,
-    selectedItinerary, setSelectedItinerary,
+    mapOrigin, 
+    mapDestination, 
+    selectedItinerary, 
+    userLocation,
+    pickingLocationFor,
+    setPickingLocationFor,
+    setMapOrigin,
+    setMapDestination,
     itineraries,
     selectedRouteShape, 
     selectedRouteColor, 
     selectedStop,
-    pickingLocationFor, setPickingLocationFor,
-    userLocation
+    setSelectedItinerary,
+    travelMode, 
+    directRoute,
+    liveVehicles,
+    selectedLiveBusId,
+    setSelectedLiveBusId,
+    selectedDirectRouteIdx,
+    theme
   } = useMapState();
 
   const handleMapClick = (e: any) => {
@@ -152,12 +182,29 @@ const MapBackground: React.FC = () => {
     });
   });
 
+  const LEG_COLORS = ['#00f0ff', '#ff3366', '#33cc33', '#ffcc00', '#cc33ff'];
+
   const renderItinerary = (itinerary: Itinerary, idx: number, isActive: boolean) => {
+    let transitLegCount = 0;
+
     return itinerary.legs.map((leg, i) => {
       // In GTFS some legs might be TRANSIT but mode is missing or something, checking tripId is safest
       const isTransit = leg.mode === 'TRANSIT' || !!leg.tripId;
-      const color = isTransit ? (isActive ? '#00f0ff' : '#888888') : (isActive ? 'var(--color-text-muted)' : '#555555');
-      const opacity = isActive ? 0.9 : 0.4;
+      
+      let color = '';
+      let opacity = isActive ? 0.9 : 0.65;
+      
+      if (isActive) {
+        if (isTransit) {
+           color = LEG_COLORS[transitLegCount % LEG_COLORS.length];
+           transitLegCount++;
+        } else {
+           color = 'var(--color-text-muted)';
+        }
+      } else {
+        color = '#add8e6'; // Faded pale blue for unselected alternative paths
+      }
+      
       const layerId = `transit-shape-${idx}-${i}`;
       
       return (
@@ -167,10 +214,10 @@ const MapBackground: React.FC = () => {
           )}
 
           {!isTransit && (leg.geometryGeoJson || (leg.fromStopLon && leg.fromStopLat && leg.toStopLon && leg.toStopLat)) && (
-            <Source id={`${layerId}-source`} type="geojson" data={leg.geometryGeoJson || {
+            <Source id={`${layerId}-source`} type="geojson" data={{
               type: 'Feature',
               properties: {},
-              geometry: {
+              geometry: leg.geometryGeoJson || {
                 type: 'LineString',
                 coordinates: [
                   [leg.fromStopLon, leg.fromStopLat],
@@ -183,7 +230,7 @@ const MapBackground: React.FC = () => {
                 type="line"
                 paint={{
                   'line-color': color,
-                  'line-width': isActive ? 4 : 3,
+                  'line-width': isActive ? 5 : 4,
                   'line-dasharray': [0, 2],
                   'line-opacity': opacity
                 }}
@@ -197,7 +244,7 @@ const MapBackground: React.FC = () => {
 
           {isTransit && leg.fromStopLon && leg.fromStopLat && isActive && (
             <Marker longitude={leg.fromStopLon} latitude={leg.fromStopLat} anchor="center">
-              <div style={{ width: 10, height: 10, background: '#fff', border: '2px solid #00f0ff', borderRadius: '50%' }} />
+              <div style={{ width: 10, height: 10, background: '#fff', border: `2px solid ${color}`, borderRadius: '50%' }} />
             </Marker>
           )}
         </React.Fragment>
@@ -209,8 +256,6 @@ const MapBackground: React.FC = () => {
   const routesToRender = itineraries.slice(0, 3).map((itinerary, idx) => {
     return { itinerary, idx, isActive: selectedItinerary?.planId === itinerary.planId };
   }).sort((a, b) => (a.isActive === b.isActive ? 0 : a.isActive ? 1 : -1));
-
-  const { liveVehicles } = useMapState();
 
   return (
     <div style={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -225,7 +270,7 @@ const MapBackground: React.FC = () => {
           bearing: -17.6
         }}
         style={{ width: '100%', height: '100%' }}
-        mapStyle="https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"
+        mapStyle={theme === 'light' ? "https://basemaps.cartocdn.com/gl/positron-gl-style/style.json" : "https://basemaps.cartocdn.com/gl/dark-matter-gl-style/style.json"}
         interactiveLayerIds={interactiveLayerIds}
         onClick={handleMapClick}
         cursor={pickingLocationFor ? 'crosshair' : 'grab'}
@@ -234,43 +279,37 @@ const MapBackground: React.FC = () => {
         <MapController />
 
       {/* Live Buses */}
-      {liveVehicles && liveVehicles.map((vehicle, idx) => {
-        if (!vehicle.longitude || !vehicle.latitude) return null;
-        return (
-          <Marker key={`bus-${vehicle.busId}`} longitude={vehicle.longitude} latitude={vehicle.latitude} anchor="bottom">
-            <div style={{
-              width: 32,
-              height: 32,
-              background: 'var(--color-accent-primary)',
-              borderRadius: '8px 8px 4px 4px',
-              border: '2px solid #fff',
-              boxShadow: '0 4px 8px rgba(0,0,0,0.5), 0 0 15px rgba(0,240,255,0.6)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              color: '#000',
-              fontWeight: 'bold',
-              position: 'relative'
-            }}>
-              <span style={{ fontSize: 18 }}>🚌</span>
-              {vehicle.direction && (
-                <div style={{
-                  position: 'absolute',
-                  top: -24,
-                  background: 'rgba(0,0,0,0.8)',
-                  color: '#fff',
-                  padding: '2px 6px',
-                  borderRadius: 4,
-                  fontSize: 10,
-                  whiteSpace: 'nowrap'
-                }}>
-                  {vehicle.direction}
-                </div>
-              )}
-            </div>
-          </Marker>
-        );
-      })}
+      {liveVehicles.map(vehicle => (
+          vehicle.latitude && vehicle.longitude && (
+            <AnimatedMarker
+              key={vehicle.busId}
+              longitude={vehicle.longitude}
+              latitude={vehicle.latitude}
+              anchor="bottom"
+              onClick={(e: any) => {
+                e.originalEvent.stopPropagation();
+                setSelectedLiveBusId(vehicle.busId);
+              }}
+              style={{ cursor: 'pointer', zIndex: selectedLiveBusId === vehicle.busId ? 100 : 10 }}
+            >
+              <div style={{
+                background: selectedLiveBusId === vehicle.busId ? 'var(--color-accent-primary)' : 'rgba(0, 0, 0, 0.8)',
+                color: selectedLiveBusId === vehicle.busId ? '#000' : 'white',
+                padding: '4px 8px',
+                borderRadius: '12px',
+                border: '2px solid white',
+                fontSize: '14px',
+                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
+                whiteSpace: 'nowrap',
+                fontWeight: 'bold',
+                transform: selectedLiveBusId === vehicle.busId ? 'scale(1.15)' : 'scale(1)',
+                transition: 'transform 0.2s, background 0.2s'
+              }}>
+                🚌 {vehicle.busId}
+              </div>
+            </AnimatedMarker>
+          )
+        ))}
 
       {/* Origin Marker */}
       {mapOrigin && (
@@ -286,8 +325,50 @@ const MapBackground: React.FC = () => {
         </Marker>
       )}
 
-      {/* Itinerary Overlays */}
-      {routesToRender.map(({ itinerary, idx, isActive }) => renderItinerary(itinerary, idx, isActive))}
+      {/* Itinerary Overlays (Transit Mode) */}
+      {travelMode === 'TRANSIT' && routesToRender.map(({ itinerary, idx, isActive }) => renderItinerary(itinerary, idx, isActive))}
+
+      {/* Direct Route Overlay (Walk/Drive Mode) */}
+      {travelMode !== 'TRANSIT' && directRoute && (
+        <>
+          {[directRoute, ...(directRoute.alternatives || [])].map((route, idx) => {
+            if (!route.geometry || idx === selectedDirectRouteIdx) return null;
+            const isWalk = travelMode === 'WALK';
+            return (
+              <Source key={`direct-route-inactive-${idx}`} type="geojson" data={route.geometry as any}>
+                <Layer
+                  type="line"
+                  paint={{
+                    'line-color': isWalk ? 'rgba(0,240,255,0.7)' : 'rgba(176,38,255,0.6)',
+                    'line-width': 4,
+                    'line-dasharray': isWalk ? [0, 2] : [1],
+                    'line-opacity': 0.8
+                  }}
+                  layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                />
+              </Source>
+            );
+          })}
+          {[directRoute, ...(directRoute.alternatives || [])].map((route, idx) => {
+            if (!route.geometry || idx !== selectedDirectRouteIdx) return null;
+            const isWalk = travelMode === 'WALK';
+            return (
+              <Source key={`direct-route-active-${idx}`} type="geojson" data={route.geometry as any}>
+                <Layer
+                  type="line"
+                  paint={{
+                    'line-color': isWalk ? '#00f0ff' : '#b026ff',
+                    'line-width': isWalk ? 5 : 6,
+                    'line-dasharray': isWalk ? [0, 2] : [1],
+                    'line-opacity': 1.0
+                  }}
+                  layout={{ 'line-cap': 'round', 'line-join': 'round' }}
+                />
+              </Source>
+            );
+          })}
+        </>
+      )}
 
       {/* Selected Route Shape (From Lines Page) */}
       {routeShapeGeoJson && (
@@ -339,5 +420,3 @@ const MapBackground: React.FC = () => {
   </div>
   );
 };
-
-export default MapBackground;

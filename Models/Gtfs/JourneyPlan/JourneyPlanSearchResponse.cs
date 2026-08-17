@@ -80,10 +80,14 @@ public class LegDto
     public string? FromStopId { get; set; }
     public string? FromStopName { get; set; }
     public int? FromStopSequence { get; set; }
+    public double? FromStopLat { get; set; }
+    public double? FromStopLon { get; set; }
     
     public string? ToStopId { get; set; }
     public string? ToStopName { get; set; }
     public int? ToStopSequence { get; set; }
+    public double? ToStopLat { get; set; }
+    public double? ToStopLon { get; set; }
     
     // TRANSIT TIMES
     public string? RawGtfsDepartureTime { get; set; }

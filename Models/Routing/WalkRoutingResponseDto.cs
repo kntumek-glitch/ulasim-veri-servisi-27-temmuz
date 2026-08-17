@@ -25,4 +25,7 @@ public class WalkRoutingResponseDto
 
     [JsonPropertyName("retrievedAt")]
     public DateTimeOffset RetrievedAt { get; set; }
+
+    [JsonPropertyName("alternatives")]
+    public System.Collections.Generic.List<WalkRoutingResponseDto>? Alternatives { get; set; }
 }

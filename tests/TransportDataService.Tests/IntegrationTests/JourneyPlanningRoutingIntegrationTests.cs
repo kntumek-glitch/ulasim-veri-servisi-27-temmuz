@@ -150,7 +150,7 @@ public class JourneyPlanningRoutingIntegrationTests : IAsyncLifetime
         };
 
         // Mock OSRM to return 480 seconds (8 mins) for the first walk
-        _mockRoutingProvider.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+        _mockRoutingProvider.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WalkingResult { State = new ErrorState { IsSuccess = true }, DurationSeconds = 480, DistanceMeters = 800 });
 
         // Act
@@ -181,7 +181,7 @@ public class JourneyPlanningRoutingIntegrationTests : IAsyncLifetime
         };
 
         // Mock OSRM to return UNROUTABLE_LOCATION for the first walk
-        _mockRoutingProvider.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+        _mockRoutingProvider.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WalkingResult { State = new ErrorState { IsSuccess = false, ErrorCode = "UNROUTABLE_LOCATION" } });
 
         // Act
@@ -207,7 +207,7 @@ public class JourneyPlanningRoutingIntegrationTests : IAsyncLifetime
         };
 
         // Mock OSRM to return a timeout error
-        _mockRoutingProvider.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+        _mockRoutingProvider.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new WalkingResult { State = new ErrorState { IsSuccess = false, ErrorCode = "PROVIDER_ERROR" } });
 
         // Act

@@ -122,6 +122,7 @@ builder.Services.AddHttpClient<IExternalEshotService, ExternalEshotService>(clie
 {
     client.Timeout = TimeSpan.FromSeconds(10);
 });
+builder.Services.AddHttpClient<ReverseGeocodeService>();
 builder.Services.AddSingleton<ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource>();
 builder.Services.AddSingleton<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager, ulasim_veri_servisi.Services.RoutingSnapshotManager>();
 builder.Services.AddScoped<ulasim_veri_servisi.Services.Interfaces.IRaptorRoutingEngine, ulasim_veri_servisi.Services.RaptorRoutingEngine>();
@@ -150,6 +151,7 @@ builder.Services.AddHttpClient<IWalkingRouteProvider, OsrmWalkingRouteProvider>(
         client.BaseAddress = new Uri(config.BaseUrl);
     }
     client.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
+    client.DefaultRequestHeaders.UserAgent.ParseAdd("ulasim-veri-servisi/1.0");
 });
 builder.Services.AddScoped<WalkingRoutingService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();

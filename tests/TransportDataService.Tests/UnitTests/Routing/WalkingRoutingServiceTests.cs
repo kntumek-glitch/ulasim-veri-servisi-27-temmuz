@@ -45,16 +45,16 @@ public class WalkingRoutingServiceTests
             DurationSeconds = 60
         };
 
-        _providerMock.Setup(p => p.GetWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, It.IsAny<CancellationToken>()))
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(fakeResult);
 
         // Act
-        var result1 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None);
-        var result2 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None);
+        var result1 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", CancellationToken.None);
+        var result2 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", CancellationToken.None);
 
         // Assert
         result1.Should().BeEquivalentTo(result2);
-        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()), Times.Once);
+        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -62,7 +62,7 @@ public class WalkingRoutingServiceTests
     {
         // Arrange
         int callCount = 0;
-        _providerMock.Setup(p => p.GetWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, It.IsAny<CancellationToken>()))
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .Returns(async () =>
             {
                 Interlocked.Increment(ref callCount);
@@ -72,7 +72,7 @@ public class WalkingRoutingServiceTests
 
         // Act - Spawn 100 concurrent requests
         var tasks = Enumerable.Range(0, 100)
-            .Select(_ => _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None))
+            .Select(_ => _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", CancellationToken.None))
             .ToList();
 
         var results = await Task.WhenAll(tasks);
@@ -91,44 +91,44 @@ public class WalkingRoutingServiceTests
             State = new ErrorState { IsSuccess = false, ErrorCode = "NO_ROUTE" }
         };
 
-        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(fakeResult);
 
         // Act
-        var result1 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None);
-        var result2 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None);
+        var result1 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", CancellationToken.None);
+        var result2 = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", CancellationToken.None);
 
         // Assert
         result1.State.IsSuccess.Should().BeFalse();
         result2.State.IsSuccess.Should().BeFalse();
         
         // Since it failed, it shouldn't be cached, so the provider should be called twice
-        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 
     [Fact]
     public async Task CalculateWalkingRouteAsync_ClientCancellation_Throws_DoesNotCacheResult()
     {
         // Arrange
-        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ThrowsAsync(new OperationCanceledException());
 
         var cts = new CancellationTokenSource();
         cts.Cancel();
 
         // Act & Assert
-        await _service.Invoking(s => s.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, cts.Token))
+        await _service.Invoking(s => s.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", cts.Token))
             .Should().ThrowAsync<OperationCanceledException>();
         
         // Assert that nothing was cached by attempting again without cancellation
         var fakeResult = new WalkingResult { State = new ErrorState { IsSuccess = true } };
-        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()))
+        _providerMock.Setup(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(fakeResult);
 
-        var result = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, CancellationToken.None);
+        var result = await _service.CalculateWalkingRouteAsync(41.0, 29.0, 41.1, 29.1, false, "foot", CancellationToken.None);
         result.State.IsSuccess.Should().BeTrue();
 
         // The provider should have been called twice (first cancelled, second successful)
-        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<CancellationToken>()), Times.Exactly(2));
+        _providerMock.Verify(p => p.GetWalkingRouteAsync(It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), It.IsAny<double>(), false, It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Exactly(2));
     }
 }

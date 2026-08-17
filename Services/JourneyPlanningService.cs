@@ -229,12 +229,16 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 ServiceDate = baseDate.ToString("yyyy-MM-dd"),
                 FromStopId = trip.OriginStopId,
                 FromStopName = oStop.Stop.StopName,
+                FromStopLat = oStop.Stop.StopLat,
+                FromStopLon = oStop.Stop.StopLon,
                 FromStopSequence = trip.OriginStopSequence,
                 DepartureTime = departureTime,
                 RawGtfsDepartureTime = trip.DepartureTimeRaw,
                 RawGtfsDepartureSeconds = trip.DepartureSeconds,
                 ToStopId = trip.DestStopId,
                 ToStopName = dStop.Stop.StopName,
+                ToStopLat = dStop.Stop.StopLat,
+                ToStopLon = dStop.Stop.StopLon,
                 ToStopSequence = trip.DestStopSequence,
                 ArrivalTime = arrivalTime,
                 RawGtfsArrivalTime = trip.ArrivalTimeRaw,
@@ -250,8 +254,12 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 Mode = "WALK",
                 FromStopId = "ORIGIN",
                 FromStopName = "Mevcut Konum",
+                FromStopLat = request.Origin.Lat,
+                FromStopLon = request.Origin.Lon,
                 ToStopId = oStop.Stop.StopId,
                 ToStopName = oStop.Stop.StopName,
+                ToStopLat = oStop.Stop.StopLat,
+                ToStopLon = oStop.Stop.StopLon,
                 DepartureTime = leg.DepartureTime.Value.AddSeconds(-oStop.WalkingTimeSeconds),
                 ArrivalTime = leg.DepartureTime,
                 DistanceMeters = oStop.DistanceMeters,
@@ -263,8 +271,12 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 Mode = "WALK",
                 FromStopId = dStop.Stop.StopId,
                 FromStopName = dStop.Stop.StopName,
+                FromStopLat = dStop.Stop.StopLat,
+                FromStopLon = dStop.Stop.StopLon,
                 ToStopId = "DEST",
-                ToStopName = "VarÄ±ÅŸ NoktasÄ±",
+                ToStopName = "Varış Noktası",
+                ToStopLat = request.Destination.Lat,
+                ToStopLon = request.Destination.Lon,
                 DepartureTime = leg.ArrivalTime,
                 ArrivalTime = leg.ArrivalTime.Value.AddSeconds(dStop.WalkingTimeSeconds),
                 DistanceMeters = dStop.DistanceMeters,
@@ -304,8 +316,12 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                     Mode = "WALK",
                     FromStopId = "ORIGIN",
                     FromStopName = "Mevcut Konum",
+                    FromStopLat = request.Origin.Lat,
+                    FromStopLon = request.Origin.Lon,
                     ToStopId = oStop.Stop.StopId,
                     ToStopName = oStop.Stop.StopName,
+                    ToStopLat = oStop.Stop.StopLat,
+                    ToStopLon = oStop.Stop.StopLon,
                     DepartureTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)).AddSeconds(-oStop.WalkingTimeSeconds),
                     ArrivalTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)),
                     DistanceMeters = oStop.DistanceMeters,
@@ -316,8 +332,8 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 {
                     Mode = "TRANSIT", RouteId = tResult.Leg1.RouteId, RouteShortName = tResult.Leg1.RouteShortName, RouteType = tResult.Leg1.RouteType, TripId = tResult.Leg1.TripId, Headsign = tResult.Leg1.Headsign, DirectionId = tResult.Leg1.DirectionId,
                     PatternId = tResult.Leg1.PatternId, ShapeId = tResult.Leg1.ShapeId, ServiceId = tResult.Leg1.ServiceId, ServiceDate = tResult.Leg1.ServiceDate,
-                    FromStopId = tResult.Leg1.FromStopId, FromStopName = oStop.Stop.StopName, FromStopSequence = tResult.Leg1.FromStopSequence,
-                    ToStopId = tResult.Leg1.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopName, ToStopSequence = tResult.Leg1.ToStopSequence,
+                    FromStopId = tResult.Leg1.FromStopId, FromStopName = oStop.Stop.StopName, FromStopLat = oStop.Stop.StopLat, FromStopLon = oStop.Stop.StopLon, FromStopSequence = tResult.Leg1.FromStopSequence,
+                    ToStopId = tResult.Leg1.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopName, ToStopLat = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopLat, ToStopLon = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopLon, ToStopSequence = tResult.Leg1.ToStopSequence,
                     DepartureTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)),
                     RawGtfsDepartureTime = tResult.Leg1.DepTimeRaw,
                     RawGtfsDepartureSeconds = tResult.Leg1.DepSecs,
@@ -334,8 +350,12 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                     Mode = "WALK",
                     FromStopId = leg1.ToStopId,
                     FromStopName = leg1.ToStopName,
+                    FromStopLat = leg1.ToStopLat,
+                    FromStopLon = leg1.ToStopLon,
                     ToStopId = tResult.Leg2.FromStopId,
                     ToStopName = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopName,
+                    ToStopLat = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopLat,
+                    ToStopLon = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopLon,
                     DepartureTime = leg1.ArrivalTime,
                     ArrivalTime = leg1.ArrivalTime.Value.AddSeconds(tResult.TransferWalkSeconds),
                     DistanceMeters = tResult.TransferWalkMeters,
@@ -346,8 +366,8 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 {
                     Mode = "TRANSIT", RouteId = tResult.Leg2.RouteId, RouteShortName = tResult.Leg2.RouteShortName, RouteType = tResult.Leg2.RouteType, TripId = tResult.Leg2.TripId, Headsign = tResult.Leg2.Headsign, DirectionId = tResult.Leg2.DirectionId,
                     PatternId = tResult.Leg2.PatternId, ShapeId = tResult.Leg2.ShapeId, ServiceId = tResult.Leg2.ServiceId, ServiceDate = tResult.Leg2.ServiceDate,
-                    FromStopId = tResult.Leg2.FromStopId, FromStopName = walkTransfer.ToStopName, FromStopSequence = tResult.Leg2.FromStopSequence,
-                    ToStopId = tResult.Leg2.ToStopId, ToStopName = dStop.Stop.StopName, ToStopSequence = tResult.Leg2.ToStopSequence,
+                    FromStopId = tResult.Leg2.FromStopId, FromStopName = walkTransfer.ToStopName, FromStopLat = walkTransfer.ToStopLat, FromStopLon = walkTransfer.ToStopLon, FromStopSequence = tResult.Leg2.FromStopSequence,
+                    ToStopId = tResult.Leg2.ToStopId, ToStopName = dStop.Stop.StopName, ToStopLat = dStop.Stop.StopLat, ToStopLon = dStop.Stop.StopLon, ToStopSequence = tResult.Leg2.ToStopSequence,
                     DepartureTime = new DateTimeOffset(depDt2, tzi.GetUtcOffset(depDt2)),
                     RawGtfsDepartureTime = tResult.Leg2.DepTimeRaw,
                     RawGtfsDepartureSeconds = tResult.Leg2.DepSecs,
@@ -364,8 +384,12 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                     Mode = "WALK",
                     FromStopId = dStop.Stop.StopId,
                     FromStopName = dStop.Stop.StopName,
+                    FromStopLat = dStop.Stop.StopLat,
+                    FromStopLon = dStop.Stop.StopLon,
                     ToStopId = "DEST",
-                    ToStopName = "VarÄ±ÅŸ NoktasÄ±",
+                    ToStopName = "Varış Noktası",
+                    ToStopLat = request.Destination.Lat,
+                    ToStopLon = request.Destination.Lon,
                     DepartureTime = leg2.ArrivalTime,
                     ArrivalTime = leg2.ArrivalTime.Value.AddSeconds(dStop.WalkingTimeSeconds),
                     DistanceMeters = dStop.DistanceMeters,
@@ -406,7 +430,7 @@ public partial class JourneyPlanningService : IJourneyPlanningService
 
                 var walk1 = new LegDto
                 {
-                    Mode = "WALK", FromStopId = "ORIGIN", FromStopName = "Mevcut Konum", ToStopId = oStop.Stop.StopId, ToStopName = oStop.Stop.StopName,
+                    Mode = "WALK", FromStopId = "ORIGIN", FromStopName = "Mevcut Konum", FromStopLat = request.Origin.Lat, FromStopLon = request.Origin.Lon, ToStopId = oStop.Stop.StopId, ToStopName = oStop.Stop.StopName, ToStopLat = oStop.Stop.StopLat, ToStopLon = oStop.Stop.StopLon,
                     DepartureTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)).AddSeconds(-oStop.WalkingTimeSeconds),
                     ArrivalTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)),
                     DistanceMeters = oStop.DistanceMeters, DurationMinutes = oStop.WalkingTimeSeconds / 60
@@ -416,8 +440,8 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 {
                     Mode = "TRANSIT", RouteId = tResult.Leg1.RouteId, RouteShortName = tResult.Leg1.RouteShortName, RouteType = tResult.Leg1.RouteType, TripId = tResult.Leg1.TripId, Headsign = tResult.Leg1.Headsign, DirectionId = tResult.Leg1.DirectionId,
                     PatternId = tResult.Leg1.PatternId, ShapeId = tResult.Leg1.ShapeId, ServiceId = tResult.Leg1.ServiceId, ServiceDate = tResult.Leg1.ServiceDate,
-                    FromStopId = tResult.Leg1.FromStopId, FromStopName = oStop.Stop.StopName, FromStopSequence = tResult.Leg1.FromStopSequence,
-                    ToStopId = tResult.Leg1.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopName, ToStopSequence = tResult.Leg1.ToStopSequence,
+                    FromStopId = tResult.Leg1.FromStopId, FromStopName = oStop.Stop.StopName, FromStopLat = oStop.Stop.StopLat, FromStopLon = oStop.Stop.StopLon, FromStopSequence = tResult.Leg1.FromStopSequence,
+                    ToStopId = tResult.Leg1.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopName, ToStopLat = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopLat, ToStopLon = activeStops.First(s => s.StopId == tResult.Leg1.ToStopId).StopLon, ToStopSequence = tResult.Leg1.ToStopSequence,
                     DepartureTime = new DateTimeOffset(depDt1, tzi.GetUtcOffset(depDt1)), RawGtfsDepartureTime = tResult.Leg1.DepTimeRaw, RawGtfsDepartureSeconds = tResult.Leg1.DepSecs,
                     ArrivalTime = new DateTimeOffset(arrDt1, tzi.GetUtcOffset(arrDt1)), RawGtfsArrivalTime = tResult.Leg1.ArrTimeRaw, RawGtfsArrivalSeconds = tResult.Leg1.ArrSecs,
                     DurationMinutes = (tResult.Leg1.ArrSecs - tResult.Leg1.DepSecs) / 60, StopCount = tResult.Leg1.StopCount, IntermediateStopCount = tResult.Leg1.StopCount - 1 > 0 ? tResult.Leg1.StopCount - 1 : 0
@@ -425,7 +449,7 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 
                 var walkTransfer1 = new LegDto
                 {
-                    Mode = "WALK", FromStopId = leg1.ToStopId, FromStopName = leg1.ToStopName, ToStopId = tResult.Leg2.FromStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopName,
+                    Mode = "WALK", FromStopId = leg1.ToStopId, FromStopName = leg1.ToStopName, FromStopLat = leg1.ToStopLat, FromStopLon = leg1.ToStopLon, ToStopId = tResult.Leg2.FromStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopName, ToStopLat = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopLat, ToStopLon = activeStops.First(s => s.StopId == tResult.Leg2.FromStopId).StopLon,
                     DepartureTime = leg1.ArrivalTime, ArrivalTime = leg1.ArrivalTime.Value.AddSeconds(tResult.TransferWalk1Seconds), DistanceMeters = tResult.TransferWalk1Meters, DurationMinutes = tResult.TransferWalk1Seconds / 60
                 };
 
@@ -433,8 +457,8 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 {
                     Mode = "TRANSIT", RouteId = tResult.Leg2.RouteId, RouteShortName = tResult.Leg2.RouteShortName, RouteType = tResult.Leg2.RouteType, TripId = tResult.Leg2.TripId, Headsign = tResult.Leg2.Headsign, DirectionId = tResult.Leg2.DirectionId,
                     PatternId = tResult.Leg2.PatternId, ShapeId = tResult.Leg2.ShapeId, ServiceId = tResult.Leg2.ServiceId, ServiceDate = tResult.Leg2.ServiceDate,
-                    FromStopId = tResult.Leg2.FromStopId, FromStopName = walkTransfer1.ToStopName, FromStopSequence = tResult.Leg2.FromStopSequence,
-                    ToStopId = tResult.Leg2.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg2.ToStopId).StopName, ToStopSequence = tResult.Leg2.ToStopSequence,
+                    FromStopId = tResult.Leg2.FromStopId, FromStopName = walkTransfer1.ToStopName, FromStopLat = walkTransfer1.ToStopLat, FromStopLon = walkTransfer1.ToStopLon, FromStopSequence = tResult.Leg2.FromStopSequence,
+                    ToStopId = tResult.Leg2.ToStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg2.ToStopId).StopName, ToStopLat = activeStops.First(s => s.StopId == tResult.Leg2.ToStopId).StopLat, ToStopLon = activeStops.First(s => s.StopId == tResult.Leg2.ToStopId).StopLon, ToStopSequence = tResult.Leg2.ToStopSequence,
                     DepartureTime = new DateTimeOffset(depDt2, tzi.GetUtcOffset(depDt2)), RawGtfsDepartureTime = tResult.Leg2.DepTimeRaw, RawGtfsDepartureSeconds = tResult.Leg2.DepSecs,
                     ArrivalTime = new DateTimeOffset(arrDt2, tzi.GetUtcOffset(arrDt2)), RawGtfsArrivalTime = tResult.Leg2.ArrTimeRaw, RawGtfsArrivalSeconds = tResult.Leg2.ArrSecs,
                     DurationMinutes = (tResult.Leg2.ArrSecs - tResult.Leg2.DepSecs) / 60, StopCount = tResult.Leg2.StopCount, IntermediateStopCount = tResult.Leg2.StopCount - 1 > 0 ? tResult.Leg2.StopCount - 1 : 0
@@ -442,7 +466,7 @@ public partial class JourneyPlanningService : IJourneyPlanningService
 
                 var walkTransfer2 = new LegDto
                 {
-                    Mode = "WALK", FromStopId = leg2.ToStopId, FromStopName = leg2.ToStopName, ToStopId = tResult.Leg3.FromStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg3.FromStopId).StopName,
+                    Mode = "WALK", FromStopId = leg2.ToStopId, FromStopName = leg2.ToStopName, FromStopLat = leg2.ToStopLat, FromStopLon = leg2.ToStopLon, ToStopId = tResult.Leg3.FromStopId, ToStopName = activeStops.First(s => s.StopId == tResult.Leg3.FromStopId).StopName, ToStopLat = activeStops.First(s => s.StopId == tResult.Leg3.FromStopId).StopLat, ToStopLon = activeStops.First(s => s.StopId == tResult.Leg3.FromStopId).StopLon,
                     DepartureTime = leg2.ArrivalTime, ArrivalTime = leg2.ArrivalTime.Value.AddSeconds(tResult.TransferWalk2Seconds), DistanceMeters = tResult.TransferWalk2Meters, DurationMinutes = tResult.TransferWalk2Seconds / 60
                 };
 
@@ -450,8 +474,8 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 {
                     Mode = "TRANSIT", RouteId = tResult.Leg3.RouteId, RouteShortName = tResult.Leg3.RouteShortName, RouteType = tResult.Leg3.RouteType, TripId = tResult.Leg3.TripId, Headsign = tResult.Leg3.Headsign, DirectionId = tResult.Leg3.DirectionId,
                     PatternId = tResult.Leg3.PatternId, ShapeId = tResult.Leg3.ShapeId, ServiceId = tResult.Leg3.ServiceId, ServiceDate = tResult.Leg3.ServiceDate,
-                    FromStopId = tResult.Leg3.FromStopId, FromStopName = walkTransfer2.ToStopName, FromStopSequence = tResult.Leg3.FromStopSequence,
-                    ToStopId = tResult.Leg3.ToStopId, ToStopName = dStop.Stop.StopName, ToStopSequence = tResult.Leg3.ToStopSequence,
+                    FromStopId = tResult.Leg3.FromStopId, FromStopName = walkTransfer2.ToStopName, FromStopLat = walkTransfer2.ToStopLat, FromStopLon = walkTransfer2.ToStopLon, FromStopSequence = tResult.Leg3.FromStopSequence,
+                    ToStopId = tResult.Leg3.ToStopId, ToStopName = dStop.Stop.StopName, ToStopLat = dStop.Stop.StopLat, ToStopLon = dStop.Stop.StopLon, ToStopSequence = tResult.Leg3.ToStopSequence,
                     DepartureTime = new DateTimeOffset(depDt3, tzi.GetUtcOffset(depDt3)), RawGtfsDepartureTime = tResult.Leg3.DepTimeRaw, RawGtfsDepartureSeconds = tResult.Leg3.DepSecs,
                     ArrivalTime = new DateTimeOffset(arrDt3, tzi.GetUtcOffset(arrDt3)), RawGtfsArrivalTime = tResult.Leg3.ArrTimeRaw, RawGtfsArrivalSeconds = tResult.Leg3.ArrSecs,
                     DurationMinutes = (tResult.Leg3.ArrSecs - tResult.Leg3.DepSecs) / 60, StopCount = tResult.Leg3.StopCount, IntermediateStopCount = tResult.Leg3.StopCount - 1 > 0 ? tResult.Leg3.StopCount - 1 : 0
@@ -459,7 +483,7 @@ public partial class JourneyPlanningService : IJourneyPlanningService
                 
                 var walk2 = new LegDto
                 {
-                    Mode = "WALK", FromStopId = dStop.Stop.StopId, FromStopName = dStop.Stop.StopName, ToStopId = "DEST", ToStopName = "VarÄ±ÅŸ NoktasÄ±",
+                    Mode = "WALK", FromStopId = dStop.Stop.StopId, FromStopName = dStop.Stop.StopName, FromStopLat = dStop.Stop.StopLat, FromStopLon = dStop.Stop.StopLon, ToStopId = "DEST", ToStopName = "Varış Noktası", ToStopLat = request.Destination.Lat, ToStopLon = request.Destination.Lon,
                     DepartureTime = leg3.ArrivalTime, ArrivalTime = leg3.ArrivalTime.Value.AddSeconds(dStop.WalkingTimeSeconds),
                     DistanceMeters = dStop.DistanceMeters, DurationMinutes = dStop.WalkingTimeSeconds / 60
                 };

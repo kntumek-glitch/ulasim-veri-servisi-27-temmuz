@@ -91,7 +91,7 @@ export interface Leg {
   geometryGeoJson?: any; // Walk geometry from OSRM
 }
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL ?? '/api';
+const API_BASE = import.meta.env.MODE === 'test' ? 'http://localhost:5108/api' : (import.meta.env.VITE_API_BASE_URL ?? '/api');
 
 export const searchStops = async (query: string): Promise<StopSearchResponse> => {
   const res = await fetch(`${API_BASE}/v1/stops?search=${encodeURIComponent(query)}&pageSize=5`);
@@ -115,6 +115,66 @@ export const searchJourney = async (request: JourneyPlanRequest): Promise<Journe
     } catch (e) {
       // Ignored if not JSON
     }
+    throw new Error(errorDetail);
+  }
+  return res.json();
+};
+
+export interface WalkRouteRequest {
+  origin: { lat: number; lon: number };
+  destination: { lat: number; lon: number };
+  includeGeometry?: boolean;
+}
+
+export interface DirectRoute {
+  distanceMeters: number;
+  durationSeconds: number;
+  geometry: any;
+  source: string;
+  isApproximate: boolean;
+  retrievedAt: string;
+  alternatives?: DirectRoute[];
+}
+
+export interface WalkRouteResponse {
+  distanceMeters: number;
+  durationSeconds: number;
+  source: string;
+  isApproximate: boolean;
+  retrievedAt: string;
+  geometry?: any;
+  alternatives?: WalkRouteResponse[];
+}
+
+export const getWalkRoute = async (request: WalkRouteRequest): Promise<WalkRouteResponse> => {
+  const res = await fetch(`${API_BASE}/v1/routing/walk`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+  if (!res.ok) {
+    let errorDetail = 'Yürüme rotası alınamadı';
+    try {
+      const errorJson = await res.json();
+      if (errorJson.detail) errorDetail = errorJson.detail;
+    } catch (e) {}
+    throw new Error(errorDetail);
+  }
+  return res.json();
+};
+
+export const getDriveRoute = async (request: WalkRouteRequest): Promise<WalkRouteResponse> => {
+  const res = await fetch(`${API_BASE}/v1/routing/drive`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request)
+  });
+  if (!res.ok) {
+    let errorDetail = 'Araba rotası alınamadı';
+    try {
+      const errorJson = await res.json();
+      if (errorJson.detail) errorDetail = errorJson.detail;
+    } catch (e) {}
     throw new Error(errorDetail);
   }
   return res.json();
@@ -220,8 +280,11 @@ export interface GtfsStopRouteResponse {
 export interface RouteVehicleItem {
   busId: string;
   direction: string;
-  latitude: number | null;
-  longitude: number | null;
+  latitude?: number;
+  longitude?: number;
+  locationContext: string;
+  destinationName: string;
+  originDepartureTime: string;
 }
 
 export interface RouteVehiclesResponse {

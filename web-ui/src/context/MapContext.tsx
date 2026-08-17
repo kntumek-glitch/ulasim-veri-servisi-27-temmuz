@@ -1,5 +1,8 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { Itinerary, LocationPoint, ShapePointDto } from '../api';
+import React, { createContext, useContext, useState, ReactNode, useEffect } from 'react';
+import { Itinerary, LocationPoint, ShapePointDto, WalkRouteResponse } from '../api';
+
+export type TravelMode = 'TRANSIT' | 'WALK' | 'DRIVE';
+export type Theme = 'dark' | 'light';
 
 interface MapContextType {
   selectedItinerary: Itinerary | null;
@@ -20,8 +23,18 @@ interface MapContextType {
   setPickingLocationFor: (type: 'origin' | 'destination' | null) => void;
   liveVehicles: import('../api').RouteVehicleItem[];
   setLiveVehicles: (vehicles: import('../api').RouteVehicleItem[]) => void;
+  selectedLiveBusId: string | null;
+  setSelectedLiveBusId: (id: string | null) => void;
   userLocation: LocationPoint | null;
   setUserLocation: (loc: LocationPoint | null) => void;
+  travelMode: TravelMode;
+  setTravelMode: (mode: TravelMode) => void;
+  directRoute: WalkRouteResponse | null;
+  setDirectRoute: (route: WalkRouteResponse | null) => void;
+  selectedDirectRouteIdx: number;
+  setSelectedDirectRouteIdx: (idx: number) => void;
+  theme: Theme;
+  setTheme: (theme: Theme) => void;
 }
 
 const MapContext = createContext<MapContextType | undefined>(undefined);
@@ -36,7 +49,21 @@ export const MapProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [selectedStop, setSelectedStop] = useState<LocationPoint | null>(null);
   const [pickingLocationFor, setPickingLocationFor] = useState<'origin' | 'destination' | null>(null);
   const [liveVehicles, setLiveVehicles] = useState<import('../api').RouteVehicleItem[]>([]);
+  const [selectedLiveBusId, setSelectedLiveBusId] = useState<string | null>(null);
   const [userLocation, setUserLocation] = useState<LocationPoint | null>(null);
+  const [travelMode, setTravelMode] = useState<TravelMode>('TRANSIT');
+  const [directRoute, setDirectRoute] = useState<WalkRouteResponse | null>(null);
+  const [selectedDirectRouteIdx, setSelectedDirectRouteIdx] = useState<number>(0);
+  const [theme, setTheme] = useState<Theme>(() => {
+    const saved = localStorage.getItem('app-theme');
+    if (saved === 'light' || saved === 'dark') return saved;
+    return window.matchMedia && window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('app-theme', theme);
+    document.body.setAttribute('data-theme', theme);
+  }, [theme]);
 
   return (
     <MapContext.Provider value={{
@@ -49,7 +76,12 @@ export const MapProvider: React.FC<{children: ReactNode}> = ({ children }) => {
       selectedStop, setSelectedStop,
       pickingLocationFor, setPickingLocationFor,
       liveVehicles, setLiveVehicles,
-      userLocation, setUserLocation
+      selectedLiveBusId, setSelectedLiveBusId,
+      userLocation, setUserLocation,
+      travelMode, setTravelMode,
+      directRoute, setDirectRoute,
+      selectedDirectRouteIdx, setSelectedDirectRouteIdx,
+      theme, setTheme
     }}>
       {children}
     </MapContext.Provider>

@@ -435,7 +435,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         var wr = await _walkingRoutingService.CalculateWalkingRouteAsync(
                             request.Origin.Lat, request.Origin.Lon, 
                             snapshot.StopsByIndex[currIdx].StopLat, snapshot.StopsByIndex[currIdx].StopLon, 
-                            request.IncludeWalkingGeometry, cancellationToken);
+                            request.IncludeWalkingGeometry, "foot", cancellationToken);
                             
                         legs.Add(new LegDto
                         {
@@ -444,8 +444,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                             DistanceMeters = wr.State.IsSuccess ? (int)wr.DistanceMeters : 0,
                             GeometryGeoJson = wr.GeometryGeoJson,
                             FromStopName = "Origin",
+                            FromStopLat = request.Origin.Lat,
+                            FromStopLon = request.Origin.Lon,
                             ToStopId = curr.StopId,
                             ToStopName = snapshot.StopsByIndex[currIdx].StopName,
+                            ToStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                            ToStopLon = snapshot.StopsByIndex[currIdx].StopLon,
                             WalkingSource = wr.State.IsSuccess ? "OSRM" : "Haversine",
                             IsApproximate = !wr.State.IsSuccess,
                             WalkingWarning = wr.State.ErrorMessage,
@@ -466,8 +470,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         DistanceMeters = transfer.DistanceMeters,
                         FromStopId = curr.PreviousStopId,
                         FromStopName = snapshot.StopsByIndex[prevIdx].StopName,
+                        FromStopLat = snapshot.StopsByIndex[prevIdx].StopLat,
+                        FromStopLon = snapshot.StopsByIndex[prevIdx].StopLon,
                         ToStopId = curr.StopId,
                         ToStopName = snapshot.StopsByIndex[currIdx].StopName,
+                        ToStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                        ToStopLon = snapshot.StopsByIndex[currIdx].StopLon,
                         WalkingSource = "Haversine",
                         IsApproximate = true,
                         WalkingWarning = "Station-to-station static transfer",
@@ -500,8 +508,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         RouteType = rType,
                         FromStopId = curr.BoardingStopId,
                         FromStopName = snapshot.StopsByIndex[boardIdx].StopName,
+                        FromStopLat = snapshot.StopsByIndex[boardIdx].StopLat,
+                        FromStopLon = snapshot.StopsByIndex[boardIdx].StopLon,
                         ToStopId = curr.StopId,
                         ToStopName = snapshot.StopsByIndex[currIdx].StopName,
+                        ToStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                        ToStopLon = snapshot.StopsByIndex[currIdx].StopLon,
                         RawGtfsDepartureSeconds = boardTime.DepartureSeconds,
                         RawGtfsArrivalSeconds = alightTime.ArrivalSeconds,
                         DurationSeconds = alightTime.ArrivalSeconds - boardTime.DepartureSeconds
@@ -515,7 +527,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             // Final Walk (Door-to-Door)
             var wrDest = await _walkingRoutingService.CalculateWalkingRouteAsync(
                 snapshot.StopsByIndex[destIdx].StopLat, snapshot.StopsByIndex[destIdx].StopLon,
-                request.Destination.Lat, request.Destination.Lon, request.IncludeWalkingGeometry, cancellationToken);
+                request.Destination.Lat, request.Destination.Lon, request.IncludeWalkingGeometry, "foot", cancellationToken);
                 
             int actualFinalWalkDuration = wrDest.State.IsSuccess ? (int)wrDest.DurationSeconds : destStop.WalkingDurationSeconds;
             
@@ -527,7 +539,11 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                 GeometryGeoJson = wrDest.GeometryGeoJson,
                 FromStopId = destStop.StopId,
                 FromStopName = snapshot.StopsByIndex[destIdx].StopName,
+                FromStopLat = snapshot.StopsByIndex[destIdx].StopLat,
+                FromStopLon = snapshot.StopsByIndex[destIdx].StopLon,
                 ToStopName = "Destination",
+                ToStopLat = request.Destination.Lat,
+                ToStopLon = request.Destination.Lon,
                 WalkingSource = wrDest.State.IsSuccess ? "OSRM" : "Haversine",
                 IsApproximate = !wrDest.State.IsSuccess,
                 WalkingWarning = wrDest.State.ErrorMessage,
@@ -558,13 +574,17 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             itineraries.Add(iti);
         }
 
-        // Global Route Sorting Hierarchy
+        // Global Route Sorting Hierarchy and Diversity
+        // Group itineraries by the sequence of RouteIds to ensure diverse alternatives
         itineraries = itineraries
+            .GroupBy(x => string.Join("|", x.Legs.Where(l => l.Mode == "TRANSIT").Select(l => l.RouteId ?? "WALK")))
+            .Select(g => g.OrderBy(x => x.ArrivalTime) // Within the same route combination, pick the one arriving earliest
+                          .ThenBy(x => x.TotalWalkingTimeSeconds)
+                          .First())
             .OrderBy(x => x.ArrivalTime) // Priority 1: Earliest DoorToDoorArrivalTime
             .ThenBy(x => x.TransferCount) // Priority 2: Least Transfer Count
             .ThenBy(x => x.TotalWalkingTimeSeconds) // Priority 3: Least Walk
             .ThenBy(x => x.TotalWaitingTimeSeconds) // Priority 4: Least Wait
-            .ThenBy(x => string.Join("_", x.Legs.Where(l => l.Mode == "TRANSIT").Select(l => l.RouteId))) // Priority 5: Deterministic Tie-breaker
             .Take(request.MaxResults)
             .ToList();
 
@@ -941,8 +961,12 @@ private class LocalWalkEdge
             DurationSeconds = originWalk.WalkingDurationSeconds,
             DistanceMeters = (int)(originWalk.WalkingDurationSeconds * 1.4),
             FromStopName = "Origin",
+            FromStopLat = request.Origin.Lat,
+            FromStopLon = request.Origin.Lon,
             ToStopId = snapshot.StopsByIndex[currIdx].StopId,
             ToStopName = snapshot.StopsByIndex[currIdx].StopName,
+            ToStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+            ToStopLon = snapshot.StopsByIndex[currIdx].StopLon,
             WalkingSource = "Haversine",
             IsApproximate = true,
             HasGeometry = false
@@ -962,7 +986,11 @@ private class LocalWalkEdge
                         DistanceMeters = (int)(destWalk.WalkingDurationSeconds * 1.4),
                         FromStopId = curr.StopId,
                         FromStopName = snapshot.StopsByIndex[currIdx].StopName,
+                        FromStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                        FromStopLon = snapshot.StopsByIndex[currIdx].StopLon,
                         ToStopName = "Destination",
+                        ToStopLat = request.Destination.Lat,
+                        ToStopLon = request.Destination.Lon,
                         WalkingSource = "Haversine",
                         IsApproximate = true,
                         HasGeometry = false
@@ -982,8 +1010,12 @@ private class LocalWalkEdge
                     DistanceMeters = transfer.DistanceMeters,
                     FromStopId = curr.StopId,
                     FromStopName = snapshot.StopsByIndex[currIdx].StopName,
+                    FromStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                    FromStopLon = snapshot.StopsByIndex[currIdx].StopLon,
                     ToStopId = curr.NextStopId,
                     ToStopName = snapshot.StopsByIndex[nextIdx].StopName,
+                    ToStopLat = snapshot.StopsByIndex[nextIdx].StopLat,
+                    ToStopLon = snapshot.StopsByIndex[nextIdx].StopLon,
                     WalkingSource = "Haversine",
                     IsApproximate = true,
                     WalkingWarning = "Station-to-station static transfer",
@@ -1016,8 +1048,12 @@ private class LocalWalkEdge
                     RouteType = rType,
                     FromStopId = curr.StopId,
                     FromStopName = snapshot.StopsByIndex[currIdx].StopName,
+                    FromStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                    FromStopLon = snapshot.StopsByIndex[currIdx].StopLon,
                     ToStopId = curr.AlightingStopId,
                     ToStopName = snapshot.StopsByIndex[alightIdx].StopName,
+                    ToStopLat = snapshot.StopsByIndex[alightIdx].StopLat,
+                    ToStopLon = snapshot.StopsByIndex[alightIdx].StopLon,
                     RawGtfsDepartureSeconds = boardTime.DepartureSeconds,
                     RawGtfsArrivalSeconds = alightTime.ArrivalSeconds,
                     DurationSeconds = alightTime.ArrivalSeconds - boardTime.DepartureSeconds
