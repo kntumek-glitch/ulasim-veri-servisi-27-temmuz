@@ -768,14 +768,18 @@ private class LocalWalkEdge
             double dist = GetHaversineDistance(lat, lon, stop.StopLat, stop.StopLon);
             if (dist <= maxMeters)
             {
+                // Applying a 1.5x walking reluctance penalty so the algorithm prioritizes closer stops
+                int baseWalkingTime = (int)(dist / 1.4);
                 result.Add(new LocalWalkEdge
                 {
                     StopId = stop.StopId,
-                    WalkingDurationSeconds = (int)(dist / 1.4) // 1.4 m/s walking speed
+                    WalkingDurationSeconds = (int)(baseWalkingTime * 1.5)
                 });
             }
         }
-        return result;
+        
+        // Sort by walking duration and take the top 10 closest stops to prevent being directed to distant stops
+        return result.OrderBy(x => x.WalkingDurationSeconds).Take(10).ToList();
     }
 
     private const double EarthRadiusMeters = 6371000;
