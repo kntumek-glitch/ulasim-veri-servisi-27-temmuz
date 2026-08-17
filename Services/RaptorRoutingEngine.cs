@@ -761,25 +761,39 @@ private class LocalWalkEdge
 
     private List<LocalWalkEdge> FindNearbyStops(RoutingSnapshot snapshot, double lat, double lon, int maxMeters)
     {
-        var result = new List<LocalWalkEdge>();
+        var allNearby = new List<(string StopId, double Distance)>();
         for (int i = 0; i < snapshot.StopsByIndex.Length; i++)
         {
             var stop = snapshot.StopsByIndex[i];
             double dist = GetHaversineDistance(lat, lon, stop.StopLat, stop.StopLon);
             if (dist <= maxMeters)
             {
-                // Applying a 1.5x walking reluctance penalty so the algorithm prioritizes closer stops
-                int baseWalkingTime = (int)(dist / 1.4);
-                result.Add(new LocalWalkEdge
-                {
-                    StopId = stop.StopId,
-                    WalkingDurationSeconds = (int)(baseWalkingTime * 1.5)
-                });
+                allNearby.Add((stop.StopId, dist));
             }
         }
         
-        // Sort by walking duration and take the top 10 closest stops to prevent being directed to distant stops
-        return result.OrderBy(x => x.WalkingDurationSeconds).Take(10).ToList();
+        if (!allNearby.Any()) return new List<LocalWalkEdge>();
+
+        // Sort by distance
+        allNearby = allNearby.OrderBy(x => x.Distance).ToList();
+        
+        // Dynamic radius: only consider stops that are within 500m of the absolute closest stop.
+        // This prevents walking 1.5km to a stop when there is one 200m away, 
+        // without artificially inflating walking time which breaks timetable synchronization.
+        double closestDist = allNearby.First().Distance;
+        double dynamicMaxMeters = closestDist + 500;
+        
+        var result = new List<LocalWalkEdge>();
+        foreach(var item in allNearby.Where(x => x.Distance <= dynamicMaxMeters).Take(10))
+        {
+            result.Add(new LocalWalkEdge
+            {
+                StopId = item.StopId,
+                WalkingDurationSeconds = (int)(item.Distance / 1.4) // 1.4 m/s walking speed
+            });
+        }
+        
+        return result;
     }
 
     private const double EarthRadiusMeters = 6371000;

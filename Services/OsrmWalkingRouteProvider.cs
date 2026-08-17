@@ -84,12 +84,21 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
                         var distance = route.GetProperty("distance").GetDouble();
                         var duration = route.GetProperty("duration").GetDouble();
                         
-                        // Hack for public OSRM: public server routes 'foot' as 'driving' and returns car durations.
-                        // We must recalculate duration based on realistic walking speed (1.2 m/s).
+                        double haversineDist = GetHaversineDistance(sourceLat, sourceLon, targetLat, targetLon);
+                        
+                        // Sanity check: If OSRM distance is absurdly higher than straight line, it's likely 
+                        // routing cars around one-way blocks (common public OSRM server issue).
+                        if (actualProfile == "foot" && distance > Math.Max(150, haversineDist * 3))
+                        {
+                            _logger.LogWarning("OSRM generated a likely car detour. OSRM: {Dist}m, Haversine: {Hav}m", distance, haversineDist);
+                            return new WalkingResult { State = ErrorState.Failure("Mesafe çok uzun (araç rotası olabilir).", "UNREALISTIC_DETOUR") };
+                        }
+                        
                         double originalDuration = duration;
                         if (actualProfile == "foot")
                         {
-                            duration = distance / 1.2;
+                            // Enforce a realistic walking speed (1.4 m/s) over the valid distance
+                            duration = distance / 1.4;
                         }
                         
                         Console.WriteLine($"[OSRM Walking] Profile: {profile}, ActualProfile: {actualProfile}, Distance: {distance}, OriginalDuration: {originalDuration}, NewDuration: {duration}");
@@ -178,5 +187,19 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
             _logger.LogError(ex, "Failed to connect to OSRM API.");
             return new WalkingResult { State = ErrorState.Failure("Beklenmeyen bir ağ hatası oluştu.", "NETWORK_ERROR") };
         }
+    }
+
+    private double GetHaversineDistance(double lat1, double lon1, double lat2, double lon2)
+    {
+        var deltaPhi = (lat2 - lat1) * Math.PI / 180;
+        var deltaLambda = (lon2 - lon1) * Math.PI / 180;
+        var phi1 = lat1 * Math.PI / 180;
+        var phi2 = lat2 * Math.PI / 180;
+        
+        var a = Math.Sin(deltaPhi / 2) * Math.Sin(deltaPhi / 2) +
+                Math.Cos(phi1) * Math.Cos(phi2) *
+                Math.Sin(deltaLambda / 2) * Math.Sin(deltaLambda / 2);
+        var c = 2 * Math.Atan2(Math.Sqrt(a), Math.Sqrt(1 - a));
+        return 6371000 * c;
     }
 }
