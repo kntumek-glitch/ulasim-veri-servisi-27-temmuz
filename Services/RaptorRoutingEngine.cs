@@ -317,32 +317,40 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         int additionalWait = boardAbsoluteTime - labels[k - 1][boardedStopIdx.Value].AbsoluteArrivalSeconds;
                         waitTime += additionalWait;
 
-                        var newLabel = new RouteLabel
+                        // Prevent 0-minute or extremely short meaningless micro-legs (terminal crawls)
+                        if (arrivalTime - boardAbsoluteTime <= 30)
                         {
-                            StopId = stopId,
-                            StopIndex = stopIdx,
-                            AbsoluteArrivalSeconds = arrivalTime,
-                            Round = k,
-                            TotalWalkDurationSeconds = walkTime,
-                            TotalWaitDurationSeconds = waitTime,
-                            PreviousStopId = snapshot.StopsByIndex[boardedStopIdx.Value].StopId,
-                            PreviousTripId = currentTripId,
-                            PreviousPatternId = patternId,
-                            BoardingStopId = snapshot.StopsByIndex[boardedStopIdx.Value].StopId,
-                            BoardingStopPatternIndex = boardedPatternIndex.Value,
-                            AlightingStopPatternIndex = i,
-                            UsedTransferEdge = false
-                        };
-
-                        if (Dominates(newLabel, labels[k][stopIdx]))
+                            // Skip disembarking, it's not a useful transit leg
+                        }
+                        else
                         {
-                            telemetry.LabelUpdateCount++;
-                            labels[k][stopIdx] = newLabel;
-                            newlyActiveStops.Add(stopIdx);
-                            
-                            if (destStopsSet.Contains(stopId))
+                            var newLabel = new RouteLabel
                             {
-                                globalBestArrivalTime = Math.Min(globalBestArrivalTime, arrivalTime);
+                                StopId = stopId,
+                                StopIndex = stopIdx,
+                                AbsoluteArrivalSeconds = arrivalTime,
+                                Round = k,
+                                TotalWalkDurationSeconds = walkTime,
+                                TotalWaitDurationSeconds = waitTime,
+                                PreviousStopId = snapshot.StopsByIndex[boardedStopIdx.Value].StopId,
+                                PreviousTripId = currentTripId,
+                                PreviousPatternId = patternId,
+                                BoardingStopId = snapshot.StopsByIndex[boardedStopIdx.Value].StopId,
+                                BoardingStopPatternIndex = boardedPatternIndex.Value,
+                                AlightingStopPatternIndex = i,
+                                UsedTransferEdge = false
+                            };
+
+                            if (Dominates(newLabel, labels[k][stopIdx]))
+                            {
+                                telemetry.LabelUpdateCount++;
+                                labels[k][stopIdx] = newLabel;
+                                newlyActiveStops.Add(stopIdx);
+                                
+                                if (destStopsSet.Contains(stopId))
+                                {
+                                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, arrivalTime);
+                                }
                             }
                         }
                     }
@@ -1276,33 +1284,41 @@ private class LocalWalkEdge
                         int additionalWait = labels[k - 1][alightedStopIdx.Value].AbsoluteDepartureSeconds - alightAbsoluteTime;
                         waitTime += additionalWait;
 
-                        var newLabel = new BackwardRouteLabel
+                        // Prevent 0-minute or extremely short meaningless micro-legs (terminal crawls)
+                        if (alightAbsoluteTime - departureTime <= 30)
                         {
-                            StopId = stopId,
-                            StopIndex = stopIdx,
-                            AbsoluteDepartureSeconds = departureTime,
-                            Round = k,
-                            TotalWalkDurationSeconds = walkTime,
-                            TotalWaitDurationSeconds = waitTime,
-                            NextStopId = snapshot.StopsByIndex[alightedStopIdx.Value].StopId,
-                            NextTripId = currentTripId,
-                            NextPatternId = patternId,
-                            AlightingStopId = snapshot.StopsByIndex[alightedStopIdx.Value].StopId,
-                            BoardingStopPatternIndex = i,
-                            AlightingStopPatternIndex = alightedPatternIndex.Value,
-                            UsedTransferEdge = false
-                        };
-
-                        if (DominatesBackward(newLabel, labels[k][stopIdx]))
+                            // Skip boarding, it's not a useful transit leg
+                        }
+                        else
                         {
-                            telemetry.LabelUpdateCount++;
-                            labels[k][stopIdx] = newLabel;
-                            newlyActiveStops.Add(stopIdx);
-                            
-                            if (origStopsSet.Contains(stopId))
+                            var newLabel = new BackwardRouteLabel
                             {
-                                int origDepTime = departureTime - prepBuffer;
-                                globalBestDepartureTime = Math.Max(globalBestDepartureTime, origDepTime);
+                                StopId = stopId,
+                                StopIndex = stopIdx,
+                                AbsoluteDepartureSeconds = departureTime,
+                                Round = k,
+                                TotalWalkDurationSeconds = walkTime,
+                                TotalWaitDurationSeconds = waitTime,
+                                NextStopId = snapshot.StopsByIndex[alightedStopIdx.Value].StopId,
+                                NextTripId = currentTripId,
+                                NextPatternId = patternId,
+                                AlightingStopId = snapshot.StopsByIndex[alightedStopIdx.Value].StopId,
+                                BoardingStopPatternIndex = i,
+                                AlightingStopPatternIndex = alightedPatternIndex.Value,
+                                UsedTransferEdge = false
+                            };
+
+                            if (DominatesBackward(newLabel, labels[k][stopIdx]))
+                            {
+                                telemetry.LabelUpdateCount++;
+                                labels[k][stopIdx] = newLabel;
+                                newlyActiveStops.Add(stopIdx);
+                                
+                                if (origStopsSet.Contains(stopId))
+                                {
+                                    int origDepTime = departureTime - prepBuffer;
+                                    globalBestDepartureTime = Math.Max(globalBestDepartureTime, origDepTime);
+                                }
                             }
                         }
                     }
