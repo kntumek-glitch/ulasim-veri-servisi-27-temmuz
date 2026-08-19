@@ -318,7 +318,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         waitTime += additionalWait;
 
                         // Prevent 0-minute or extremely short meaningless micro-legs (terminal crawls)
-                        if (arrivalTime - boardAbsoluteTime <= 30)
+                        if (arrivalTime - boardAbsoluteTime <= 120)
                         {
                             // Skip disembarking, it's not a useful transit leg
                         }
@@ -1285,7 +1285,7 @@ private class LocalWalkEdge
                         waitTime += additionalWait;
 
                         // Prevent 0-minute or extremely short meaningless micro-legs (terminal crawls)
-                        if (alightAbsoluteTime - departureTime <= 30)
+                        if (alightAbsoluteTime - departureTime <= 120)
                         {
                             // Skip boarding, it's not a useful transit leg
                         }
