@@ -89,14 +89,6 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
                         
                         double haversineDist = GetHaversineDistance(sourceLat, sourceLon, targetLat, targetLon);
                         
-                        // Sanity check: If OSRM distance is absurdly higher than straight line, it's likely 
-                        // routing cars around one-way blocks (common public OSRM server issue).
-                        if (actualProfile == "foot" && distance > Math.Max(150, haversineDist * 3))
-                        {
-                            _logger.LogWarning("OSRM generated a likely car detour. OSRM: {Dist}m, Haversine: {Hav}m", distance, haversineDist);
-                            return new WalkingResult { State = ErrorState.Failure("Mesafe çok uzun (araç rotası olabilir).", "UNREALISTIC_DETOUR") };
-                        }
-                        
                         double originalDuration = duration;
                         if (actualProfile == "foot")
                         {
