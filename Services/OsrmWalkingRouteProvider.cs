@@ -28,9 +28,13 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
     {
         try
         {
-            if (string.IsNullOrWhiteSpace(_config.BaseUrl))
+            var actualProfile = string.IsNullOrWhiteSpace(profile) ? _config.Profile : profile;
+            
+            var baseUrl = actualProfile == "car" ? _config.CarBaseUrl : _config.BaseUrl;
+            
+            if (string.IsNullOrWhiteSpace(baseUrl))
             {
-                _logger.LogError("OSRM BaseUrl is not configured.");
+                _logger.LogError("OSRM BaseUrl is not configured for profile {Profile}.", actualProfile);
                 return new WalkingResult { State = ErrorState.Failure("OSRM BaseUrl is missing", "CONFIG_ERROR") };
             }
 
@@ -39,13 +43,11 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
             var tgtLatStr = targetLat.ToString(CultureInfo.InvariantCulture);
             var tgtLonStr = targetLon.ToString(CultureInfo.InvariantCulture);
 
-            // Use the passed profile, fallback to config if not provided (though default is foot)
-            var actualProfile = string.IsNullOrWhiteSpace(profile) ? _config.Profile : profile;
 
             // OSRM format: /route/v1/{profile}/{coordinates}?overview=full
             // Coordinates format: {longitude},{latitude};{longitude},{latitude}
             var geometries = includeGeometry ? "geojson" : "polyline";
-            var path = $"/route/v1/{actualProfile}/{srcLonStr},{srcLatStr};{tgtLonStr},{tgtLatStr}?overview=full&geometries={geometries}&alternatives=3";
+            var path = $"{baseUrl}/route/v1/{actualProfile}/{srcLonStr},{srcLatStr};{tgtLonStr},{tgtLatStr}?overview=full&geometries={geometries}&alternatives=3";
             
             var response = await _httpClient.GetAsync(path, cancellationToken);
             if (!response.IsSuccessStatusCode)

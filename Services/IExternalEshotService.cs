@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Models.External;
 ﻿namespace ulasim_veri_servisi.Services
 {
     public interface IExternalEshotService

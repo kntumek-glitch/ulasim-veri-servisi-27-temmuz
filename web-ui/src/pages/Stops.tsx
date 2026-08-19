@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { Search, ChevronLeft, ChevronRight, MapPin, ArrowLeft } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Search, ChevronLeft, ChevronRight, MapPin, ArrowLeft, Navigation } from 'lucide-react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { getGtfsStops, getGtfsStopRoutes, GtfsStopResponse } from '../api';
 import { useMapState } from '../context/MapContext';
 import { useMap } from 'react-map-gl/maplibre';
@@ -11,6 +11,13 @@ const Stops: React.FC = () => {
   const [page, setPage] = useState(1);
   const [selectedStop, setSelectedStop] = useState<GtfsStopResponse | null>(null);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const location = useLocation();
+
+  useEffect(() => {
+    if (location.state && location.state.autoSelectStop) {
+      setSelectedStop(location.state.autoSelectStop);
+    }
+  }, [location.state]);
 
   const { data: stopsData, isLoading: isLoadingStops } = useQuery({
     queryKey: ['stops', search, page],
@@ -182,10 +189,21 @@ const StopDetail: React.FC<{ stop: GtfsStopResponse, onBack: () => void }> = ({ 
       <div className="planner-results" style={{ paddingTop: 0 }}>
         
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>Koordinatlar</div>
-          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: 8, fontSize: 14, display: 'flex', gap: 8, alignItems: 'center' }}>
-            <MapPin size={16} color="var(--color-accent-secondary)" />
-            {stop.latitude.toFixed(5)}, {stop.longitude.toFixed(5)}
+          <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginBottom: 8 }}>Koordinatlar & Rota</div>
+          <div style={{ background: 'rgba(0,0,0,0.3)', padding: '12px 16px', borderRadius: 8, fontSize: 14, display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'space-between' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <MapPin size={16} color="var(--color-accent-secondary)" />
+              {stop.latitude.toFixed(5)}, {stop.longitude.toFixed(5)}
+            </div>
+            <a 
+              href={`https://www.google.com/maps/dir/?api=1&destination=${stop.latitude},${stop.longitude}`} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="action-btn"
+              style={{ fontSize: 12, padding: '6px 12px', textDecoration: 'none', display: 'flex', alignItems: 'center', gap: 6 }}
+            >
+              <Navigation size={14} /> Yol Tarifi
+            </a>
           </div>
         </div>
 

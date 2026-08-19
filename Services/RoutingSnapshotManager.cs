@@ -131,8 +131,42 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
 
         foreach (var trip in trips)
         {
-            var stopsSeq = trip.StopTimes.Select(st => st.StopId).ToList();
-            string stopSequenceHash = string.Join(",", stopsSeq).GetHashCode().ToString("X");
+            var timetables = new List<SnapshotStopTime>();
+            bool isTripValid = true;
+            int lastDeparture = -1;
+
+            foreach (var st in trip.StopTimes)
+            {
+                int arr = st.ArrivalSeconds ?? 0;
+                int dep = st.DepartureSeconds ?? 0;
+
+                if (arr < lastDeparture)
+                {
+                    // Invalid trip schedule, goes backwards in time!
+                    isTripValid = false;
+                    break;
+                }
+                
+                timetables.Add(new SnapshotStopTime
+                {
+                    StopId = st.StopId,
+                    StopSequence = st.StopSequence,
+                    ArrivalSeconds = arr,
+                    DepartureSeconds = dep,
+                    ArrivalTimeRaw = st.ArrivalTimeRaw,
+                    DepartureTimeRaw = st.DepartureTimeRaw
+                });
+                
+                lastDeparture = dep;
+            }
+
+            if (!isTripValid || timetables.Count < 2)
+            {
+                continue; // Skip broken trips
+            }
+            
+            // Register this valid trip to the pattern
+            string stopSequenceHash = string.Join(",", timetables.Select(x => x.StopId)).GetHashCode().ToString("X");
             string patternId = $"P_{trip.ShapeId ?? "noshape"}_{trip.Route?.RouteId}_{trip.DirectionId}_{stopSequenceHash}";
             
             if (!snapshot.PatternMetadata.ContainsKey(patternId))
@@ -149,6 +183,7 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
                 };
                 
                 snapshot.PatternToTrips[patternId] = new List<string>();
+                var stopsSeq = timetables.Select(x => x.StopId).ToList();
                 if (!snapshot.PatternToStops.ContainsKey(patternId))
                 {
                     snapshot.PatternToStops[patternId] = stopsSeq;
@@ -166,20 +201,6 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
 
             snapshot.PatternToTrips[patternId].Add(trip.TripId);
             snapshot.TripToServiceId[trip.TripId] = trip.ServiceId;
-            
-            var timetables = new List<SnapshotStopTime>();
-            foreach (var st in trip.StopTimes)
-            {
-                timetables.Add(new SnapshotStopTime
-                {
-                    StopId = st.StopId,
-                    StopSequence = st.StopSequence,
-                    ArrivalSeconds = st.ArrivalSeconds ?? 0,
-                    DepartureSeconds = st.DepartureSeconds ?? 0,
-                    ArrivalTimeRaw = st.ArrivalTimeRaw,
-                    DepartureTimeRaw = st.DepartureTimeRaw
-                });
-            }
             snapshot.TripTimetables[trip.TripId] = timetables;
         }
         // Build bullet-proof O(log N) lookup indices for each stop on each pattern
@@ -190,7 +211,7 @@ public class RoutingSnapshotManager : IRoutingSnapshotManager
             
             for (int s = 0; s < patternStops.Count; s++)
             {
-                string pKey = $"{patternStops[s]}_{patternId}";
+                string pKey = $"{s}_{patternId}";
                 int[] depIndices = new int[patternTrips.Count];
                 int[] arrIndices = new int[patternTrips.Count];
                 

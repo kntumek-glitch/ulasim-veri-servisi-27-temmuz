@@ -161,7 +161,10 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             throw new SnapshotUnavailableException("Routing graph is not loaded or is currently updating.");
         }
 
-        DateTime searchDate = request.DateTime!.Value.Date;
+        var trtOffset = TimeSpan.FromHours(3);
+        var requestTimeTrt = request.DateTime!.Value.ToOffset(trtOffset);
+        DateTime searchDate = requestTimeTrt.Date;
+        
         if (searchDate < snapshot.FeedValidFrom.Date || searchDate > snapshot.FeedValidTo.Date)
         {
             return new JourneyPlanSearchResponse { ReasonCode = "FEED_STALE" };
@@ -178,18 +181,23 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
 
         // 1. Array allocation (RouteLabel[])
         int numStops = snapshot.StopsByIndex.Length;
-        var labels = new RouteLabel[numStops];
-        for (int i = 0; i < numStops; i++)
+        int maxRounds = Math.Min(3, request.MaxTransfers + 1);
+        var labels = new RouteLabel[maxRounds + 1][];
+        for (int r = 0; r <= maxRounds; r++)
         {
-            labels[i] = new RouteLabel
+            labels[r] = new RouteLabel[numStops];
+            for (int i = 0; i < numStops; i++)
             {
-                StopId = snapshot.StopsByIndex[i].StopId,
-                StopIndex = i,
-                AbsoluteArrivalSeconds = int.MaxValue,
-                Round = -1,
-                TotalWalkDurationSeconds = int.MaxValue,
-                TotalWaitDurationSeconds = int.MaxValue
-            };
+                labels[r][i] = new RouteLabel
+                {
+                    StopId = snapshot.StopsByIndex[i].StopId,
+                    StopIndex = i,
+                    AbsoluteArrivalSeconds = int.MaxValue,
+                    Round = -1,
+                    TotalWalkDurationSeconds = int.MaxValue,
+                    TotalWaitDurationSeconds = int.MaxValue
+                };
+            }
         }
 
         // 2. Find nearby origin stops (Walking)
@@ -203,7 +211,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
 
         var destStopsSet = destinationStops.Select(s => s.StopId).ToHashSet();
         
-        DateTime searchDateToday = request.DateTime!.Value.Date;
+        DateTime searchDateToday = requestTimeTrt.Date;
         DateTime searchDateYesterday = searchDateToday.AddDays(-1);
 
         var activeServicesToday = new HashSet<string>();
@@ -225,7 +233,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         int prepBuffer = _configuration.GetValue<int>("JourneyPlan:BoardingPrepBufferSeconds", 60);
         int transferBuffer = _configuration.GetValue<int>("JourneyPlan:TransferSafetyBufferSeconds", 120);
         
-        int departureTimeSeconds = (int)request.DateTime!.Value.TimeOfDay.TotalSeconds;
+        int departureTimeSeconds = (int)requestTimeTrt.TimeOfDay.TotalSeconds;
         int globalBestArrivalTime = int.MaxValue;
 
         var activeStops = new HashSet<int>();
@@ -235,22 +243,21 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         {
             if (snapshot.StopIdToIndex.TryGetValue(os.StopId, out int idx))
             {
-                labels[idx].AbsoluteArrivalSeconds = departureTimeSeconds + os.WalkingDurationSeconds + prepBuffer;
-                labels[idx].TotalWalkDurationSeconds = os.WalkingDurationSeconds;
-                labels[idx].TotalWaitDurationSeconds = 0;
-                labels[idx].Round = -1;
+                labels[0][idx].AbsoluteArrivalSeconds = departureTimeSeconds + os.WalkingDurationSeconds + prepBuffer;
+                labels[0][idx].TotalWalkDurationSeconds = os.WalkingDurationSeconds;
+                labels[0][idx].TotalWaitDurationSeconds = 0;
+                labels[0][idx].Round = -1;
                 activeStops.Add(idx);
                 
                 if (destStopsSet.Contains(os.StopId))
                 {
-                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, labels[idx].AbsoluteArrivalSeconds);
+                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, labels[0][idx].AbsoluteArrivalSeconds);
                 }
             }
         }
 
         // RAPTOR Loop
-        int maxRounds = Math.Min(3, request.MaxTransfers + 1); // 0 = Direct, 1 = 1-Transfer, 2 = 2-Transfer
-        for (int k = 0; k < maxRounds; k++)
+        for (int k = 1; k <= maxRounds; k++)
         {
             telemetry.RoundCount++;
             if (activeStops.Count == 0) break; // Pruning condition
@@ -261,7 +268,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             // Route Scan: find active patterns
             foreach (var stopIdx in activeStops)
             {
-                if (labels[stopIdx].AbsoluteArrivalSeconds >= globalBestArrivalTime)
+                if (labels[k - 1][stopIdx].AbsoluteArrivalSeconds >= globalBestArrivalTime)
                 {
                     // UPPER BOUND PRUNING: Branch is mathematically proven to be sub-optimal
                     continue; 
@@ -285,10 +292,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                 
                 int? currentTripIndex = null;
                 int? boardedStopIdx = null;
+                int? boardedPatternIndex = null;
                 int currentTripOffset = 0;
                 
-                foreach (var stopId in stopsOnPattern)
+                for (int i = 0; i < stopsOnPattern.Count; i++)
                 {
+                    string stopId = stopsOnPattern[i];
                     if (!snapshot.StopIdToIndex.TryGetValue(stopId, out int stopIdx)) continue;
                     
                     if (currentTripIndex.HasValue)
@@ -296,16 +305,16 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         // We are on a trip, we can disembark here
                         string currentTripId = snapshot.PatternToTrips[patternId][currentTripIndex.Value];
                         var timetable = snapshot.TripTimetables[currentTripId];
-                        var stopTime = timetable.First(x => x.StopId == stopId);
+                        var stopTime = timetable[i];
                         
                         int arrivalTime = stopTime.ArrivalSeconds + currentTripOffset;
-                        int walkTime = labels[boardedStopIdx.Value].TotalWalkDurationSeconds;
-                        int waitTime = labels[boardedStopIdx.Value].TotalWaitDurationSeconds; 
+                        int walkTime = labels[k - 1][boardedStopIdx.Value].TotalWalkDurationSeconds;
+                        int waitTime = labels[k - 1][boardedStopIdx.Value].TotalWaitDurationSeconds; 
                         
                         // Wait time = Departure Time from boarded stop - Arrival time at boarded stop
-                        var boardStopTime = timetable.First(x => x.StopId == snapshot.StopsByIndex[boardedStopIdx.Value].StopId);
+                        var boardStopTime = timetable[boardedPatternIndex.Value];
                         int boardAbsoluteTime = boardStopTime.DepartureSeconds + currentTripOffset;
-                        int additionalWait = boardAbsoluteTime - labels[boardedStopIdx.Value].AbsoluteArrivalSeconds;
+                        int additionalWait = boardAbsoluteTime - labels[k - 1][boardedStopIdx.Value].AbsoluteArrivalSeconds;
                         waitTime += additionalWait;
 
                         var newLabel = new RouteLabel
@@ -320,13 +329,15 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                             PreviousTripId = currentTripId,
                             PreviousPatternId = patternId,
                             BoardingStopId = snapshot.StopsByIndex[boardedStopIdx.Value].StopId,
+                            BoardingStopPatternIndex = boardedPatternIndex.Value,
+                            AlightingStopPatternIndex = i,
                             UsedTransferEdge = false
                         };
 
-                        if (Dominates(newLabel, labels[stopIdx]))
+                        if (Dominates(newLabel, labels[k][stopIdx]))
                         {
                             telemetry.LabelUpdateCount++;
-                            labels[stopIdx] = newLabel;
+                            labels[k][stopIdx] = newLabel;
                             newlyActiveStops.Add(stopIdx);
                             
                             if (destStopsSet.Contains(stopId))
@@ -337,12 +348,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                     }
 
                     // Can we board here or find an earlier trip?
-                    if (activeStops.Contains(stopIdx) && labels[stopIdx].AbsoluteArrivalSeconds < globalBestArrivalTime)
+                    if (activeStops.Contains(stopIdx) && labels[k - 1][stopIdx].AbsoluteArrivalSeconds < globalBestArrivalTime)
                     {
                         // EBT: Must wait for Boarding/Transfer buffer
-                        int ebt = labels[stopIdx].AbsoluteArrivalSeconds;
-                        if (labels[stopIdx].Round == -1) ebt += prepBuffer;
-                        else if (labels[stopIdx].Round >= 0)
+                        int ebt = labels[k - 1][stopIdx].AbsoluteArrivalSeconds;
+                        if (labels[k - 1][stopIdx].Round == -1) ebt += prepBuffer;
+                        else if (labels[k - 1][stopIdx].Round >= 0)
                         {
                             if (snapshot.StopTransfers.TryGetValue(stopId, out var selfTransfers))
                             {
@@ -352,7 +363,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                             }
                             else ebt += transferBuffer;
                         }
-                        int bestTripIndex = FindEarliestTripIndex(snapshot, patternId, stopId, ebt, activeServicesToday, activeServicesYesterday, out int offsetSeconds);
+                        int bestTripIndex = FindEarliestTripIndex(snapshot, patternId, i, ebt, activeServicesToday, activeServicesYesterday, out int offsetSeconds);
                         telemetry.TripScannedCount++;
                         if (bestTripIndex != -1)
                         {
@@ -360,6 +371,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                             {
                                 currentTripIndex = bestTripIndex;
                                 boardedStopIdx = stopIdx;
+                                boardedPatternIndex = i;
                                 currentTripOffset = offsetSeconds;
                             }
                         }
@@ -380,23 +392,23 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         if (snapshot.StopIdToIndex.TryGetValue(tr.ToStopId, out int toIdx))
                         {
                             // Apply transfer safety buffer here
-                            int arrival = labels[stopIdx].AbsoluteArrivalSeconds + tr.WalkingTimeSeconds + transferBuffer;
+                            int arrival = labels[k][stopIdx].AbsoluteArrivalSeconds + tr.WalkingTimeSeconds + transferBuffer;
                             var newLabel = new RouteLabel
                             {
                                 StopId = tr.ToStopId,
                                 StopIndex = toIdx,
                                 AbsoluteArrivalSeconds = arrival,
                                 Round = k,
-                                TotalWalkDurationSeconds = labels[stopIdx].TotalWalkDurationSeconds + tr.WalkingTimeSeconds,
-                                TotalWaitDurationSeconds = labels[stopIdx].TotalWaitDurationSeconds,
+                                TotalWalkDurationSeconds = labels[k][stopIdx].TotalWalkDurationSeconds + tr.WalkingTimeSeconds,
+                                TotalWaitDurationSeconds = labels[k][stopIdx].TotalWaitDurationSeconds,
                                 PreviousStopId = sId,
                                 UsedTransferEdge = true
                             };
 
-                            if (Dominates(newLabel, labels[toIdx]))
+                            if (Dominates(newLabel, labels[k][toIdx]))
                             {
                                 telemetry.LabelUpdateCount++;
-                                labels[toIdx] = newLabel;
+                                labels[k][toIdx] = newLabel;
                                 transferActiveStops.Add(toIdx);
                                 
                                 if (destStopsSet.Contains(tr.ToStopId))
@@ -414,19 +426,42 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
 
         // Backtrack from Destination Stops
         var itineraries = new List<ItineraryDto>();
-        foreach (var destStop in destinationStops)
+        
+        // Pre-filter and sort destination stops to avoid reconstructing hundreds of 
+        // suboptimal itineraries which causes OSRM API timeouts.
+        var validDestStopsList = new List<dynamic>();
+        foreach (var d in destinationStops)
         {
-            if (!snapshot.StopIdToIndex.TryGetValue(destStop.StopId, out int destIdx)) continue;
-            var finalLabel = labels[destIdx];
-            if (finalLabel.AbsoluteArrivalSeconds == int.MaxValue) continue;
+            if (!snapshot.StopIdToIndex.TryGetValue(d.StopId, out int idx)) continue;
+            for (int r = 1; r <= maxRounds; r++)
+            {
+                if (labels[r][idx].AbsoluteArrivalSeconds != int.MaxValue)
+                {
+                    validDestStopsList.Add(new { Stop = d, Index = idx, Label = labels[r][idx], FinalRound = r });
+                }
+            }
+        }
+        var validDestStops = validDestStopsList
+            .OrderBy(x => x.Label.AbsoluteArrivalSeconds + x.Stop.WalkingDurationSeconds)
+            .Take(20)
+            .ToList();
+
+        foreach (var destData in validDestStops)
+        {
+            var destStop = destData.Stop;
+            int destIdx = destData.Index;
+            var finalLabel = destData.Label;
+            int currRound = destData.FinalRound;
             
             // Reconstruct backward
             var legs = new List<LegDto>();
             int currIdx = destIdx;
             
+            var visited = new HashSet<int>();
             while (currIdx != -1)
             {
-                var curr = labels[currIdx];
+                if (!visited.Add(currIdx)) break; // Cycle detected
+                var curr = labels[currRound][currIdx];
                 if (curr.Round == -1) // Reached origin
                 {
                     var originWalk = originStops.FirstOrDefault(x => x.StopId == curr.StopId);
@@ -482,12 +517,13 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         HasGeometry = false
                     });
                     currIdx = prevIdx;
+                    // currRound stays the same for walk transfers
                 }
                 else
                 {
                     var boardIdx = snapshot.StopIdToIndex[curr.BoardingStopId];
-                    var boardTime = snapshot.TripTimetables[curr.PreviousTripId].First(x => x.StopId == curr.BoardingStopId);
-                    var alightTime = snapshot.TripTimetables[curr.PreviousTripId].First(x => x.StopId == curr.StopId);
+                    var boardTime = snapshot.TripTimetables[curr.PreviousTripId][curr.BoardingStopPatternIndex];
+                    var alightTime = snapshot.TripTimetables[curr.PreviousTripId][curr.AlightingStopPatternIndex];
                     
                     int? rType = null;
                     string rId = "", rName = "";
@@ -507,10 +543,12 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         RouteShortName = rName,
                         RouteType = rType,
                         FromStopId = curr.BoardingStopId,
+                        FromStopPatternIndex = curr.BoardingStopPatternIndex,
                         FromStopName = snapshot.StopsByIndex[boardIdx].StopName,
                         FromStopLat = snapshot.StopsByIndex[boardIdx].StopLat,
                         FromStopLon = snapshot.StopsByIndex[boardIdx].StopLon,
                         ToStopId = curr.StopId,
+                        ToStopPatternIndex = curr.AlightingStopPatternIndex,
                         ToStopName = snapshot.StopsByIndex[currIdx].StopName,
                         ToStopLat = snapshot.StopsByIndex[currIdx].StopLat,
                         ToStopLon = snapshot.StopsByIndex[currIdx].StopLon,
@@ -519,6 +557,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         DurationSeconds = alightTime.ArrivalSeconds - boardTime.DepartureSeconds
                     });
                     currIdx = boardIdx;
+                    currRound--;
                 }
             }
             
@@ -555,6 +594,8 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             if (!isValid) continue; // Itinerary broken by OSRM delay
 
             bool isApprox = legs.Any(l => l.Mode == "WALK" && l.IsApproximate);
+            
+            DateTimeOffset midnightTrt = new DateTimeOffset(searchDateToday.Year, searchDateToday.Month, searchDateToday.Day, 0, 0, 0, trtOffset);
 
             var iti = new ItineraryDto
             {
@@ -564,8 +605,8 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                 TransferCount = legs.Count(l => l.Mode == "TRANSIT") - 1, // Recalculate based on actual transit legs
                 TotalWaitingTimeSeconds = 0, // Cascade simulator doesn't easily compute this, can be derived later if needed
                 TotalInVehicleTimeSeconds = legs.Where(l => l.Mode == "TRANSIT").Sum(l => l.DurationSeconds),
-                ArrivalTime = searchDateToday.AddSeconds(finalArrivalTimeSeconds),
-                DepartureTime = searchDateToday.AddSeconds(departureTimeSeconds),
+                ArrivalTime = midnightTrt.AddSeconds(finalArrivalTimeSeconds),
+                DepartureTime = midnightTrt.AddSeconds(departureTimeSeconds),
                 IsApproximate = isApprox
             };
             
@@ -576,12 +617,13 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
 
         // Global Route Sorting Hierarchy and Diversity
         // Group itineraries by the sequence of RouteIds to ensure diverse alternatives
+        // We use an EffectiveArrivalTime to penalize long walks. If a route saves 20 mins but requires a 25 min walk, it's penalized.
+        // Penalty = 1.5x walking time (in seconds).
         itineraries = itineraries
             .GroupBy(x => string.Join("|", x.Legs.Where(l => l.Mode == "TRANSIT").Select(l => l.RouteId ?? "WALK")))
-            .Select(g => g.OrderBy(x => x.ArrivalTime) // Within the same route combination, pick the one arriving earliest
-                          .ThenBy(x => x.TotalWalkingTimeSeconds)
+            .Select(g => g.OrderBy(x => x.ArrivalTime.AddSeconds(x.TotalWalkingTimeSeconds * 1.5)) // Within the same route combination, pick the one with best EffectiveArrivalTime
                           .First())
-            .OrderBy(x => x.ArrivalTime) // Priority 1: Earliest DoorToDoorArrivalTime
+            .OrderBy(x => x.ArrivalTime.AddSeconds(x.TotalWalkingTimeSeconds * 1.5)) // Priority 1: Best EffectiveArrivalTime
             .ThenBy(x => x.TransferCount) // Priority 2: Least Transfer Count
             .ThenBy(x => x.TotalWalkingTimeSeconds) // Priority 3: Least Walk
             .ThenBy(x => x.TotalWaitingTimeSeconds) // Priority 4: Least Wait
@@ -627,13 +669,13 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                     }
                     else tEbt += transferBuffer;
                 }
-                int bestTripIdx = FindEarliestTripIndex(snapshot, leg.PatternId!, leg.FromStopId!, tEbt, activeToday, activeYesterday, out int offsetSeconds);
+                int bestTripIdx = FindEarliestTripIndex(snapshot, leg.PatternId!, leg.FromStopPatternIndex, tEbt, activeToday, activeYesterday, out int offsetSeconds);
                 if (bestTripIdx == -1) return false;
 
                 string tripId = snapshot.PatternToTrips[leg.PatternId!][bestTripIdx];
                 var timetable = snapshot.TripTimetables[tripId];
-                var boardTime = timetable.First(x => x.StopId == leg.FromStopId);
-                var alightTime = timetable.First(x => x.StopId == leg.ToStopId);
+                var boardTime = timetable[leg.FromStopPatternIndex];
+                var alightTime = timetable[leg.ToStopPatternIndex];
 
                 leg.TripId = tripId;
                 leg.RawGtfsDepartureSeconds = boardTime.DepartureSeconds;
@@ -645,6 +687,19 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
 
                 leg.DepartureTime = midnight.AddSeconds(absDeparture);
                 leg.ArrivalTime = midnight.AddSeconds(absArrival);
+
+                if (absArrival < absDeparture)
+                {
+                    var sb = new System.Text.StringBuilder();
+                    sb.AppendLine($"NEGATIVE DURATION DETECTED! Trip: {tripId}");
+                    sb.AppendLine($"From: {leg.FromStopName} (idx {leg.FromStopPatternIndex}) at {leg.DepartureTime}");
+                    sb.AppendLine($"To: {leg.ToStopName} (idx {leg.ToStopPatternIndex}) at {leg.ArrivalTime}");
+                    for (int j = 0; j < timetable.Count; j++)
+                    {
+                        sb.AppendLine($"  [{j}] StopId: {timetable[j].StopId}, Arr: {timetable[j].ArrivalSeconds}, Dep: {timetable[j].DepartureSeconds}");
+                    }
+                    _logger.LogError(sb.ToString());
+                }
 
                 currentTimeSeconds = absArrival;
             }
@@ -665,25 +720,13 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         return newLabel.TotalWaitDurationSeconds < oldLabel.TotalWaitDurationSeconds;
     }
 
-        private int FindEarliestTripIndex(RoutingSnapshot snapshot, string patternId, string stopId, int ebt, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
+        private int FindEarliestTripIndex(RoutingSnapshot snapshot, string patternId, int patternIndex, int ebt, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
     {
         var trips = snapshot.PatternToTrips[patternId];
         offsetSeconds = 0;
         
-        string pKey = $"{stopId}_{patternId}";
+        string pKey = $"{patternIndex}_{patternId}";
         if (!snapshot.PatternStopDepartureIndices.TryGetValue(pKey, out var sortedIndices)) return -1;
-        
-        var stops = snapshot.PatternToStops[patternId];
-        int stopIdx = -1;
-        for (int i = 0; i < stops.Count; i++)
-        {
-            if (stops[i] == stopId)
-            {
-                stopIdx = i;
-                break;
-            }
-        }
-        if (stopIdx == -1) return -1;
         
         int FindValidTrip(int targetTime, HashSet<string> activeSet)
         {
@@ -697,7 +740,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                 int originalIndex = sortedIndices[mid];
                 string tId = trips[originalIndex];
                 
-                var st = snapshot.TripTimetables[tId][stopIdx];
+                var st = snapshot.TripTimetables[tId][patternIndex];
                 
                 if (st.DepartureSeconds >= targetTime)
                 {
@@ -726,8 +769,8 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         int bestTodayIdx = FindValidTrip(ebt, activeToday);
         int bestYesterdayIdx = FindValidTrip(ebt + 86400, activeYesterday);
         
-        int bestTodayDep = bestTodayIdx != -1 ? snapshot.TripTimetables[trips[bestTodayIdx]][stopIdx].DepartureSeconds : int.MaxValue;
-        int bestYesterdayDep = bestYesterdayIdx != -1 ? snapshot.TripTimetables[trips[bestYesterdayIdx]][stopIdx].DepartureSeconds - 86400 : int.MaxValue;
+        int bestTodayDep = bestTodayIdx != -1 ? snapshot.TripTimetables[trips[bestTodayIdx]][patternIndex].DepartureSeconds : int.MaxValue;
+        int bestYesterdayDep = bestYesterdayIdx != -1 ? snapshot.TripTimetables[trips[bestYesterdayIdx]][patternIndex].DepartureSeconds - 86400 : int.MaxValue;
         
         if (bestTodayIdx != -1 && bestYesterdayIdx != -1)
         {
@@ -774,17 +817,13 @@ private class LocalWalkEdge
         
         if (!allNearby.Any()) return new List<LocalWalkEdge>();
 
-        // Sort by distance
-        allNearby = allNearby.OrderBy(x => x.Distance).ToList();
-        
-        // Dynamic radius: only consider stops that are within 500m of the absolute closest stop.
-        // This prevents walking 1.5km to a stop when there is one 200m away, 
-        // without artificially inflating walking time which breaks timetable synchronization.
-        double closestDist = allNearby.First().Distance;
-        double dynamicMaxMeters = closestDist + 500;
-        
+        // Sort by distance and limit candidate stops to prevent combinatorial explosion 
+        // which causes severe thread pool starvation for large maxWalkingMeters
+        int maxCandidates = _configuration.GetValue<int>("JourneyPlan:MaxCandidateStops", 15);
+        allNearby = allNearby.OrderBy(x => x.Distance).Take(maxCandidates).ToList();
+
         var result = new List<LocalWalkEdge>();
-        foreach(var item in allNearby.Where(x => x.Distance <= dynamicMaxMeters).Take(10))
+        foreach(var item in allNearby)
         {
             result.Add(new LocalWalkEdge
             {
@@ -870,25 +909,13 @@ private class LocalWalkEdge
         return newLabel.TotalWaitDurationSeconds < oldLabel.TotalWaitDurationSeconds;
     }
 
-        private int FindLatestTripIndex(RoutingSnapshot snapshot, string patternId, string stopId, int latestArrival, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
+        private int FindLatestTripIndex(RoutingSnapshot snapshot, string patternId, int patternIndex, int targetAlightTime, HashSet<string> activeToday, HashSet<string> activeYesterday, out int offsetSeconds)
     {
         var trips = snapshot.PatternToTrips[patternId];
         offsetSeconds = 0;
         
-        string pKey = $"{stopId}_{patternId}";
+        string pKey = $"{patternIndex}_{patternId}";
         if (!snapshot.PatternStopArrivalIndices.TryGetValue(pKey, out var sortedIndices)) return -1;
-        
-        var stops = snapshot.PatternToStops[patternId];
-        int stopIdx = -1;
-        for (int i = 0; i < stops.Count; i++)
-        {
-            if (stops[i] == stopId)
-            {
-                stopIdx = i;
-                break;
-            }
-        }
-        if (stopIdx == -1) return -1;
         
         int FindValidTrip(int targetArrival, HashSet<string> activeSet)
         {
@@ -902,7 +929,7 @@ private class LocalWalkEdge
                 int originalIndex = sortedIndices[mid];
                 string tId = trips[originalIndex];
                 
-                var st = snapshot.TripTimetables[tId][stopIdx];
+                var st = snapshot.TripTimetables[tId][patternIndex];
                 
                 if (st.ArrivalSeconds <= targetArrival)
                 {
@@ -928,11 +955,11 @@ private class LocalWalkEdge
             return -1;
         }
         
-        int bestTodayIdx = FindValidTrip(latestArrival, activeToday);
-        int bestYesterdayIdx = FindValidTrip(latestArrival + 86400, activeYesterday);
+        int bestTodayIdx = FindValidTrip(targetAlightTime, activeToday);
+        int bestYesterdayIdx = FindValidTrip(targetAlightTime + 86400, activeYesterday);
         
-        int bestTodayArr = bestTodayIdx != -1 ? snapshot.TripTimetables[trips[bestTodayIdx]][stopIdx].ArrivalSeconds : -1;
-        int bestYesterdayArr = bestYesterdayIdx != -1 ? snapshot.TripTimetables[trips[bestYesterdayIdx]][stopIdx].ArrivalSeconds - 86400 : -1;
+        int bestTodayArr = bestTodayIdx != -1 ? snapshot.TripTimetables[trips[bestTodayIdx]][patternIndex].ArrivalSeconds : -1;
+        int bestYesterdayArr = bestYesterdayIdx != -1 ? snapshot.TripTimetables[trips[bestYesterdayIdx]][patternIndex].ArrivalSeconds - 86400 : -1;
         
         if (bestTodayIdx != -1 && bestYesterdayIdx != -1)
         {
@@ -959,7 +986,7 @@ private class LocalWalkEdge
     }
     private ItineraryDto? ReconstructBackwardItinerary(
         RoutingSnapshot snapshot, 
-        BackwardRouteLabel[] labels, 
+        BackwardRouteLabel[][] labels, int finalRound, 
         int originStopIdx, 
         LocalWalkEdge originWalk, 
         LocalWalkEdge destWalk, 
@@ -969,6 +996,7 @@ private class LocalWalkEdge
     {
         var legs = new List<LegDto>();
         int currIdx = originStopIdx;
+        int currRound = finalRound;
         
         // Origin walk is added later by CascadeSimulator or we can add it here as Haversine fallback.
         // Actually Cascade simulator expects all legs to be present, and it will re-evaluate them.
@@ -990,9 +1018,11 @@ private class LocalWalkEdge
             HasGeometry = false
         });
         
+        var visited = new HashSet<int>();
         while (currIdx != -1)
         {
-            var curr = labels[currIdx];
+            if (!visited.Add(currIdx)) break; // Cycle detected
+            var curr = labels[currRound][currIdx];
             if (curr.Round == -1) // Reached destination
             {
                 if (destWalk != null)
@@ -1040,6 +1070,7 @@ private class LocalWalkEdge
                     HasGeometry = false
                 });
                 currIdx = nextIdx;
+                    // currRound stays the same for walk transfers
             }
             else
             {
@@ -1077,6 +1108,7 @@ private class LocalWalkEdge
                     DurationSeconds = alightTime.ArrivalSeconds - boardTime.DepartureSeconds
                 });
                 currIdx = alightIdx;
+                    currRound--;
             }
         }
         
@@ -1101,25 +1133,33 @@ private class LocalWalkEdge
         if (snapshot == null)
             throw new SnapshotUnavailableException("Routing graph is not loaded or is currently updating.");
 
-        DateTime searchDate = request.DateTime!.Value.Date;
+        var trtOffset = TimeSpan.FromHours(3);
+        var requestTimeTrt = request.DateTime!.Value.ToOffset(trtOffset);
+        DateTime searchDate = requestTimeTrt.Date;
+        
         if (searchDate < snapshot.FeedValidFrom.Date || searchDate > snapshot.FeedValidTo.Date)
         {
             return new JourneyPlanSearchResponse { ReasonCode = "FEED_STALE" };
         }
 
         int numStops = snapshot.StopsByIndex.Length;
-        var labels = new BackwardRouteLabel[numStops];
-        for (int i = 0; i < numStops; i++)
+        int maxRounds = Math.Min(3, request.MaxTransfers + 1);
+        var labels = new BackwardRouteLabel[maxRounds + 1][];
+        for (int r = 0; r <= maxRounds; r++)
         {
-            labels[i] = new BackwardRouteLabel
+            labels[r] = new BackwardRouteLabel[numStops];
+            for (int i = 0; i < numStops; i++)
             {
-                StopId = snapshot.StopsByIndex[i].StopId,
-                StopIndex = i,
-                AbsoluteDepartureSeconds = -1, // -1 means unreachable
-                Round = -1,
-                TotalWalkDurationSeconds = int.MaxValue,
-                TotalWaitDurationSeconds = int.MaxValue
-            };
+                labels[r][i] = new BackwardRouteLabel
+                {
+                    StopId = snapshot.StopsByIndex[i].StopId,
+                    StopIndex = i,
+                    AbsoluteDepartureSeconds = -1,
+                    Round = -1,
+                    TotalWalkDurationSeconds = int.MaxValue,
+                    TotalWaitDurationSeconds = int.MaxValue
+                };
+            }
         }
 
         var originStops = FindNearbyStops(snapshot, request.Origin.Lat, request.Origin.Lon, request.MaxWalkingMeters);
@@ -1132,7 +1172,7 @@ private class LocalWalkEdge
 
         var origStopsSet = originStops.Select(s => s.StopId).ToHashSet();
         
-        DateTime searchDateToday = request.DateTime!.Value.Date;
+        DateTime searchDateToday = requestTimeTrt.Date;
         DateTime searchDateYesterday = searchDateToday.AddDays(-1);
 
         var activeServicesToday = new HashSet<string>();
@@ -1152,7 +1192,7 @@ private class LocalWalkEdge
         int prepBuffer = _configuration.GetValue<int>("JourneyPlan:BoardingPrepBufferSeconds", 60);
         int transferBuffer = _configuration.GetValue<int>("JourneyPlan:TransferSafetyBufferSeconds", 120);
         
-        int targetArrivalTimeSeconds = (int)request.DateTime!.Value.TimeOfDay.TotalSeconds;
+        int targetArrivalTimeSeconds = (int)requestTimeTrt.TimeOfDay.TotalSeconds;
         int globalBestDepartureTime = -1; // We want to maximize this
 
         var activeStops = new HashSet<int>();
@@ -1163,22 +1203,21 @@ private class LocalWalkEdge
             if (snapshot.StopIdToIndex.TryGetValue(ds.StopId, out int idx))
             {
                 // Must alight here by Target - Walk
-                labels[idx].AbsoluteDepartureSeconds = targetArrivalTimeSeconds - ds.WalkingDurationSeconds;
-                labels[idx].TotalWalkDurationSeconds = ds.WalkingDurationSeconds;
-                labels[idx].TotalWaitDurationSeconds = 0;
-                labels[idx].Round = -1;
+                labels[0][idx].AbsoluteDepartureSeconds = targetArrivalTimeSeconds - ds.WalkingDurationSeconds;
+                labels[0][idx].TotalWalkDurationSeconds = ds.WalkingDurationSeconds;
+                labels[0][idx].TotalWaitDurationSeconds = 0;
+                labels[0][idx].Round = -1;
                 activeStops.Add(idx);
                 
                 if (origStopsSet.Contains(ds.StopId))
                 {
-                    int originDepTime = labels[idx].AbsoluteDepartureSeconds - prepBuffer;
+                    int originDepTime = labels[0][idx].AbsoluteDepartureSeconds - prepBuffer;
                     globalBestDepartureTime = Math.Max(globalBestDepartureTime, originDepTime);
                 }
             }
         }
 
-        int maxRounds = Math.Min(3, request.MaxTransfers + 1);
-        for (int k = 0; k < maxRounds; k++)
+        for (int k = 1; k <= maxRounds; k++)
         {
             telemetry.RoundCount++;
             if (activeStops.Count == 0) break;
@@ -1189,6 +1228,12 @@ private class LocalWalkEdge
             // Route Scan: find active patterns
             foreach (var stopIdx in activeStops)
             {
+                // UPPER BOUND PRUNING (Maximization): Branch is sub-optimal
+                if (labels[k - 1][stopIdx].AbsoluteDepartureSeconds <= globalBestDepartureTime)
+                {
+                    continue; 
+                }
+
                 string sId = snapshot.StopsByIndex[stopIdx].StopId;
                 if (snapshot.StopToPatterns.TryGetValue(sId, out var patterns))
                 {
@@ -1205,6 +1250,7 @@ private class LocalWalkEdge
                 
                 int? currentTripIndex = null;
                 int? alightedStopIdx = null;
+                int? alightedPatternIndex = null;
                 int currentTripOffset = 0;
                 
                 for (int i = stopsOnPattern.Count - 1; i >= 0; i--)
@@ -1217,17 +1263,17 @@ private class LocalWalkEdge
                     {
                         string currentTripId = snapshot.PatternToTrips[patternId][currentTripIndex.Value];
                         var timetable = snapshot.TripTimetables[currentTripId];
-                        var boardTime = timetable.First(x => x.StopId == stopId);
+                        var boardTime = timetable[i];
                         
                         int departureTime = boardTime.DepartureSeconds + currentTripOffset;
-                        int walkTime = labels[alightedStopIdx.Value].TotalWalkDurationSeconds;
-                        int waitTime = labels[alightedStopIdx.Value].TotalWaitDurationSeconds; 
+                        int walkTime = labels[k - 1][alightedStopIdx.Value].TotalWalkDurationSeconds;
+                        int waitTime = labels[k - 1][alightedStopIdx.Value].TotalWaitDurationSeconds; 
                         
                         // Wait time = Departure Time at board stop - Arrival time at alight stop? No.
                         // In ARRIVE_BY, user arrives at alight stop at T_alight. Trip arrives there at trip_arr. Wait time = T_alight - trip_arr.
-                        var alightStopTime = timetable.First(x => x.StopId == snapshot.StopsByIndex[alightedStopIdx.Value].StopId);
+                        var alightStopTime = timetable[alightedPatternIndex.Value];
                         int alightAbsoluteTime = alightStopTime.ArrivalSeconds + currentTripOffset;
-                        int additionalWait = labels[alightedStopIdx.Value].AbsoluteDepartureSeconds - alightAbsoluteTime;
+                        int additionalWait = labels[k - 1][alightedStopIdx.Value].AbsoluteDepartureSeconds - alightAbsoluteTime;
                         waitTime += additionalWait;
 
                         var newLabel = new BackwardRouteLabel
@@ -1242,13 +1288,15 @@ private class LocalWalkEdge
                             NextTripId = currentTripId,
                             NextPatternId = patternId,
                             AlightingStopId = snapshot.StopsByIndex[alightedStopIdx.Value].StopId,
+                            BoardingStopPatternIndex = i,
+                            AlightingStopPatternIndex = alightedPatternIndex.Value,
                             UsedTransferEdge = false
                         };
 
-                        if (DominatesBackward(newLabel, labels[stopIdx]))
+                        if (DominatesBackward(newLabel, labels[k][stopIdx]))
                         {
                             telemetry.LabelUpdateCount++;
-                            labels[stopIdx] = newLabel;
+                            labels[k][stopIdx] = newLabel;
                             newlyActiveStops.Add(stopIdx);
                             
                             if (origStopsSet.Contains(stopId))
@@ -1262,9 +1310,9 @@ private class LocalWalkEdge
                     // 2. Is this stop active? Can we catch a LATER trip that arrives here <= labels[stopIdx].AbsoluteDepartureSeconds?
                     if (activeStops.Contains(stopIdx))
                     {
-                        int targetAlightTime = labels[stopIdx].AbsoluteDepartureSeconds;
+                        int targetAlightTime = labels[k - 1][stopIdx].AbsoluteDepartureSeconds;
 
-                        int bestTripIndex = FindLatestTripIndex(snapshot, patternId, stopId, targetAlightTime, activeServicesToday, activeServicesYesterday, out int offsetSeconds);
+                        int bestTripIndex = FindLatestTripIndex(snapshot, patternId, i, targetAlightTime, activeServicesToday, activeServicesYesterday, out int offsetSeconds);
                         telemetry.TripScannedCount++;
                         if (bestTripIndex != -1)
                         {
@@ -1274,6 +1322,7 @@ private class LocalWalkEdge
                             {
                                 currentTripIndex = bestTripIndex;
                                 alightedStopIdx = stopIdx;
+                                alightedPatternIndex = i;
                                 currentTripOffset = offsetSeconds;
                             }
                         }
@@ -1294,23 +1343,23 @@ private class LocalWalkEdge
                         if (snapshot.StopIdToIndex.TryGetValue(tr.FromStopId, out int fromIdx))
                         {
                             // Must arrive at FromStop early enough to walk and transfer
-                            int requiredArrivalAtFromStop = labels[stopIdx].AbsoluteDepartureSeconds - tr.WalkingTimeSeconds - transferBuffer;
+                            int requiredArrivalAtFromStop = labels[k][stopIdx].AbsoluteDepartureSeconds - tr.WalkingTimeSeconds - transferBuffer;
                             var newLabel = new BackwardRouteLabel
                             {
                                 StopId = tr.FromStopId,
                                 StopIndex = fromIdx,
                                 AbsoluteDepartureSeconds = requiredArrivalAtFromStop,
                                 Round = k,
-                                TotalWalkDurationSeconds = labels[stopIdx].TotalWalkDurationSeconds + tr.WalkingTimeSeconds,
-                                TotalWaitDurationSeconds = labels[stopIdx].TotalWaitDurationSeconds,
+                                TotalWalkDurationSeconds = labels[k][stopIdx].TotalWalkDurationSeconds + tr.WalkingTimeSeconds,
+                                TotalWaitDurationSeconds = labels[k][stopIdx].TotalWaitDurationSeconds,
                                 NextStopId = sId,
                                 UsedTransferEdge = true
                             };
 
-                            if (DominatesBackward(newLabel, labels[fromIdx]))
+                            if (DominatesBackward(newLabel, labels[k][fromIdx]))
                             {
                                 telemetry.LabelUpdateCount++;
-                                labels[fromIdx] = newLabel;
+                                labels[k][fromIdx] = newLabel;
                                 transferActiveStops.Add(fromIdx);
                                 
                                 if (origStopsSet.Contains(tr.FromStopId))
@@ -1328,18 +1377,33 @@ private class LocalWalkEdge
 
         // Reconstruction
         var itineraries = new List<ItineraryDto>();
-        foreach (var os in originStops)
+        
+        var validOrigStopsList = new List<dynamic>();
+        foreach (var o in originStops)
         {
-            if (snapshot.StopIdToIndex.TryGetValue(os.StopId, out int sIdx))
+            if (!snapshot.StopIdToIndex.TryGetValue(o.StopId, out int idx)) continue;
+            for (int r = 1; r <= maxRounds; r++)
             {
-                var lbl = labels[sIdx];
-                if (lbl.AbsoluteDepartureSeconds != -1)
+                if (labels[r][idx].AbsoluteDepartureSeconds != -1)
                 {
-                    // Reconstruct forward!
-                    var itin = ReconstructBackwardItinerary(snapshot, labels, sIdx, os, destinationStops.FirstOrDefault(d => d.StopId == GetFinalDestinationStop(snapshot, labels, sIdx)), request, targetArrivalTimeSeconds, prepBuffer);
-                    if (itin != null) itineraries.Add(itin);
+                    validOrigStopsList.Add(new { Stop = o, Index = idx, Label = labels[r][idx], FinalRound = r });
                 }
             }
+        }
+        var validOrigStops = validOrigStopsList
+            .OrderByDescending(x => x.Label.AbsoluteDepartureSeconds - x.Stop.WalkingDurationSeconds)
+            .Take(20)
+            .ToList();
+
+        foreach (var osData in validOrigStops)
+        {
+            var os = osData.Stop;
+            int sIdx = osData.Index;
+            var lbl = osData.Label;
+            
+            // Reconstruct forward!
+            var itin = ReconstructBackwardItinerary(snapshot, labels, osData.FinalRound, sIdx, os, destinationStops.FirstOrDefault(d => d.StopId == GetFinalDestinationStop(snapshot, labels, osData.FinalRound, sIdx)), request, targetArrivalTimeSeconds, prepBuffer);
+            if (itin != null) itineraries.Add(itin);
         }
 
         var simulatedItineraries = new List<ItineraryDto>();
@@ -1354,8 +1418,9 @@ private class LocalWalkEdge
             bool isValid = CascadeSimulateItinerary(itin.Legs, searchDateToday, departureTimeSeconds, prepBuffer, transferBuffer, snapshot, activeServicesToday, activeServicesYesterday, out int finalArrivalSec);
             if (isValid)
             {
-                itin.DepartureTime = searchDateToday.AddSeconds(departureTimeSeconds);
-                itin.ArrivalTime = searchDateToday.AddSeconds(finalArrivalSec);
+                DateTimeOffset midnightTrt = new DateTimeOffset(searchDateToday.Year, searchDateToday.Month, searchDateToday.Day, 0, 0, 0, trtOffset);
+                itin.DepartureTime = midnightTrt.AddSeconds(departureTimeSeconds);
+                itin.ArrivalTime = midnightTrt.AddSeconds(finalArrivalSec);
                 
                 // In ARRIVE_BY, we only keep it if the physical arrival is <= requested arrival
                 if (itin.ArrivalTime <= request.DateTime!.Value)
@@ -1366,25 +1431,33 @@ private class LocalWalkEdge
             }
         }
 
-        // Sorting: Priority 1: Latest DepartureTime (descending). 
+        // Sorting: Priority 1: Latest EffectiveDepartureTime (descending). 
+        // We penalize long walks by effectively "departing earlier" for sorting purposes.
         var finalSorted = simulatedItineraries
-            .OrderByDescending(i => i.DepartureTime)
+            .GroupBy(x => string.Join("|", x.Legs.Where(l => l.Mode == "TRANSIT").Select(l => l.RouteId ?? "WALK")))
+            .Select(g => g.OrderByDescending(x => x.DepartureTime.AddSeconds(-x.TotalWalkingTimeSeconds * 1.5))
+                          .First())
+            .OrderByDescending(i => i.DepartureTime.AddSeconds(-i.TotalWalkingTimeSeconds * 1.5))
             .ThenBy(i => i.TransferCount)
             .ThenBy(i => i.TotalWalkingTimeSeconds)
             .ThenBy(i => i.TotalWaitingTimeSeconds)
-            .ThenBy(i => i.PlanId)
+            .Take(request.MaxResults)
             .ToList();
 
         return new JourneyPlanSearchResponse { Itineraries = finalSorted, ReasonCode = JourneyPlanResolutionCode.SUCCESS.ToString() };
     }
 
-    private string GetFinalDestinationStop(RoutingSnapshot snapshot, BackwardRouteLabel[] labels, int startIdx)
+    private string GetFinalDestinationStop(RoutingSnapshot snapshot, BackwardRouteLabel[][] labels, int finalRound, int startIdx)
     {
         int curr = startIdx;
-        while(labels[curr].NextStopId != null)
+        int currRound = finalRound;
+        var visited = new HashSet<int>();
+        while(currRound >= 0 && labels[currRound][curr].NextStopId != null)
         {
-            if (snapshot.StopIdToIndex.TryGetValue(labels[curr].NextStopId, out int nextIdx))
+            if (!visited.Add(curr)) break; // Cycle detected
+            if (snapshot.StopIdToIndex.TryGetValue(labels[currRound][curr].NextStopId, out int nextIdx))
             {
+                if (!labels[currRound][curr].UsedTransferEdge) currRound--;
                 curr = nextIdx;
             }
             else
@@ -1392,7 +1465,7 @@ private class LocalWalkEdge
                 break;
             }
         }
-        return labels[curr].StopId;
+        return labels[currRound >= 0 ? currRound : 0][curr].StopId;
     }
 }
 

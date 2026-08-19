@@ -118,7 +118,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         longitude: pos.coords.longitude
                       });
                     },
-                    (err) => alert('Konum alınamadı: ' + err.message)
+                    (err) => alert('Konum alınamadı: ' + err.message),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                   );
                 }}
                 title={userLocation ? "Konumu Gizle" : "Konumumu Göster"}
@@ -149,7 +150,8 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                         longitude: pos.coords.longitude
                       });
                     },
-                    (err) => alert('Konum alınamadı: ' + err.message)
+                    (err) => alert('Konum alınamadı: ' + err.message),
+                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
                   );
                 }}
                 title={userLocation ? "Konumu Gizle" : "Konumumu Göster"}

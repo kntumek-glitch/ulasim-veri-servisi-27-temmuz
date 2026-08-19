@@ -13,8 +13,8 @@ interface MapContextType {
   setMapOrigin: (loc: LocationPoint | null) => void;
   mapDestination: LocationPoint | null;
   setMapDestination: (loc: LocationPoint | null) => void;
-  selectedRouteShape: ShapePointDto[] | null;
-  setSelectedRouteShape: (shape: ShapePointDto[] | null) => void;
+  selectedRouteShape: ShapePointDto[][] | null;
+  setSelectedRouteShape: (shape: ShapePointDto[][] | null) => void;
   selectedRouteColor: string;
   setSelectedRouteColor: (color: string) => void;
   selectedStop: LocationPoint | null;
@@ -44,7 +44,7 @@ export const MapProvider: React.FC<{children: ReactNode}> = ({ children }) => {
   const [itineraries, setItineraries] = useState<Itinerary[]>([]);
   const [mapOrigin, setMapOrigin] = useState<LocationPoint | null>(null);
   const [mapDestination, setMapDestination] = useState<LocationPoint | null>(null);
-  const [selectedRouteShape, setSelectedRouteShape] = useState<ShapePointDto[] | null>(null);
+  const [selectedRouteShape, setSelectedRouteShape] = useState<ShapePointDto[][] | null>(null);
   const [selectedRouteColor, setSelectedRouteColor] = useState<string>('#00f0ff');
   const [selectedStop, setSelectedStop] = useState<LocationPoint | null>(null);
   const [pickingLocationFor, setPickingLocationFor] = useState<'origin' | 'destination' | null>(null);

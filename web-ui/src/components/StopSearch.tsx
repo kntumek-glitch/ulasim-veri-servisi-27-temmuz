@@ -11,11 +11,19 @@ type Stop = {
 
 const StopSearch: React.FC = () => {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [results, setResults] = useState<Stop[]>([]);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!query) {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
+  useEffect(() => {
+    if (!debouncedQuery) {
       setResults([]);
       return;
     }
@@ -23,7 +31,7 @@ const StopSearch: React.FC = () => {
     const fetchStops = async () => {
       setLoading(true);
       try {
-        const res = await fetch(`/v1/stops?search=${encodeURIComponent(query)}&pageSize=5`, {
+        const res = await fetch(`/v1/stops?search=${encodeURIComponent(debouncedQuery)}&pageSize=5`, {
           signal: controller.signal,
         });
         if (res.ok) {
@@ -40,7 +48,7 @@ const StopSearch: React.FC = () => {
     };
     fetchStops();
     return () => controller.abort();
-  }, [query]);
+  }, [debouncedQuery]);
 
   return (
     <div>

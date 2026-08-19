@@ -14,6 +14,8 @@ public struct RouteLabel
     public string PreviousTripId { get; set; }
     public string PreviousPatternId { get; set; }
     public string BoardingStopId { get; set; }
+    public int BoardingStopPatternIndex { get; set; }
+    public int AlightingStopPatternIndex { get; set; }
     public bool UsedTransferEdge { get; set; }
 }
 
@@ -31,5 +33,7 @@ public struct BackwardRouteLabel
     public string NextTripId { get; set; }
     public string NextPatternId { get; set; }
     public string AlightingStopId { get; set; }
+    public int BoardingStopPatternIndex { get; set; }
+    public int AlightingStopPatternIndex { get; set; }
     public bool UsedTransferEdge { get; set; }
 }

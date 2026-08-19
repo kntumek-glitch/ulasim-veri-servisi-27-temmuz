@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Models.External;
 using System.Diagnostics;
 using TransportDataService;
 using TransportDataService.Domain;
@@ -222,8 +223,9 @@ namespace ulasim_veri_servisi.Services
             }
             catch (HttpRequestException ex)
             {
+                _logger.LogError(ex, "HttpRequestException occurred while fetching RouteVehicles.");
                 await LogExternalApiAsync("RouteVehicles", url, 503, (int)stopwatch.ElapsedMilliseconds, false, ex.Message);
-                throw new ServiceUnavailableException("ESHOT servisine ulaşılamıyor.");
+                throw new ServiceUnavailableException("ESHOT servisine ulaşılamıyor. Hata: " + ex.Message);
             }
             catch (Exception ex)
             {

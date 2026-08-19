@@ -1,0 +1,9 @@
+bin/
+obj/
+.git/
+.vs/
+.vscode/
+node_modules/
+web-ui/node_modules/
+web-ui/dist/
+TestResults/

@@ -1,0 +1,97 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgres:15-alpine
+    container_name: ulasim-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_HOST_AUTH_METHOD: trust
+      POSTGRES_DB: TransportDb
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ulasim-api
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=TransportDb;Username=postgres;Password=password;
+      - Osrm__BaseUrl=http://osrm:5000
+    ports:
+      - "8080:8080"
+    restart: always
+
+  init-otp:
+    image: alpine:latest
+    container_name: init-otp
+    volumes:
+      - otpdata:/var/opentripplanner
+      - osrmdata:/data
+      - ./scripts:/scripts
+    command: >
+      sh -c "if [ ! -f /var/opentripplanner/bus-eshot-gtfs.zip ]; then echo 'Downloading GTFS...'; wget -O /tmp/bus-eshot-gtfs.zip https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip; apk add --no-cache python3; python3 /scripts/fix_gtfs.py /tmp/bus-eshot-gtfs.zip /var/opentripplanner/bus-eshot-gtfs.zip; else echo 'GTFS already exists.'; fi && if [ -f /data/izmir.osm.pbf ] && [ ! -f /var/opentripplanner/izmir.osm.pbf ]; then cp /data/izmir.osm.pbf /var/opentripplanner/izmir.osm.pbf; echo 'OSM copied'; fi"
+
+  otp:
+    image: docker.io/opentripplanner/opentripplanner:2.4.0
+    container_name: ulasim-otp
+    ports:
+      - "8081:8080"
+    volumes:
+      - otpdata:/var/opentripplanner
+    command: ["--load"]
+    depends_on:
+      init-otp:
+        condition: service_completed_successfully
+  init-osrm:
+    image: debian:bullseye-slim
+    container_name: init-osrm
+    volumes:
+      - osrmdata:/data
+    command: >
+      sh -c "apt-get update && apt-get install -y wget osmium-tool && if [ ! -f /data/turkey-latest.osm.pbf ]; then wget -O /data/turkey-latest.osm.pbf https://download.geofabrik.de/europe/turkey-latest.osm.pbf; fi && if [ ! -f /data/izmir.osm.pbf ]; then osmium extract -b 26.2,37.8,28.4,39.3 /data/turkey-latest.osm.pbf -o /data/izmir.osm.pbf; fi"
+
+  osrm:
+    image: osrm/osrm-backend:latest
+    container_name: ulasim-osrm
+    volumes:
+      - osrmdata:/data
+    ports:
+      - "5000:5000"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "if [ ! -f /data/izmir.osrm ]; then osrm-extract -p /opt/foot.lua /data/izmir.osm.pbf -f izmir.osrm && osrm-partition /data/izmir.osrm && osrm-customize /data/izmir.osrm; fi && osrm-routed --algorithm mld /data/izmir.osrm"
+    depends_on:
+      init-osrm:
+        condition: service_completed_successfully
+
+  osrm-car:
+    image: osrm/osrm-backend:latest
+    container_name: ulasim-osrm-car
+    volumes:
+      - osrmdata:/data
+    ports:
+      - "5001:5000"
+    entrypoint: ["/bin/sh", "-c"]
+    command: >
+      "if [ ! -f /data/izmir-car.osrm ]; then osrm-extract -p /opt/car.lua /data/izmir.osm.pbf -f izmir-car.osrm && osrm-partition /data/izmir-car.osrm && osrm-customize /data/izmir-car.osrm; fi && osrm-routed --algorithm mld /data/izmir-car.osrm"
+    depends_on:
+      init-osrm:
+        condition: service_completed_successfully
+
+volumes:
+  pgdata:
+  otpdata:
+  osrmdata:

@@ -42,9 +42,16 @@ const LiveBuses: React.FC = () => {
   }, [isError, error, data]);
 
   // Fetch Route Shape
-  const { data: shapeData } = useQuery({
-    queryKey: ['route-shape', data?.routeId],
+  const { data: shapeData0 } = useQuery({
+    queryKey: ['route-shape', data?.routeId, 0],
     queryFn: () => getRouteShape(data!.routeId, 0),
+    enabled: !!data?.routeId,
+    staleTime: Infinity,
+  });
+
+  const { data: shapeData1 } = useQuery({
+    queryKey: ['route-shape', data?.routeId, 1],
+    queryFn: () => getRouteShape(data!.routeId, 1),
     enabled: !!data?.routeId,
     staleTime: Infinity,
   });
@@ -57,8 +64,12 @@ const LiveBuses: React.FC = () => {
       setLiveVehicles([]);
     }
     
-    if (shapeData && shapeData.length > 0) {
-      setSelectedRouteShape(shapeData.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude, sequence: p.sequence })));
+    const shapes = [[], []];
+    if (shapeData0 && shapeData0.length > 0) shapes[0] = shapeData0.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude, sequence: p.sequence }));
+    if (shapeData1 && shapeData1.length > 0) shapes[1] = shapeData1.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude, sequence: p.sequence }));
+
+    if (shapes[0].length > 0 || shapes[1].length > 0) {
+      setSelectedRouteShape(shapes);
       setSelectedRouteColor('#22c55e'); // Green color for live route shape
     } else {
       setSelectedRouteShape(null);
@@ -68,7 +79,7 @@ const LiveBuses: React.FC = () => {
       setLiveVehicles([]);
       setSelectedRouteShape(null);
     };
-  }, [data, shapeData, setLiveVehicles, setSelectedRouteShape, setSelectedRouteColor]);
+  }, [data, shapeData0, shapeData1, setLiveVehicles, setSelectedRouteShape, setSelectedRouteColor]);
 
   return (
     <div className={`planner-container glass-panel ${isCollapsed ? 'collapsed' : ''}`}>
@@ -165,7 +176,7 @@ const LiveBuses: React.FC = () => {
                       </div>
                       <div style={{ flex: 1 }}>
                         <div style={{ fontWeight: 600, fontSize: 15, display: 'flex', justifyContent: 'space-between' }}>
-                          <span>{v.destinationName || `Yön: ${v.direction}`}</span>
+                          <span>{v.destinationName ? `Gittiği Yön: ${v.destinationName}` : `Yön: ${v.direction}`}</span>
                           <span style={{ fontSize: 12, opacity: 0.7 }}>Plaka: {v.busId}</span>
                         </div>
                         <div style={{ fontSize: 13, color: 'var(--color-text-muted)', marginTop: 4, display: 'flex', flexDirection: 'column', gap: 4 }}>

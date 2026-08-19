@@ -1,6 +1,6 @@
 ﻿using System.Text.Json.Serialization;
 
-namespace ulasim_veri_servisi.Services
+namespace ulasim_veri_servisi.Models.External
 {
     public class RouteVehicleDto
     {

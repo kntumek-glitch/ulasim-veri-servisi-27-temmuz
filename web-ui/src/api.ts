@@ -94,9 +94,20 @@ export interface Leg {
 const API_BASE = import.meta.env.MODE === 'test' ? 'http://localhost:5108/api' : (import.meta.env.VITE_API_BASE_URL ?? '/api');
 
 export const searchStops = async (query: string): Promise<StopSearchResponse> => {
-  const res = await fetch(`${API_BASE}/v1/stops?search=${encodeURIComponent(query)}&pageSize=5`);
+  const res = await fetch(`${API_BASE}/v1/gtfs/stops?search=${encodeURIComponent(query)}&pageSize=50`);
   if (!res.ok) throw new Error('Failed to fetch stops');
-  return res.json();
+  const data = await res.json();
+  return {
+    ...data,
+    items: data.items.map((s: any) => ({
+      id: parseInt(s.stopId) || 0,
+      externalStopId: s.stopId,
+      name: s.stopName,
+      latitude: s.latitude,
+      longitude: s.longitude,
+      routes: s.routes || []
+    }))
+  };
 };
 
 export const searchJourney = async (request: JourneyPlanRequest): Promise<JourneyPlanResponse> => {

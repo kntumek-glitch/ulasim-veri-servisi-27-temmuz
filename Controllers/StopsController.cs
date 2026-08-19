@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Models.External;
 using System;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;

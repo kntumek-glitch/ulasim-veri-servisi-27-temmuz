@@ -3,8 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, ChevronLeft, ChevronRight, ArrowLeft } from 'lucide-react';
 import { getRoutes, getRouteDirections, getRouteStops, getRouteShape, RouteDto } from '../api';
 import { useMapState } from '../context/MapContext';
-
-import { useLocation } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Lines: React.FC = () => {
   const location = useLocation();
@@ -121,6 +120,7 @@ const Lines: React.FC = () => {
 
 const LineDetail: React.FC<{ route: RouteDto, onBack: () => void }> = ({ route, onBack }) => {
   const { setSelectedRouteShape, setSelectedRouteColor } = useMapState();
+  const navigate = useNavigate();
   const [activeDirectionId, setActiveDirectionId] = useState<number | null>(null);
 
   // Fetch directions
@@ -153,7 +153,7 @@ const LineDetail: React.FC<{ route: RouteDto, onBack: () => void }> = ({ route, 
   // Sync shape to map
   useEffect(() => {
     if (shape) {
-      setSelectedRouteShape(shape);
+      setSelectedRouteShape([shape]);
       setSelectedRouteColor(`#${route.routeColor || '00f0ff'}`);
     } else {
       setSelectedRouteShape(null);
@@ -219,7 +219,14 @@ const LineDetail: React.FC<{ route: RouteDto, onBack: () => void }> = ({ route, 
 
         <div className="timeline">
           {stops?.map((stop, idx) => (
-            <div key={idx} className="timeline-leg" style={{ marginBottom: 16 }}>
+            <div 
+              key={idx} 
+              className="timeline-leg" 
+              style={{ marginBottom: 16, cursor: 'pointer' }}
+              onClick={() => {
+                navigate('/stops', { state: { autoSelectStop: stop } });
+              }}
+            >
               <div className="timeline-dot" style={{ background: 'var(--color-bg-base)', borderColor: 'var(--color-text-muted)', top: 2 }}></div>
               <div className="timeline-content">
                 <div className="leg-title" style={{ fontSize: 14 }}>

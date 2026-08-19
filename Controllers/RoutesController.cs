@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Models.External;
 using Microsoft.AspNetCore.Mvc;
 using Swashbuckle.AspNetCore.Annotations;
 using ulasim_veri_servisi.Services;

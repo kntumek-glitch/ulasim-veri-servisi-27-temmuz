@@ -855,3 +855,5 @@ h1, h2, h3, h4 {
 }
 
 
+
+.maplibregl-marker, .maplibregl-marker * { transform-style: preserve-3d; }

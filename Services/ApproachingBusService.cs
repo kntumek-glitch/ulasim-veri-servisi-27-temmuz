@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Models.External;
 using System.Globalization;
 using System.Text.Json;
 using TransportDataService;

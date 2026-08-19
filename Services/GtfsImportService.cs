@@ -24,8 +24,7 @@ namespace ulasim_veri_servisi.Services
         private readonly IMemoryCache _cache;
         private readonly Microsoft.Extensions.Configuration.IConfiguration _configuration;
         private readonly IRoutingSnapshotManager _snapshotManager;
-        private const string GtfsUrl =
-    "https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip";
+        
 
         public GtfsImportService(
             IServiceScopeFactory scopeFactory,
@@ -79,7 +78,7 @@ namespace ulasim_veri_servisi.Services
 
                 importRun = new GtfsImportRun
                 {
-                    SourceUrl = GtfsUrl,
+                    SourceUrl = "Multi-source",
                     DownloadedAt = DateTime.UtcNow,
                     StartedAt = DateTime.UtcNow,
                     Status = "Running"
@@ -88,133 +87,56 @@ namespace ulasim_veri_servisi.Services
                 _context.GtfsImportRuns.Add(importRun);
                 await _context.SaveChangesAsync(cancellationToken);
 
-                var activeRun = await _context.GtfsImportRuns.Where(x => x.IsActive).FirstOrDefaultAsync(cancellationToken);
                 
-                using var request = new HttpRequestMessage(HttpMethod.Get, GtfsUrl);
-                if (activeRun != null)
-                {
-                    if (!string.IsNullOrEmpty(activeRun.ETag))
-                    {
-                        request.Headers.TryAddWithoutValidation("If-None-Match", activeRun.ETag);
-                    }
-                    if (activeRun.LastModified.HasValue)
-                    {
-                        request.Headers.IfModifiedSince = new DateTimeOffset(activeRun.LastModified.Value);
-                    }
-                }
+                var sources = _configuration.GetSection("GtfsSources").Get<List<TransportDataService.Domain.Configuration.GtfsSourceConfig>>() 
+                              ?? new List<TransportDataService.Domain.Configuration.GtfsSourceConfig> { new() { Prefix = "ESHOT", Url = "https://www.eshot.gov.tr/gtfs/bus-eshot-gtfs.zip" } };
 
-                var response = await _httpClient.SendAsync(request, cancellationToken);
-                
-                if (response.StatusCode != System.Net.HttpStatusCode.NotModified)
-                {
-                    activePhase = await StartPhaseAsync(_context, importRun.Id, "Downloading", cancellationToken);
-                }
-                
-                if (response.StatusCode == System.Net.HttpStatusCode.NotModified)
-                {
-                    importRun.Status = "Skipped (Not Modified)";
-                    importRun.FinishedAt = DateTime.UtcNow;
-                    importRun.IsActive = false;
-                    _logger.LogInformation("GTFS Import skipped (Not Modified). RunId: {RunId}, ETag: {ETag}", importRun.Id, importRun.ETag);
-                    await _context.SaveChangesAsync(cancellationToken);
-                    return importRun;
-                }
-
-                response.EnsureSuccessStatusCode();
-
-                var zipBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
-              
-
-                if (response.Headers.ETag != null)
-                {
-                    importRun.ETag =
-                        response.Headers.ETag.Tag;
-                }
-
-                if (response.Content.Headers.LastModified != null)
-                {
-                    importRun.LastModified =
-                        response.Content.Headers
-                        .LastModified
-                        .Value
-                        .UtcDateTime;
-                }
-                var hash = SHA256.HashData(zipBytes);
-
-                importRun.FileHash = Convert.ToHexString(hash);
-
-                var alreadyImported =
-        await _context.GtfsImportRuns.AnyAsync(x =>
-            x.FileHash == importRun.FileHash &&
-            x.Status == "Completed",
-            cancellationToken);
-
-                var hasGtfsStops =
-      await _context.GtfsStops.AnyAsync(cancellationToken);
-
-                if (alreadyImported && hasGtfsStops)
-                {
-                    importRun.Status = "Skipped";
-                    importRun.FinishedAt = DateTime.UtcNow;
-                    
-                    _logger.LogInformation("GTFS Import skipped (Already Imported). RunId: {RunId}, Hash: {FileHash}", importRun.Id, importRun.FileHash);
-
-                    await _context.SaveChangesAsync(cancellationToken);
-
-                    return importRun;
-                }
-
-                tempFolder =
-    Path.Combine(
-        Path.GetTempPath(),
-        Guid.NewGuid().ToString());
-
+                tempFolder = Path.Combine(Path.GetTempPath(), Guid.NewGuid().ToString());
                 Directory.CreateDirectory(tempFolder);
 
-                var zipPath =
-    Path.Combine(
-        tempFolder,
-        "bus-eshot-gtfs.zip");
+                activePhase = await StartPhaseAsync(_context, importRun.Id, "Downloading", cancellationToken);
 
-                await File.WriteAllBytesAsync(
-                    zipPath,
-                    zipBytes,
-                    cancellationToken);
+                var sourcePaths = new Dictionary<string, string>();
+                string combinedHash = "";
+
+                foreach (var source in sources)
+                {
+                    try {
+                        using var request = new HttpRequestMessage(HttpMethod.Get, source.Url);
+                        var response = await _httpClient.SendAsync(request, cancellationToken);
+                        response.EnsureSuccessStatusCode();
+
+                        var zipBytes = await response.Content.ReadAsByteArrayAsync(cancellationToken);
+                        var hashBytes = System.Security.Cryptography.SHA256.HashData(zipBytes);
+                        combinedHash += Convert.ToHexString(hashBytes) + "_";
+
+                        var zipPath = Path.Combine(tempFolder, $"{source.Prefix}.zip");
+                        await System.IO.File.WriteAllBytesAsync(zipPath, zipBytes, cancellationToken);
+                        sourcePaths[source.Prefix] = zipPath;
+                    } catch (Exception ex) {
+                        _logger.LogWarning($"Failed to download source {source.Prefix}: {ex.Message}");
+                    }
+                }
+
+                importRun.FileHash = combinedHash.TrimEnd('_');
 
                 if (activePhase != null)
                 {
                     await CompletePhaseAsync(_context, activePhase, cancellationToken);
                 }
 
-                activePhase = await StartPhaseAsync(_context, importRun.Id, "Parsing", cancellationToken);
+                importRun.IsActive = false; // Staging
 
-                using var archive =
-                 ZipFile.OpenRead(zipPath);
+                activePhase = await StartPhaseAsync(_context, importRun.Id, "Parsing & Importing", cancellationToken);
 
-                var requiredFiles = new[] { "agency.txt", "stops.txt", "routes.txt", "trips.txt", "stop_times.txt" };
-                var missingFiles = requiredFiles.Where(f => archive.GetEntry(f) == null).ToList();
-
-                var hasCalendar = archive.GetEntry("calendar.txt") != null;
-                var hasCalendarDates = archive.GetEntry("calendar_dates.txt") != null;
-
-                if (!hasCalendar && !hasCalendarDates)
+                foreach (var kvp in sourcePaths)
                 {
-                    missingFiles.Add("calendar.txt veya calendar_dates.txt");
-                }
-
-                if (missingFiles.Any())
-                {
-                    throw new InvalidDataException($"Eksik GTFS dosyaları: {string.Join(", ", missingFiles)}");
-                }
-                
-                await CompletePhaseAsync(_context, activePhase, cancellationToken);
-                activePhase = await StartPhaseAsync(_context, importRun.Id, "Importing", cancellationToken);
-
-                // Sürümlü feed modeline geçtiğimiz için eski verileri işlemin başında silmiyoruz.
-                // Veriler doğrudan pasif (IsActive=false) statüsünde (Staging) yüklenecek.
-                importRun.IsActive = false;
-
-                var agencyEntry = archive.GetEntry("agency.txt");
+                    string prefix = kvp.Key;
+                    string zipPath = kvp.Value;
+                    
+                    using var archive = System.IO.Compression.ZipFile.OpenRead(zipPath);
+                    
+var agencyEntry = archive.GetEntry("agency.txt");
                 if (agencyEntry != null)
                 {
                     using var stream = agencyEntry.Open();
@@ -229,13 +151,13 @@ namespace ulasim_veri_servisi.Services
                         csv.GetRecords<GtfsAgencyRow>()
                            .ToList();
 
-                    importRun.AgencyCount = agencies.Count;
+                    importRun.AgencyCount += agencies.Count;
 
                     var agencyEntities =
     agencies.Select(x => new GtfsAgency
     {
         GtfsImportRunId = importRun.Id,
-        AgencyId = x.agency_id ?? "",
+        AgencyId = prefix + "_" + (x.agency_id ?? ""),
         AgencyName = x.agency_name,
         AgencyUrl = x.agency_url,
         AgencyTimezone = x.agency_timezone,
@@ -264,16 +186,17 @@ namespace ulasim_veri_servisi.Services
 
                     var routes =
                         csv.GetRecords<GtfsRouteRow>()
+                           .Where(r => (r.agency_id ?? "").ToUpper() != "IZBAN")
                            .ToList();
 
-                    importRun.RouteCount = routes.Count;
+                    importRun.RouteCount += routes.Count;
 
                     var routeEntities =
       routes.Select(x => new GtfsRoute
       {
           GtfsImportRunId = importRun.Id,
-          RouteId = x.route_id,
-          AgencyId = x.agency_id ?? "",
+          RouteId = prefix + "_" + x.route_id,
+          AgencyId = prefix + "_" + (x.agency_id ?? ""),
           RouteShortName = x.route_short_name,
           RouteLongName = x.route_long_name,
           RouteDesc = x.route_desc,
@@ -311,7 +234,7 @@ namespace ulasim_veri_servisi.Services
                         csv.GetRecords<GtfsStopRow>()
                            .ToList();
 
-                    importRun.StopCount = stops.Count;
+                    importRun.StopCount += stops.Count;
 
                     foreach (var s in stops)
                     {
@@ -325,7 +248,7 @@ namespace ulasim_veri_servisi.Services
      stops.Select(x => new GtfsStop
      {
          GtfsImportRunId = importRun.Id,
-         StopId = x.stop_id,
+         StopId = prefix + "_" + x.stop_id,
          StopCode = x.stop_code ?? string.Empty,
          StopName = x.stop_name,
          StopLat = x.stop_lat,
@@ -334,7 +257,7 @@ namespace ulasim_veri_servisi.Services
          ZoneId = x.zone_id,
          StopUrl = x.stop_url,
          LocationType = x.location_type,
-         ParentStation = x.parent_station,
+         ParentStation = string.IsNullOrEmpty(x.parent_station) ? null : prefix + "_" + x.parent_station,
          PlatformCode = x.platform_code
      }).ToList();
 
@@ -365,7 +288,7 @@ namespace ulasim_veri_servisi.Services
                         csv.GetRecords<GtfsTripRow>()
                            .ToList();
 
-                    importRun.TripCount = trips.Count;
+                    importRun.TripCount += trips.Count;
                    
 
                     var routeLookup = await _context.GtfsRoutes
@@ -378,16 +301,16 @@ namespace ulasim_veri_servisi.Services
 
                     var tripEntities =
     trips
-    .Where(x => routeLookup.ContainsKey(x.route_id))
+    .Where(x => routeLookup.ContainsKey(prefix + "_" + x.route_id))
     .Select(x => new GtfsTrip
     {
         GtfsImportRunId = importRun.Id,
-        TripId = x.trip_id,
-        RouteId = x.route_id,
-        GtfsRouteId = routeLookup[x.route_id],
-        ServiceId = x.service_id,
+        TripId = prefix + "_" + x.trip_id,
+        RouteId = prefix + "_" + x.route_id,
+        GtfsRouteId = routeLookup[prefix + "_" + x.route_id],
+        ServiceId = prefix + "_" + x.service_id,
         DirectionId = x.direction_id,
-        ShapeId = x.shape_id,
+        ShapeId = string.IsNullOrEmpty(x.shape_id) ? null : prefix + "_" + x.shape_id,
         TripHeadsign = x.trip_headsign
     })
     .ToList();
@@ -452,17 +375,17 @@ namespace ulasim_veri_servisi.Services
 
                     foreach (var x in stopTimes)
                     {
-                        if (!stopLookup.TryGetValue(x.stop_id, out var stopDbId))
+                        if (!stopLookup.TryGetValue(prefix + "_" + x.stop_id, out var stopDbId))
                             continue;
 
-                        if (!tripLookup.TryGetValue(x.trip_id, out var tripDbId))
+                        if (!tripLookup.TryGetValue(prefix + "_" + x.trip_id, out var tripDbId))
                             continue;
 
                         batch.Add(new GtfsStopTime
                         {
                             GtfsImportRunId = importRun.Id,
-                            TripId = x.trip_id,
-                            StopId = x.stop_id,
+                            TripId = prefix + "_" + x.trip_id,
+                            StopId = prefix + "_" + x.stop_id,
 
                             GtfsTripId = tripDbId,
                             GtfsStopId = stopDbId,
@@ -502,17 +425,8 @@ namespace ulasim_veri_servisi.Services
                         _context.ChangeTracker.Clear();
                     }
 
-                    importRun.StopTimeCount = total;
+                    importRun.StopTimeCount += total;
 
-                    _logger.LogInformation("Generating GtfsTripStopSummaries...");
-                    await _context.Database.ExecuteSqlRawAsync($@"
-                        INSERT INTO ""GtfsTripStopSummaries"" (""GtfsImportRunId"", ""GtfsTripId"", ""StopSequences"")
-                        SELECT ""GtfsImportRunId"", ""GtfsTripId"", array_agg(""StopSequence"" ORDER BY ""StopSequence"")
-                        FROM ""GtfsStopTimes""
-                        WHERE ""GtfsImportRunId"" = {{0}}
-                        GROUP BY ""GtfsImportRunId"", ""GtfsTripId"";
-                    ", importRun.Id);
-                    _logger.LogInformation("GtfsTripStopSummaries generated successfully.");
                 }
                 var calendarEntry = archive.GetEntry("calendar.txt");
 
@@ -532,7 +446,7 @@ namespace ulasim_veri_servisi.Services
     calendars.Select(x => new GtfsCalendar
     {
         GtfsImportRunId = importRun.Id,
-        ServiceId = x.service_id,
+        ServiceId = prefix + "_" + x.service_id,
         Monday = x.monday == 1,
         Tuesday = x.tuesday == 1,
 
@@ -579,7 +493,7 @@ namespace ulasim_veri_servisi.Services
                     var calendarDateEntities = calendarDates.Select(x => new GtfsCalendarDate
                     {
                         GtfsImportRunId = importRun.Id,
-                        ServiceId = x.service_id,
+                        ServiceId = prefix + "_" + x.service_id,
                         Date = DateOnly.ParseExact(x.date, "yyyyMMdd"),
                         ExceptionType = x.exception_type
                     }).ToList();
@@ -626,7 +540,7 @@ namespace ulasim_veri_servisi.Services
                         batch.Add(new GtfsShapePoint
                         {
                             GtfsImportRunId = importRun.Id,
-                            ShapeId = x.shape_id,
+                            ShapeId = string.IsNullOrEmpty(x.shape_id) ? null : prefix + "_" + x.shape_id,
                             Latitude = x.shape_pt_lat,
                             Longitude = x.shape_pt_lon,
                             Sequence = x.shape_pt_sequence
@@ -648,7 +562,7 @@ namespace ulasim_veri_servisi.Services
                             await UpdatePhaseAsync(_context, activePhase, 0, total, cancellationToken);
                         }
                     }
-                    importRun.ShapePointCount = total;
+                    importRun.ShapePointCount += total;
                     _context.GtfsImportRuns.Update(importRun);
 
                     await _context.SaveChangesAsync(cancellationToken);
@@ -662,7 +576,7 @@ namespace ulasim_veri_servisi.Services
                         _context.ChangeTracker.Clear();
                     }
 
-                    importRun.ShapePointCount = total;
+                    importRun.ShapePointCount += total;
                 }
               
                 var feedInfoEntry = archive.GetEntry("feed_info.txt");
@@ -740,6 +654,19 @@ namespace ulasim_veri_servisi.Services
                     }
                 }
                 
+                _logger.LogInformation($"[{prefix}] GTFS verileri başarıyla aktarıldı.");
+                } // End of foreach sourcePaths
+
+                _logger.LogInformation("Generating GtfsTripStopSummaries...");
+                await _context.Database.ExecuteSqlRawAsync($@"
+                    INSERT INTO ""GtfsTripStopSummaries"" (""GtfsImportRunId"", ""GtfsTripId"", ""StopSequences"")
+                    SELECT ""GtfsImportRunId"", ""GtfsTripId"", array_agg(""StopSequence"" ORDER BY ""StopSequence"")
+                    FROM ""GtfsStopTimes""
+                    WHERE ""GtfsImportRunId"" = {0}
+                    GROUP BY ""GtfsImportRunId"", ""GtfsTripId"";
+                ", importRun.Id);
+                _logger.LogInformation("GtfsTripStopSummaries generated successfully.");
+
                 await CompletePhaseAsync(_context, activePhase, cancellationToken);
                 activePhase = await StartPhaseAsync(_context, importRun.Id, "Validating", cancellationToken);
 
@@ -795,10 +722,8 @@ namespace ulasim_veri_servisi.Services
                 activePhase = null;
 
                 // Temizlik işlemi artık ayrı bir metotta (CleanupOldFeedsAsync) yapılacak.
-                // Bu sayede import süreci kilitlenmeden hızlıca dönebilecek.
-                archive.Dispose();
-
-                if (tempFolder != null && Directory.Exists(tempFolder))
+                // Temizlik işlemi artık ayrı bir metotta (CleanupOldFeedsAsync) yapılacak.
+                // Bu sayede import süreci kilitlenmeden hızlıca dönebilecek.                if (tempFolder != null && Directory.Exists(tempFolder))
                 {
                     Directory.Delete(tempFolder, true);
                 }

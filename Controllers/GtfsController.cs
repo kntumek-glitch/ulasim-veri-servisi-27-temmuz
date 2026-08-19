@@ -130,6 +130,12 @@ public class GtfsController : ControllerBase
                     .Select(stopTime => stopTime.Trip.DirectionId!.Value)
                     .Distinct()
                     .OrderBy(directionId => directionId)
+                    .ToList(),
+                Routes = stop.StopTimes
+                    .Where(stopTime => stopTime.Trip.Route.RouteShortName != null)
+                    .Select(stopTime => stopTime.Trip.Route.RouteShortName!)
+                    .Distinct()
+                    .OrderBy(routeName => routeName)
                     .ToList()
             })
             .ToListAsync(cancellationToken);

@@ -1,3 +1,4 @@
+using ulasim_veri_servisi.Models.External;
 using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
@@ -27,10 +28,12 @@ namespace ulasim_veri_servisi.Services
             var cacheResult = await _externalEshotService.GetRouteVehiclesAsync(routeNumber, cancellationToken);
 
             // Fetch Route and Headsigns from DB
-            var dbRouteId = await _context.GtfsRoutes
+            var dbRoute = await _context.GtfsRoutes
                 .Where(r => r.RouteShortName == routeNumber)
-                .Select(r => r.RouteId)
+                .Select(r => new { r.RouteId, r.RouteLongName })
                 .FirstOrDefaultAsync(cancellationToken);
+            
+            string dbRouteId = dbRoute?.RouteId;
 
             var result = new RouteVehiclesResponse
             {
@@ -48,21 +51,39 @@ namespace ulasim_veri_servisi.Services
             string headsign0 = "Bilinmeyen Yön";
             string headsign1 = "Bilinmeyen Yön";
 
-            if (!string.IsNullOrEmpty(dbRouteId))
+            if (dbRoute != null)
             {
-                headsign0 = await _context.GtfsTrips
-                    .Where(t => t.RouteId == dbRouteId && t.DirectionId == 0)
+                var hs0 = await _context.GtfsTrips
+                    .Where(t => t.RouteId == dbRouteId && t.DirectionId == 0 && t.TripHeadsign != null && t.TripHeadsign != "")
                     .Select(t => t.TripHeadsign)
-                    .FirstOrDefaultAsync(cancellationToken) ?? headsign0;
+                    .FirstOrDefaultAsync(cancellationToken);
 
-                headsign1 = await _context.GtfsTrips
-                    .Where(t => t.RouteId == dbRouteId && t.DirectionId == 1)
+                var hs1 = await _context.GtfsTrips
+                    .Where(t => t.RouteId == dbRouteId && t.DirectionId == 1 && t.TripHeadsign != null && t.TripHeadsign != "")
                     .Select(t => t.TripHeadsign)
-                    .FirstOrDefaultAsync(cancellationToken) ?? headsign1;
+                    .FirstOrDefaultAsync(cancellationToken);
+                    
+                if (!string.IsNullOrEmpty(hs0)) headsign0 = hs0;
+                else if (!string.IsNullOrEmpty(dbRoute.RouteLongName))
+                {
+                    var parts = dbRoute.RouteLongName.Split(new[] { " - " }, StringSplitOptions.RemoveEmptyEntries);
+                    if (parts.Length == 2)
+                    {
+                        headsign0 = parts[0].Trim();
+                        headsign1 = parts[1].Trim();
+                    }
+                    else
+                    {
+                        headsign0 = dbRoute.RouteLongName;
+                        headsign1 = dbRoute.RouteLongName;
+                    }
+                }
+                
+                if (!string.IsNullOrEmpty(hs1)) headsign1 = hs1;
             }
 
             var shapePoints = new List<TransportDataService.Domain.GtfsShapePoint>();
-            if (!string.IsNullOrEmpty(dbRouteId))
+            if (dbRoute != null)
             {
                 var shapeIds = await _context.GtfsTrips
                     .Where(t => t.RouteId == dbRouteId && t.ShapeId != null)

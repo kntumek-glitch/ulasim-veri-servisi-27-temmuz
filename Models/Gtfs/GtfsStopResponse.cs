@@ -1,4 +1,4 @@
-﻿namespace ulasim_veri_servisi.Models.Gtfs;
+namespace ulasim_veri_servisi.Models.Gtfs;
 
 public class GtfsStopResponse
 {
@@ -11,6 +11,7 @@ public class GtfsStopResponse
     public int? LocationType { get; init; }
     public string? ParentStation { get; init; }
     public IReadOnlyCollection<int> DirectionIds { get; init; } = Array.Empty<int>();
+    public IReadOnlyCollection<string> Routes { get; init; } = Array.Empty<string>();
 }
 
 public class GtfsStopRouteResponse

@@ -10,7 +10,7 @@ const TripPlanner: React.FC = () => {
   const [timeValue, setTimeValue] = useState<string>('12:00');
   const [dateValue] = useState<string>(new Date().toISOString().split('T')[0]);
   const [maxTransfers, setMaxTransfers] = useState<number>(2);
-  const [maxWalking, setMaxWalking] = useState<number>(1000);
+  const [maxWalking, setMaxWalking] = useState<number>(3000);
 
   const { mapOrigin, mapDestination, setMapOrigin, setMapDestination, selectedItinerary, setSelectedItinerary, itineraries, setItineraries, setPickingLocationFor, travelMode, setTravelMode, directRoute, setDirectRoute, selectedDirectRouteIdx, setSelectedDirectRouteIdx } = useMapState();
 
@@ -98,24 +98,28 @@ const TripPlanner: React.FC = () => {
     if (errors.origin || errors.destination) {
       return;
     }
+    let mode = 'transit';
+    let timeParams = '';
     
     if (travelMode === 'TRANSIT') {
-      let isoDateTime = new Date().toISOString();
-      if (dateValue && timeValue) {
-        const localDateObj = new Date(`${dateValue}T${timeValue}`);
-        isoDateTime = localDateObj.toISOString();
+      let unixTime = Math.floor(new Date().getTime() / 1000);
+      if (typeof dateValue !== 'undefined' && timeValue) {
+        unixTime = Math.floor(new Date(`${dateValue}T${timeValue}`).getTime() / 1000);
+      } else {
+        const today = new Date().toISOString().split('T')[0];
+        unixTime = Math.floor(new Date(`${today}T${timeValue}`).getTime() / 1000);
       }
-
-      const requestPayload: JourneyPlanRequest = {
+      
+      searchMutation.mutate({
         origin: { lat: mapOrigin!.latitude, lon: mapOrigin!.longitude },
         destination: { lat: mapDestination!.latitude, lon: mapDestination!.longitude },
-        dateTime: isoDateTime,
+        dateTime: new Date(unixTime * 1000).toISOString(),
         searchMode: timeMode === 'DEPART_AT' ? 0 : 1,
         maxTransfers: maxTransfers,
         maxWalkingMeters: maxWalking,
-        includeIntermediateStops: true
-      };
-      searchMutation.mutate(requestPayload);
+        includeIntermediateStops: true,
+        includeWalkingGeometry: true
+      });
     } else if (travelMode === 'WALK') {
       walkMutation.mutate({
         origin: { lat: mapOrigin!.latitude, lon: mapOrigin!.longitude },
@@ -229,48 +233,56 @@ const TripPlanner: React.FC = () => {
               
               {travelMode === 'TRANSIT' && (
                 <>
-                  <div className="time-group">
-                    <Clock className="input-icon" size={18} style={{ marginTop: '15px' }} />
-                    <select 
-                      className="glass-input time-select"
-                      value={timeMode}
-                      onChange={e => setTimeMode(e.target.value as 'DEPART_AT' | 'ARRIVE_BY')}
-                    >
-                      <option value="DEPART_AT">Çıkış saati</option>
-                      <option value="ARRIVE_BY">Varış saati</option>
-                    </select>
-                    <input 
-                      type="time" 
-                      className="glass-input time-input" 
-                      value={timeValue}
-                      onChange={e => setTimeValue(e.target.value)}
-                    />
+                  <div className="transit-options" style={{ marginTop: '15px', display: 'flex', gap: '15px' }}>
+                    <div className="option-group" style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Zaman Planı</label>
+                      <select 
+                        value={timeMode} 
+                        onChange={(e) => setTimeMode(e.target.value as 'DEPART_AT' | 'ARRIVE_BY')}
+                        style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                      >
+                        <option value="DEPART_AT" style={{ color: 'black' }}>Şu Saatte Kalk</option>
+                        <option value="ARRIVE_BY" style={{ color: 'black' }}>Şu Saatte Var</option>
+                      </select>
+                    </div>
+                    <div className="option-group" style={{ flex: 1 }}>
+                      <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Saat</label>
+                      <input 
+                        type="time" 
+                        value={timeValue}
+                        onChange={(e) => setTimeValue(e.target.value)}
+                        style={{ width: '100%', padding: '7px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                      />
+                    </div>
                   </div>
-
-                  <div className="filters-group">
+                  <div className="transit-options" style={{ marginTop: '10px', display: 'flex', gap: '15px' }}>
+                  <div className="option-group" style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Max Yürüme</label>
                     <select 
-                      className="glass-input" style={{flex: 1, paddingLeft: 16}}
-                      value={maxTransfers}
-                      onChange={e => setMaxTransfers(Number(e.target.value))}
+                      value={maxWalking} 
+                      onChange={(e) => setMaxWalking(parseInt(e.target.value))}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
                     >
-                      <option value={0}>Aktarmasız</option>
-                      <option value={1}>1 Aktarma</option>
-                      <option value={2}>2 Aktarma</option>
-                      <option value={3}>3 Aktarma</option>
-                      <option value={4}>4 Aktarma</option>
-                      <option value={5}>5 Aktarma</option>
-                    </select>
-                    <select 
-                      className="glass-input" style={{flex: 1, paddingLeft: 16}}
-                      value={maxWalking}
-                      onChange={e => setMaxWalking(Number(e.target.value))}
-                    >
-                      <option value={500}>Maks. yürüyüş 500m</option>
-                      <option value={1000}>Maks. yürüyüş 1km</option>
-                      <option value={2000}>Maks. yürüyüş 2km</option>
-                      <option value={5000}>Maks. yürüyüş 5km</option>
+                      <option value={500} style={{ color: 'black' }}>500 m</option>
+                      <option value={1000} style={{ color: 'black' }}>1 km</option>
+                      <option value={1500} style={{ color: 'black' }}>1.5 km</option>
+                      <option value={2000} style={{ color: 'black' }}>2 km</option>
+                      <option value={3000} style={{ color: 'black' }}>3 km</option>
                     </select>
                   </div>
+                  <div className="option-group" style={{ flex: 1 }}>
+                    <label style={{ display: 'block', fontSize: '12px', color: 'var(--color-text-muted)', marginBottom: '5px' }}>Max Aktarma</label>
+                    <select 
+                      value={maxTransfers} 
+                      onChange={(e) => setMaxTransfers(parseInt(e.target.value))}
+                      style={{ width: '100%', padding: '8px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                    >
+                      <option value={0} style={{ color: 'black' }}>Aktarmasız</option>
+                      <option value={1} style={{ color: 'black' }}>1 Aktarma</option>
+                      <option value={2} style={{ color: 'black' }}>2 Aktarma</option>
+                    </select>
+                  </div>
+                </div>
                 </>
               )}
               
@@ -332,7 +344,7 @@ const TripPlanner: React.FC = () => {
                 const walkTime = itinerary.legs.filter(l => l.mode === 'WALK').reduce((sum, l) => sum + Math.round(l.durationSeconds / 60), 0);
                 const transitTime = itinerary.legs.filter(l => l.mode === 'TRANSIT').reduce((sum, l) => sum + Math.round(l.durationSeconds / 60), 0);
                 const waitTime = Math.round(itinerary.totalWaitingTimeSeconds / 60);
-                const lines = itinerary.legs.filter(l => l.mode === 'TRANSIT' && l.routeShortName).map(l => l.routeShortName);
+                const lines = itinerary.legs.filter(l => l.mode === 'TRANSIT').map(l => l.routeShortName || l.routeId || 'Bilinmiyor');
                 const isExpanded = expandedIdx === idx;
 
                 return (
@@ -358,7 +370,13 @@ const TripPlanner: React.FC = () => {
                     </div>
                     
                     <div className="itinerary-sub-info">
-                      {itinerary.totalDurationMinutes} dk | {itinerary.transferCount} aktarma
+                      <div style={{ color: 'var(--color-text-muted)', fontSize: '13px' }}>
+                        Toplam Geçen Süre: <strong>{itinerary.totalDurationMinutes} dk</strong> 
+                        {waitTime > 0 && <span> (Aktarma bekleme: {waitTime} dk)</span>}
+                      </div>
+                      <div style={{ marginTop: '4px' }}>
+                        Hareket Halinde: <strong>{itinerary.totalDurationMinutes - waitTime} dk</strong> | {itinerary.transferCount} aktarma
+                      </div>
                     </div>
 
                     <div className="itinerary-breakdown">
@@ -404,7 +422,8 @@ const TripPlanner: React.FC = () => {
                               );
                             }
 
-                            if (leg.mode === 'TRANSIT' && leg.routeShortName && leg.fromStopName && leg.toStopName) {
+                            if (leg.mode === 'TRANSIT' && leg.fromStopName && leg.toStopName) {
+                              const routeName = leg.routeShortName || leg.routeId || 'Bilinmiyor';
                               return (
                                 <div key={lIdx} className="timeline-leg">
                                   <div className="timeline-dot transit"></div>
@@ -412,7 +431,7 @@ const TripPlanner: React.FC = () => {
                                     <div className="timeline-header">
                                       <div className="leg-title">
                                         <Bus size={16} color="var(--color-accent-primary)" />
-                                        Hat {leg.routeShortName}
+                                        Hat {routeName}
                                       </div>
                                       <div className="leg-time">
                                         {new Date(leg.departureTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}

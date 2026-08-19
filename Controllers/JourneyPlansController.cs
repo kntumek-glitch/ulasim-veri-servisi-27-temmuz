@@ -11,6 +11,7 @@ using System;
 using System.Linq;
 using System.Collections.Generic;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.EntityFrameworkCore;
 
 namespace ulasim_veri_servisi.Controllers;
 
@@ -83,6 +84,10 @@ public class JourneyPlansController : ControllerBase
         using var cts = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
         cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
 
+        // LOG INCOMING REQUEST PAYLOAD FOR DEBUGGING
+        var reqJson = System.Text.Json.JsonSerializer.Serialize(request);
+        Console.WriteLine($"[V2_SEARCH_REQUEST] {reqJson}");
+
         try 
         {
             var response = await raptorEngine.SearchJourneyV2Async(request, cts.Token);
@@ -122,6 +127,18 @@ public class JourneyPlansController : ControllerBase
         problemDetails.Extensions["resolutionCode"] = resolutionCode.ToString();
         
         return StatusCode(statusCode, problemDetails);
+    }
+
+    [HttpGet("debug-stops")]
+    public async Task<IActionResult> DebugStops([FromServices] TransportDataService.AppDbContext db)
+    {
+        var stops = await db.GtfsStopTimes
+            .IgnoreQueryFilters()
+            .Where(x => x.TripId.Contains("IZBAN_1793"))
+            .OrderBy(x => x.StopSequence)
+            .Select(x => new { x.StopSequence, x.StopId, x.ArrivalSeconds, x.DepartureSeconds, x.GtfsTripId })
+            .ToListAsync();
+        return Ok(stops);
     }
 }
 

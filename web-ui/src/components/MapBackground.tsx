@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import Map, { Source, Layer, Marker, useMap, NavigationControl, GeolocateControl } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
@@ -7,7 +7,7 @@ import { useMapState } from '../context/MapContext';
 import { Leg, Itinerary } from '../api';
 import lineSlice from '@turf/line-slice';
 import { point } from '@turf/helpers';
-import AnimatedMarker from './AnimatedMarker';
+import LiveBusesThreeLayer from './LiveBusesThreeLayer';
 
 const fetchShape = async (tripId: string) => {
   const res = await fetch(`/api/v1/gtfs/shapes?tripId=${encodeURIComponent(tripId)}&format=geojson`);
@@ -24,15 +24,41 @@ const fetchShape = async (tripId: string) => {
 };
 
 const TransitShapeLayer: React.FC<{ leg: Leg; color: string; opacity?: number; layerId: string }> = ({ leg, color, opacity = 0.8, layerId }) => {
-  const { data: geojson } = useQuery({
+  const { data: geojson, isError } = useQuery({
     queryKey: ['shape', leg.tripId],
     queryFn: () => fetchShape(leg.tripId!),
     enabled: !!leg.tripId,
     staleTime: Infinity,
+    retry: 1, // only retry once to fail faster
   });
 
-  const slicedGeojson = React.useMemo(() => {
+  const finalGeojson = React.useMemo(() => {
+    // If shape fetch failed or returned nothing, create a fallback straight line
+    if (isError || (!geojson && !leg.tripId)) {
+      if (!leg.fromStopLat || !leg.fromStopLon || !leg.toStopLat || !leg.toStopLon) return null;
+      
+      const coordinates = [[leg.fromStopLon, leg.fromStopLat]];
+      if (leg.intermediateStops && leg.intermediateStops.length > 0) {
+        leg.intermediateStops.forEach((stop: any) => {
+          if (stop.longitude && stop.latitude) {
+            coordinates.push([stop.longitude, stop.latitude]);
+          }
+        });
+      }
+      coordinates.push([leg.toStopLon, leg.toStopLat]);
+
+      return {
+        type: 'Feature',
+        properties: {},
+        geometry: {
+          type: 'LineString',
+          coordinates
+        }
+      };
+    }
+
     if (!geojson || !leg.fromStopLat || !leg.fromStopLon || !leg.toStopLat || !leg.toStopLon) return geojson;
+    
     try {
       const startPt = point([leg.fromStopLon, leg.fromStopLat]);
       const stopPt = point([leg.toStopLon, leg.toStopLat]);
@@ -41,23 +67,43 @@ const TransitShapeLayer: React.FC<{ leg: Leg; color: string; opacity?: number; l
       console.warn('Failed to slice route shape', e);
       return geojson;
     }
-  }, [geojson, leg]);
+  }, [geojson, leg, isError]);
 
-  if (!slicedGeojson) return null;
+  if (!finalGeojson) return null;
 
   return (
-    <Source id={`${layerId}-source`} type="geojson" data={slicedGeojson}>
+    <Source id={`${layerId}-source`} type="geojson" data={finalGeojson}>
       <Layer
         id={layerId}
         type="line"
         paint={{
           'line-color': color,
-          'line-width': opacity >= 0.8 ? 5 : 3,
+          'line-width': opacity >= 0.8 ? 6 : 5,
           'line-opacity': opacity,
         }}
         layout={{
           'line-cap': 'round',
           'line-join': 'round',
+        }}
+      />
+      <Layer
+        id={`${layerId}-arrows`}
+        type="symbol"
+        layout={{
+          'symbol-placement': 'line',
+          'symbol-spacing': 40,
+          'text-field': '>',
+          'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+          'text-size': 20,
+          'text-keep-upright': false,
+          'text-pitch-alignment': 'map',
+          'text-rotation-alignment': 'map'
+        }}
+        paint={{
+          'text-color': '#ffffff',
+          'text-halo-color': color,
+          'text-halo-width': 2,
+          'text-opacity': opacity
         }}
       />
     </Source>
@@ -140,6 +186,8 @@ export default function MapBackground({ children }: { children?: React.ReactNode
     theme
   } = useMapState();
 
+  const [is2D, setIs2D] = useState(false);
+
   const handleMapClick = (e: any) => {
     if (pickingLocationFor === 'origin') {
       setMapOrigin({ latitude: e.lngLat.lat, longitude: e.lngLat.lng, name: `Lat: ${e.lngLat.lat.toFixed(4)}, Lon: ${e.lngLat.lng.toFixed(4)}` });
@@ -159,18 +207,45 @@ export default function MapBackground({ children }: { children?: React.ReactNode
     }
   };
 
-  // Convert selectedRouteShape to GeoJSON LineString
+  const activeDirection = React.useMemo(() => {
+    if (!selectedLiveBusId || !liveVehicles) return null;
+    const bus = liveVehicles.find(v => v.busId === selectedLiveBusId);
+    return bus ? parseInt(bus.direction) : null;
+  }, [selectedLiveBusId, liveVehicles]);
+
+  // Convert selectedRouteShape to GeoJSON FeatureCollection
   const routeShapeGeoJson = React.useMemo(() => {
     if (!selectedRouteShape || selectedRouteShape.length === 0) return null;
     return {
-      type: 'Feature',
-      properties: {},
-      geometry: {
-        type: 'LineString',
-        coordinates: selectedRouteShape.map(p => [p.longitude, p.latitude])
-      }
+      type: 'FeatureCollection',
+      features: selectedRouteShape.map((shape, idx) => {
+        if (!shape || shape.length === 0) return null;
+        return {
+          type: 'Feature',
+          properties: { direction: idx },
+          geometry: {
+            type: 'LineString',
+            coordinates: shape.map(p => [p.longitude, p.latitude])
+          }
+        };
+      }).filter(Boolean)
     };
   }, [selectedRouteShape]);
+
+  const activePaintProps = React.useMemo(() => {
+    if (activeDirection === null) {
+      return {
+        'line-color': selectedRouteColor,
+        'line-width': 5,
+        'line-opacity': 0.9,
+      };
+    }
+    return {
+      'line-color': selectedRouteColor,
+      'line-width': ['case', ['==', ['get', 'direction'], activeDirection], 7, 3],
+      'line-opacity': ['case', ['==', ['get', 'direction'], activeDirection], 1.0, 0.3]
+    };
+  }, [selectedRouteColor, activeDirection]);
 
   // Determine interactive layer IDs for clicking routes
   const interactiveLayerIds = ['transit-shapes'];
@@ -192,17 +267,17 @@ export default function MapBackground({ children }: { children?: React.ReactNode
       const isTransit = leg.mode === 'TRANSIT' || !!leg.tripId;
       
       let color = '';
-      let opacity = isActive ? 0.9 : 0.65;
+      let opacity = isActive ? 1.0 : 0.4;
       
       if (isActive) {
         if (isTransit) {
            color = LEG_COLORS[transitLegCount % LEG_COLORS.length];
            transitLegCount++;
         } else {
-           color = 'var(--color-text-muted)';
+           color = '#ffffff'; // Bright white for walking to make it highly visible
         }
       } else {
-        color = '#add8e6'; // Faded pale blue for unselected alternative paths
+        color = '#888888'; // Grey for unselected alternative paths
       }
       
       const layerId = `transit-shape-${idx}-${i}`;
@@ -230,13 +305,33 @@ export default function MapBackground({ children }: { children?: React.ReactNode
                 type="line"
                 paint={{
                   'line-color': color,
-                  'line-width': isActive ? 5 : 4,
+                  'line-width': isActive ? 6 : 4,
                   'line-dasharray': [0, 2],
                   'line-opacity': opacity
                 }}
                 layout={{
                   'line-cap': 'round',
                   'line-join': 'round',
+                }}
+              />
+              <Layer
+                id={`${layerId}-arrows`}
+                type="symbol"
+                layout={{
+                  'symbol-placement': 'line',
+                  'symbol-spacing': 40,
+                  'text-field': '>',
+                  'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                  'text-size': 18,
+                  'text-keep-upright': false,
+                  'text-pitch-alignment': 'map',
+                  'text-rotation-alignment': 'map'
+                }}
+                paint={{
+                  'text-color': '#000000',
+                  'text-halo-color': '#ffffff',
+                  'text-halo-width': 2,
+                  'text-opacity': 1.0
                 }}
               />
             </Source>
@@ -278,38 +373,8 @@ export default function MapBackground({ children }: { children?: React.ReactNode
         <NavigationControl position="bottom-right" />
         <MapController />
 
-      {/* Live Buses */}
-      {liveVehicles.map(vehicle => (
-          vehicle.latitude && vehicle.longitude && (
-            <AnimatedMarker
-              key={vehicle.busId}
-              longitude={vehicle.longitude}
-              latitude={vehicle.latitude}
-              anchor="bottom"
-              onClick={(e: any) => {
-                e.originalEvent.stopPropagation();
-                setSelectedLiveBusId(vehicle.busId);
-              }}
-              style={{ cursor: 'pointer', zIndex: selectedLiveBusId === vehicle.busId ? 100 : 10 }}
-            >
-              <div style={{
-                background: selectedLiveBusId === vehicle.busId ? 'var(--color-accent-primary)' : 'rgba(0, 0, 0, 0.8)',
-                color: selectedLiveBusId === vehicle.busId ? '#000' : 'white',
-                padding: '4px 8px',
-                borderRadius: '12px',
-                border: '2px solid white',
-                fontSize: '14px',
-                boxShadow: '0 2px 4px rgba(0,0,0,0.3)',
-                whiteSpace: 'nowrap',
-                fontWeight: 'bold',
-                transform: selectedLiveBusId === vehicle.busId ? 'scale(1.15)' : 'scale(1)',
-                transition: 'transform 0.2s, background 0.2s'
-              }}>
-                🚌 {vehicle.busId}
-              </div>
-            </AnimatedMarker>
-          )
-        ))}
+      {/* Live Buses (Three.js 3D Models) */}
+      <LiveBusesThreeLayer vehicles={liveVehicles} />
 
       {/* Origin Marker */}
       {mapOrigin && (
@@ -346,6 +411,26 @@ export default function MapBackground({ children }: { children?: React.ReactNode
                   }}
                   layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                 />
+                <Layer
+                  id={`direct-route-inactive-arrows-${idx}`}
+                  type="symbol"
+                  layout={{
+                    'symbol-placement': 'line',
+                    'symbol-spacing': 40,
+                    'text-field': '>',
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 18,
+                    'text-keep-upright': false,
+                    'text-pitch-alignment': 'map',
+                    'text-rotation-alignment': 'map'
+                  }}
+                  paint={{
+                    'text-color': '#000000',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 2,
+                    'text-opacity': 0.8
+                  }}
+                />
               </Source>
             );
           })}
@@ -364,6 +449,26 @@ export default function MapBackground({ children }: { children?: React.ReactNode
                   }}
                   layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                 />
+                <Layer
+                  id={`direct-route-active-arrows-${idx}`}
+                  type="symbol"
+                  layout={{
+                    'symbol-placement': 'line',
+                    'symbol-spacing': 40,
+                    'text-field': '>',
+                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                    'text-size': 20,
+                    'text-keep-upright': false,
+                    'text-pitch-alignment': 'map',
+                    'text-rotation-alignment': 'map'
+                  }}
+                  paint={{
+                    'text-color': '#000000',
+                    'text-halo-color': '#ffffff',
+                    'text-halo-width': 2,
+                    'text-opacity': 1.0
+                  }}
+                />
               </Source>
             );
           })}
@@ -374,12 +479,9 @@ export default function MapBackground({ children }: { children?: React.ReactNode
       {routeShapeGeoJson && (
         <Source type="geojson" data={routeShapeGeoJson as any}>
           <Layer
+            id="selected-route-line"
             type="line"
-            paint={{
-              'line-color': selectedRouteColor,
-              'line-width': 5,
-              'line-opacity': 0.9,
-            }}
+            paint={activePaintProps as any}
             layout={{
               'line-cap': 'round',
               'line-join': 'round',
@@ -402,6 +504,30 @@ export default function MapBackground({ children }: { children?: React.ReactNode
           }} />
         </Marker>
       )}
+
+      {/* 3D Buildings Layer (Only visible when zoomed in) */}
+      <Layer
+        id="3d-buildings"
+        source="carto"
+        source-layer="building"
+        type="fill-extrusion"
+        minzoom={14}
+        paint={{
+          'fill-extrusion-color': theme === 'light' ? '#e5e5e5' : '#2a2a2a',
+          'fill-extrusion-height': [
+            'interpolate', ['linear'], ['zoom'],
+            14, 0,
+            14.05, ['coalesce', ['get', 'render_height'], ['*', 3, ['get', 'levels']], 15]
+          ],
+          'fill-extrusion-base': [
+            'interpolate', ['linear'], ['zoom'],
+            14, 0,
+            14.05, ['coalesce', ['get', 'render_min_height'], 0]
+          ],
+          'fill-extrusion-opacity': theme === 'light' ? 0.6 : 0.8
+        }}
+      />
+
       {/* User Location Marker */}
       {userLocation && (
         <Marker longitude={userLocation.longitude} latitude={userLocation.latitude} anchor="center">
@@ -416,7 +542,58 @@ export default function MapBackground({ children }: { children?: React.ReactNode
           }} />
         </Marker>
       )}
-    </Map>
-  </div>
+      {/* User Location Marker */}
+      {userLocation && (
+        <Marker longitude={userLocation.longitude} latitude={userLocation.latitude} anchor="center">
+          <div style={{
+            width: 16, 
+            height: 16, 
+            background: '#00f0ff', 
+            border: '3px solid #fff', 
+            borderRadius: '50%', 
+            boxShadow: '0 0 20px #00f0ff',
+            animation: 'pulse 2s infinite'
+          }} />
+        </Marker>
+      )}
+      </Map>
+
+      <div style={{ position: 'absolute', bottom: 180, right: 10, zIndex: 10 }}>
+        <button
+          onClick={(e) => {
+            e.stopPropagation();
+            if (mapRef.current) {
+              const p = mapRef.current.getPitch();
+              if (p > 10) {
+                mapRef.current.flyTo({ pitch: 0, bearing: 0, duration: 1000 });
+                setIs2D(true);
+              } else {
+                mapRef.current.flyTo({ pitch: 45, bearing: -17.6, duration: 1000 });
+                setIs2D(false);
+              }
+            }
+          }}
+          style={{
+            background: 'var(--color-surface)',
+            color: 'var(--color-text-main)',
+            border: '1px solid rgba(255,255,255,0.1)',
+            borderRadius: '4px',
+            width: '29px',
+            height: '29px',
+            cursor: 'pointer',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontWeight: 'bold',
+            fontSize: '11px',
+            boxShadow: '0 0 0 2px rgba(0,0,0,0.1)'
+          }}
+          title="2D / 3D Görünüm"
+        >
+          {is2D ? '3D' : '2D'}
+        </button>
+      </div>
+    </div>
   );
 };
+

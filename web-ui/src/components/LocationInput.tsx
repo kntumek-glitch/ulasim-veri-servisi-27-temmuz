@@ -16,6 +16,7 @@ const LocationInput: React.FC<LocationInputProps> = ({
   placeholder, iconColorClass = '', value, onChange, onMapPickRequest
 }) => {
   const [query, setQuery] = useState('');
+  const [debouncedQuery, setDebouncedQuery] = useState('');
   const [isFocused, setIsFocused] = useState(false);
   const containerRef = useRef<HTMLDivElement>(null);
   const { setUserLocation } = useMapState();
@@ -30,10 +31,17 @@ const LocationInput: React.FC<LocationInputProps> = ({
     }
   }, [value]);
 
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedQuery(query);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const { data: searchResults, isLoading } = useQuery({
-    queryKey: ['stopsSearch', query],
-    queryFn: () => searchStops(query),
-    enabled: query.length >= 2 && isFocused,
+    queryKey: ['stopsSearch', debouncedQuery],
+    queryFn: () => searchStops(debouncedQuery),
+    enabled: debouncedQuery.length >= 2 && isFocused,
   });
 
   // Handle outside click to close dropdown

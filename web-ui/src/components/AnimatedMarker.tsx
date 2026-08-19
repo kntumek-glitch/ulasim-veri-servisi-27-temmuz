@@ -10,6 +10,7 @@ interface AnimatedMarkerProps {
 
 const AnimatedMarker: React.FC<AnimatedMarkerProps> = ({ longitude, latitude, children, ...props }) => {
   const [pos, setPos] = useState({ lng: longitude, lat: latitude });
+  const [bearing, setBearing] = useState(0);
   const prevTarget = useRef({ lng: longitude, lat: latitude });
   const reqRef = useRef<number>();
 
@@ -24,12 +25,19 @@ const AnimatedMarker: React.FC<AnimatedMarkerProps> = ({ longitude, latitude, ch
     const targetLng = longitude;
     const targetLat = latitude;
     
-    // Distance check: if distance is huge (e.g. > ~2km), just snap to it (avoids flying across the city if data glitches)
+    // Distance check: if distance is huge (e.g. > ~2km), just snap to it
     const dist = Math.sqrt(Math.pow(targetLng - startLng, 2) + Math.pow(targetLat - startLat, 2));
     if (dist > 0.02) { 
       setPos({ lng: targetLng, lat: targetLat });
       prevTarget.current = { lng: targetLng, lat: targetLat };
       return;
+    }
+
+    if (dist > 0.00001) {
+      // Calculate bearing
+      let newBearing = Math.atan2(targetLng - startLng, targetLat - startLat) * (180 / Math.PI);
+      if (newBearing < 0) newBearing += 360;
+      setBearing(newBearing);
     }
 
     const startTime = performance.now();
@@ -63,8 +71,17 @@ const AnimatedMarker: React.FC<AnimatedMarkerProps> = ({ longitude, latitude, ch
   }, [longitude, latitude]);
 
   return (
-    <Marker longitude={pos.lng} latitude={pos.lat} {...props}>
-      {children}
+    <Marker 
+      longitude={pos.lng} 
+      latitude={pos.lat} 
+      rotation={bearing}
+      pitchAlignment="map"
+      rotationAlignment="map"
+      {...props}
+    >
+      <div style={{ transform: 'translate(-50%, -50%)', transformStyle: 'preserve-3d' }}>
+        {children}
+      </div>
     </Marker>
   );
 };
