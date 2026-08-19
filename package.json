@@ -1,0 +1,7 @@
+{
+  "name": "ulasim-veri-servisi-root",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd web-ui && npm install && npm run build"
+  }
+}
