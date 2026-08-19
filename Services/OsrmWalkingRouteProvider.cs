@@ -38,6 +38,29 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
                 return new WalkingResult { State = ErrorState.Failure("OSRM BaseUrl is missing", "CONFIG_ERROR") };
             }
 
+            if (actualProfile == "foot")
+            {
+                double dist = GetHaversineDistance(sourceLat, sourceLon, targetLat, targetLon);
+                var result = new WalkingResult
+                {
+                    State = ErrorState.Success(),
+                    DistanceMeters = dist,
+                    DurationSeconds = dist / 1.4,
+                    Alternatives = new System.Collections.Generic.List<WalkingRouteAlternative>()
+                };
+                if (includeGeometry)
+                {
+                    result.GeometryGeoJson = new {
+                        type = "LineString",
+                        coordinates = new[] {
+                            new[] { sourceLon, sourceLat },
+                            new[] { targetLon, targetLat }
+                        }
+                    };
+                }
+                return result;
+            }
+
             var srcLatStr = sourceLat.ToString(CultureInfo.InvariantCulture);
             var srcLonStr = sourceLon.ToString(CultureInfo.InvariantCulture);
             var tgtLatStr = targetLat.ToString(CultureInfo.InvariantCulture);
