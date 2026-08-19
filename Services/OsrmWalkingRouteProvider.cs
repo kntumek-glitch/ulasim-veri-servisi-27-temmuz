@@ -20,6 +20,7 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
     public OsrmWalkingRouteProvider(HttpClient httpClient, IOptions<OsrmConfiguration> options, ILogger<OsrmWalkingRouteProvider> logger)
     {
         _httpClient = httpClient;
+        _httpClient.DefaultRequestHeaders.Add("User-Agent", "UlasimVeriServisi/1.0");
         _config = options.Value;
         _logger = logger;
     }
@@ -36,29 +37,6 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
             {
                 _logger.LogError("OSRM BaseUrl is not configured for profile {Profile}.", actualProfile);
                 return new WalkingResult { State = ErrorState.Failure("OSRM BaseUrl is missing", "CONFIG_ERROR") };
-            }
-
-            if (actualProfile == "foot")
-            {
-                double dist = GetHaversineDistance(sourceLat, sourceLon, targetLat, targetLon);
-                var result = new WalkingResult
-                {
-                    State = ErrorState.Success(),
-                    DistanceMeters = dist,
-                    DurationSeconds = dist / 1.4,
-                    Alternatives = new System.Collections.Generic.List<WalkingRouteAlternative>()
-                };
-                if (includeGeometry)
-                {
-                    result.GeometryGeoJson = new {
-                        type = "LineString",
-                        coordinates = new[] {
-                            new[] { sourceLon, sourceLat },
-                            new[] { targetLon, targetLat }
-                        }
-                    };
-                }
-                return result;
             }
 
             var srcLatStr = sourceLat.ToString(CultureInfo.InvariantCulture);
