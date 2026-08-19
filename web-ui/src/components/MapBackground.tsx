@@ -411,26 +411,26 @@ export default function MapBackground({ children }: { children?: React.ReactNode
                   }}
                   layout={{ 'line-cap': 'round', 'line-join': 'round' }}
                 />
-                <Layer
-                  id={`direct-route-inactive-arrows-${idx}`}
-                  type="symbol"
-                  layout={{
-                    'symbol-placement': 'line',
-                    'symbol-spacing': 40,
-                    'text-field': '>',
-                    'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
-                    'text-size': 18,
-                    'text-keep-upright': false,
-                    'text-pitch-alignment': 'map',
-                    'text-rotation-alignment': 'map'
-                  }}
-                  paint={{
-                    'text-color': '#000000',
-                    'text-halo-color': '#ffffff',
-                    'text-halo-width': 2,
-                    'text-opacity': 0.8
-                  }}
-                />
+                  <Layer
+                    id={`direct-route-inactive-arrows-${idx}`}
+                    type="symbol"
+                    layout={{
+                      'symbol-placement': 'line',
+                      'symbol-spacing': 60,
+                      'text-field': '>',
+                      'text-font': ['Open Sans Bold', 'Arial Unicode MS Bold'],
+                      'text-size': 18,
+                      'text-keep-upright': false,
+                      'text-pitch-alignment': 'map',
+                      'text-rotation-alignment': 'map'
+                    }}
+                    paint={{
+                      'text-color': '#ffffff',
+                      'text-halo-color': '#000000',
+                      'text-halo-width': 2,
+                      'text-opacity': 0.8
+                    }}
+                  />
               </Source>
             );
           })}
