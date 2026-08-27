@@ -1,0 +1,2274 @@
+{
+  "metadata": {
+    "algorithmVersion": "raptor-v2",
+    "dataSource": "STATIC_GTFS",
+    "activeImportId": 7,
+    "feedHash": "8434574B558E0C2D7A332412D75FDF593AEAE0BFD0083EF23A242D1DD47AA926_CB2424F4A61B7BFBEE78D3FF764A1B6D8E752CC787B04CC724B1CE2B0B3682AA",
+    "snapshotCreatedAt": "2026-08-20T07:07:50.4368963Z",
+    "searchMode": "DEPART_AT",
+    "calculationDurationMs": 8744,
+    "isFeedStale": false
+  },
+  "reasonCode": "SUCCESS",
+  "itineraries": [
+    {
+      "planId": "JP-DFA99E04C009D966",
+      "dataSource": "STATIC_GTFS",
+      "routeTypeSummary": "",
+      "departureTime": "2026-08-20T12:00:00+03:00",
+      "arrivalTime": "2026-08-20T13:01:31+03:00",
+      "totalDurationMinutes": 61,
+      "totalJourneyTimeSeconds": 3691,
+      "transferCount": 1,
+      "totalWalkingDistanceMeters": 2644,
+      "totalWalkingTimeSeconds": 1888,
+      "totalWaitingTimeSeconds": 0,
+      "totalInVehicleTimeSeconds": 969,
+      "initialWaitTimeSeconds": 0,
+      "transferWaitTimes": [],
+      "totalTransitStopCount": 0,
+      "isApproximate": false,
+      "legs": [
+        {
+          "mode": "WALK",
+          "fromStopName": "Origin",
+          "fromStopLat": 38.458672225168584,
+          "fromStopLon": 27.11462104643266,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_20154",
+          "toStopName": "Osman Bey Parkı",
+          "toStopLat": 38.4545,
+          "toStopLon": 27.1187,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 744,
+          "durationMinutes": 0,
+          "durationSeconds": 531,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.114604,
+                38.458675
+              ],
+              [
+                27.114599,
+                38.45866
+              ],
+              [
+                27.114622,
+                38.458637
+              ],
+              [
+                27.114639,
+                38.458608
+              ],
+              [
+                27.114642,
+                38.458576
+              ],
+              [
+                27.114631,
+                38.458545
+              ],
+              [
+                27.114608,
+                38.458519
+              ],
+              [
+                27.114674,
+                38.458528
+              ],
+              [
+                27.114773,
+                38.458526
+              ],
+              [
+                27.114941,
+                38.458502
+              ],
+              [
+                27.115014,
+                38.458488
+              ],
+              [
+                27.115283,
+                38.458321
+              ],
+              [
+                27.11537,
+                38.458239
+              ],
+              [
+                27.115442,
+                38.45817
+              ],
+              [
+                27.115486,
+                38.45814
+              ],
+              [
+                27.115545,
+                38.458101
+              ],
+              [
+                27.115575,
+                38.45777
+              ],
+              [
+                27.115966,
+                38.45766
+              ],
+              [
+                27.116315,
+                38.457419
+              ],
+              [
+                27.116411,
+                38.457366
+              ],
+              [
+                27.117028,
+                38.457006
+              ],
+              [
+                27.117119,
+                38.456955
+              ],
+              [
+                27.11729,
+                38.456847
+              ],
+              [
+                27.1175,
+                38.456721
+              ],
+              [
+                27.117624,
+                38.456641
+              ],
+              [
+                27.117959,
+                38.45644
+              ],
+              [
+                27.117985,
+                38.456413
+              ],
+              [
+                27.118108,
+                38.456353
+              ],
+              [
+                27.118352,
+                38.456211
+              ],
+              [
+                27.118413,
+                38.456178
+              ],
+              [
+                27.118774,
+                38.455966
+              ],
+              [
+                27.119215,
+                38.455668
+              ],
+              [
+                27.119504,
+                38.455452
+              ],
+              [
+                27.119667,
+                38.455296
+              ],
+              [
+                27.119773,
+                38.455235
+              ],
+              [
+                27.119733,
+                38.455211
+              ],
+              [
+                27.119348,
+                38.454964
+              ],
+              [
+                27.118693,
+                38.454506
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_1330_ESHOT_330_0_E0BAEF61",
+          "routeId": "ESHOT_330",
+          "routeShortName": "330",
+          "tripId": "ESHOT_1309155301",
+          "fromStopId": "ESHOT_20154",
+          "fromStopName": "Osman Bey Parkı",
+          "fromStopLat": 38.4545,
+          "fromStopLon": 27.1187,
+          "fromStopPatternIndex": 1,
+          "toStopId": "ESHOT_20060",
+          "toStopName": "Turan",
+          "toStopLat": 38.4675,
+          "toStopLon": 27.1503,
+          "toStopPatternIndex": 6,
+          "rawGtfsDepartureSeconds": 44207,
+          "departureTime": "2026-08-20T12:16:47+00:00",
+          "rawGtfsArrivalSeconds": 44952,
+          "arrivalTime": "2026-08-20T12:29:12+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 745,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_1147_ESHOT_147_0_BE00A56B",
+          "routeId": "ESHOT_147",
+          "routeShortName": "147",
+          "tripId": "ESHOT_1307903051",
+          "fromStopId": "ESHOT_20060",
+          "fromStopName": "Turan",
+          "fromStopLat": 38.4675,
+          "fromStopLon": 27.1503,
+          "fromStopPatternIndex": 18,
+          "toStopId": "ESHOT_20058",
+          "toStopName": "Bayraklı Çamlık",
+          "toStopLat": 38.4676007049387,
+          "toStopLon": 27.1597001014175,
+          "toStopPatternIndex": 19,
+          "rawGtfsDepartureSeconds": 45190,
+          "departureTime": "2026-08-20T12:33:10+00:00",
+          "rawGtfsArrivalSeconds": 45414,
+          "arrivalTime": "2026-08-20T12:36:54+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 224,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_20058",
+          "fromStopName": "Bayraklı Çamlık",
+          "fromStopLat": 38.4676007049387,
+          "fromStopLon": 27.1597001014175,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_31051",
+          "toStopName": "Atmaca",
+          "toStopLat": 38.4708,
+          "toStopLon": 27.1634,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 1161,
+          "durationMinutes": 0,
+          "durationSeconds": 829,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.159726,
+                38.467642
+              ],
+              [
+                27.159967,
+                38.467548
+              ],
+              [
+                27.160247,
+                38.46741
+              ],
+              [
+                27.16049,
+                38.46727
+              ],
+              [
+                27.160567,
+                38.467222
+              ],
+              [
+                27.161093,
+                38.466904
+              ],
+              [
+                27.162085,
+                38.466169
+              ],
+              [
+                27.162512,
+                38.465823
+              ],
+              [
+                27.162679,
+                38.465637
+              ],
+              [
+                27.163016,
+                38.46528
+              ],
+              [
+                27.163137,
+                38.465197
+              ],
+              [
+                27.163237,
+                38.465178
+              ],
+              [
+                27.163331,
+                38.465177
+              ],
+              [
+                27.163407,
+                38.465202
+              ],
+              [
+                27.163471,
+                38.465234
+              ],
+              [
+                27.163525,
+                38.465301
+              ],
+              [
+                27.163542,
+                38.465379
+              ],
+              [
+                27.163538,
+                38.465487
+              ],
+              [
+                27.163523,
+                38.465568
+              ],
+              [
+                27.163508,
+                38.465804
+              ],
+              [
+                27.163509,
+                38.466037
+              ],
+              [
+                27.163544,
+                38.466264
+              ],
+              [
+                27.16357,
+                38.466818
+              ],
+              [
+                27.163605,
+                38.466921
+              ],
+              [
+                27.163498,
+                38.46707
+              ],
+              [
+                27.163448,
+                38.467154
+              ],
+              [
+                27.163341,
+                38.467347
+              ],
+              [
+                27.163259,
+                38.467455
+              ],
+              [
+                27.163145,
+                38.467654
+              ],
+              [
+                27.162893,
+                38.467977
+              ],
+              [
+                27.162812,
+                38.468078
+              ],
+              [
+                27.162606,
+                38.46834
+              ],
+              [
+                27.162493,
+                38.468482
+              ],
+              [
+                27.162288,
+                38.468612
+              ],
+              [
+                27.162223,
+                38.468649
+              ],
+              [
+                27.162531,
+                38.468981
+              ],
+              [
+                27.162193,
+                38.46921
+              ],
+              [
+                27.162343,
+                38.469389
+              ],
+              [
+                27.162421,
+                38.469478
+              ],
+              [
+                27.162492,
+                38.469569
+              ],
+              [
+                27.162721,
+                38.469823
+              ],
+              [
+                27.16292,
+                38.469995
+              ],
+              [
+                27.163038,
+                38.47017
+              ],
+              [
+                27.163149,
+                38.470129
+              ],
+              [
+                27.163262,
+                38.470336
+              ],
+              [
+                27.16347,
+                38.4707
+              ],
+              [
+                27.163362,
+                38.470749
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_31051",
+          "fromStopName": "Atmaca",
+          "fromStopLat": 38.4708,
+          "fromStopLon": 27.1634,
+          "fromStopPatternIndex": 0,
+          "toStopName": "Destination",
+          "toStopLat": 38.47661222105515,
+          "toStopLon": 27.165345727132717,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 739,
+          "durationMinutes": 0,
+          "durationSeconds": 528,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.163362,
+                38.470749
+              ],
+              [
+                27.16347,
+                38.4707
+              ],
+              [
+                27.163535,
+                38.470671
+              ],
+              [
+                27.163668,
+                38.470953
+              ],
+              [
+                27.163755,
+                38.471202
+              ],
+              [
+                27.16381,
+                38.471443
+              ],
+              [
+                27.16384,
+                38.471615
+              ],
+              [
+                27.16386,
+                38.471828
+              ],
+              [
+                27.163873,
+                38.47197
+              ],
+              [
+                27.163901,
+                38.472062
+              ],
+              [
+                27.163912,
+                38.472126
+              ],
+              [
+                27.163975,
+                38.472332
+              ],
+              [
+                27.164011,
+                38.472469
+              ],
+              [
+                27.164074,
+                38.472619
+              ],
+              [
+                27.164146,
+                38.472798
+              ],
+              [
+                27.164169,
+                38.472854
+              ],
+              [
+                27.164208,
+                38.473005
+              ],
+              [
+                27.164251,
+                38.473115
+              ],
+              [
+                27.1643,
+                38.47324
+              ],
+              [
+                27.164389,
+                38.473441
+              ],
+              [
+                27.164465,
+                38.473656
+              ],
+              [
+                27.164555,
+                38.473853
+              ],
+              [
+                27.16469,
+                38.474148
+              ],
+              [
+                27.164743,
+                38.474245
+              ],
+              [
+                27.164885,
+                38.474472
+              ],
+              [
+                27.164725,
+                38.474521
+              ],
+              [
+                27.164382,
+                38.474686
+              ],
+              [
+                27.164443,
+                38.474799
+              ],
+              [
+                27.164526,
+                38.474993
+              ],
+              [
+                27.164651,
+                38.475276
+              ],
+              [
+                27.164675,
+                38.4753
+              ],
+              [
+                27.164768,
+                38.47547
+              ],
+              [
+                27.164855,
+                38.475623
+              ],
+              [
+                27.164946,
+                38.475791
+              ],
+              [
+                27.164987,
+                38.47587
+              ],
+              [
+                27.165044,
+                38.475979
+              ],
+              [
+                27.165054,
+                38.475995
+              ],
+              [
+                27.165143,
+                38.476137
+              ],
+              [
+                27.165268,
+                38.476304
+              ],
+              [
+                27.165366,
+                38.476434
+              ],
+              [
+                27.165348,
+                38.476591
+              ],
+              [
+                27.165346,
+                38.476591
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        }
+      ]
+    },
+    {
+      "planId": "JP-B174E2073332566D",
+      "dataSource": "STATIC_GTFS",
+      "routeTypeSummary": "",
+      "departureTime": "2026-08-20T12:00:00+03:00",
+      "arrivalTime": "2026-08-20T13:10:56+03:00",
+      "totalDurationMinutes": 70,
+      "totalJourneyTimeSeconds": 4256,
+      "transferCount": 2,
+      "totalWalkingDistanceMeters": 2036,
+      "totalWalkingTimeSeconds": 1454,
+      "totalWaitingTimeSeconds": 0,
+      "totalInVehicleTimeSeconds": 1534,
+      "initialWaitTimeSeconds": 0,
+      "transferWaitTimes": [],
+      "totalTransitStopCount": 0,
+      "isApproximate": false,
+      "legs": [
+        {
+          "mode": "WALK",
+          "fromStopName": "Origin",
+          "fromStopLat": 38.458672225168584,
+          "fromStopLon": 27.11462104643266,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_20154",
+          "toStopName": "Osman Bey Parkı",
+          "toStopLat": 38.4545,
+          "toStopLon": 27.1187,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 744,
+          "durationMinutes": 0,
+          "durationSeconds": 531,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.114604,
+                38.458675
+              ],
+              [
+                27.114599,
+                38.45866
+              ],
+              [
+                27.114622,
+                38.458637
+              ],
+              [
+                27.114639,
+                38.458608
+              ],
+              [
+                27.114642,
+                38.458576
+              ],
+              [
+                27.114631,
+                38.458545
+              ],
+              [
+                27.114608,
+                38.458519
+              ],
+              [
+                27.114674,
+                38.458528
+              ],
+              [
+                27.114773,
+                38.458526
+              ],
+              [
+                27.114941,
+                38.458502
+              ],
+              [
+                27.115014,
+                38.458488
+              ],
+              [
+                27.115283,
+                38.458321
+              ],
+              [
+                27.11537,
+                38.458239
+              ],
+              [
+                27.115442,
+                38.45817
+              ],
+              [
+                27.115486,
+                38.45814
+              ],
+              [
+                27.115545,
+                38.458101
+              ],
+              [
+                27.115575,
+                38.45777
+              ],
+              [
+                27.115966,
+                38.45766
+              ],
+              [
+                27.116315,
+                38.457419
+              ],
+              [
+                27.116411,
+                38.457366
+              ],
+              [
+                27.117028,
+                38.457006
+              ],
+              [
+                27.117119,
+                38.456955
+              ],
+              [
+                27.11729,
+                38.456847
+              ],
+              [
+                27.1175,
+                38.456721
+              ],
+              [
+                27.117624,
+                38.456641
+              ],
+              [
+                27.117959,
+                38.45644
+              ],
+              [
+                27.117985,
+                38.456413
+              ],
+              [
+                27.118108,
+                38.456353
+              ],
+              [
+                27.118352,
+                38.456211
+              ],
+              [
+                27.118413,
+                38.456178
+              ],
+              [
+                27.118774,
+                38.455966
+              ],
+              [
+                27.119215,
+                38.455668
+              ],
+              [
+                27.119504,
+                38.455452
+              ],
+              [
+                27.119667,
+                38.455296
+              ],
+              [
+                27.119773,
+                38.455235
+              ],
+              [
+                27.119733,
+                38.455211
+              ],
+              [
+                27.119348,
+                38.454964
+              ],
+              [
+                27.118693,
+                38.454506
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_1330_ESHOT_330_0_E0BAEF61",
+          "routeId": "ESHOT_330",
+          "routeShortName": "330",
+          "tripId": "ESHOT_1309155301",
+          "fromStopId": "ESHOT_20154",
+          "fromStopName": "Osman Bey Parkı",
+          "fromStopLat": 38.4545,
+          "fromStopLon": 27.1187,
+          "fromStopPatternIndex": 1,
+          "toStopId": "ESHOT_20060",
+          "toStopName": "Turan",
+          "toStopLat": 38.4675,
+          "toStopLon": 27.1503,
+          "toStopPatternIndex": 6,
+          "rawGtfsDepartureSeconds": 44207,
+          "departureTime": "2026-08-20T12:16:47+00:00",
+          "rawGtfsArrivalSeconds": 44952,
+          "arrivalTime": "2026-08-20T12:29:12+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 745,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_1147_ESHOT_147_0_BE00A56B",
+          "routeId": "ESHOT_147",
+          "routeShortName": "147",
+          "tripId": "ESHOT_1307903051",
+          "fromStopId": "ESHOT_20060",
+          "fromStopName": "Turan",
+          "fromStopLat": 38.4675,
+          "fromStopLon": 27.1503,
+          "fromStopPatternIndex": 18,
+          "toStopId": "ESHOT_20050",
+          "toStopName": "Körfez",
+          "toStopLat": 38.4564217098186,
+          "toStopLon": 27.16847611251,
+          "toStopPatternIndex": 23,
+          "rawGtfsDepartureSeconds": 45190,
+          "departureTime": "2026-08-20T12:33:10+00:00",
+          "rawGtfsArrivalSeconds": 45699,
+          "arrivalTime": "2026-08-20T12:41:39+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 509,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_20050",
+          "fromStopName": "Körfez",
+          "fromStopLat": 38.4564217098186,
+          "fromStopLon": 27.16847611251,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_20049",
+          "toStopName": "Körfez",
+          "toStopLat": 38.4561434034835,
+          "toStopLon": 27.1688457110155,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 40,
+          "durationMinutes": 0,
+          "durationSeconds": 29,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.168548,
+                38.456444
+              ],
+              [
+                27.168718,
+                38.456104
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_2477_ESHOT_477_1_3C9B4DE4",
+          "routeId": "ESHOT_477",
+          "routeShortName": "477",
+          "tripId": "ESHOT_1307910252",
+          "fromStopId": "ESHOT_20049",
+          "fromStopName": "Körfez",
+          "fromStopLat": 38.4561434034835,
+          "fromStopLon": 27.1688457110155,
+          "fromStopPatternIndex": 6,
+          "toStopId": "ESHOT_20055",
+          "toStopName": "Bayraklı Çamlık",
+          "toStopLat": 38.4671007080465,
+          "toStopLon": 27.1611000970153,
+          "toStopPatternIndex": 9,
+          "rawGtfsDepartureSeconds": 46162,
+          "departureTime": "2026-08-20T12:49:22+00:00",
+          "rawGtfsArrivalSeconds": 46442,
+          "arrivalTime": "2026-08-20T12:54:02+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 280,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_20055",
+          "fromStopName": "Bayraklı Çamlık",
+          "fromStopLat": 38.4671007080465,
+          "fromStopLon": 27.1611000970153,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_31051",
+          "toStopName": "Atmaca",
+          "toStopLat": 38.4708,
+          "toStopLon": 27.1634,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 513,
+          "durationMinutes": 0,
+          "durationSeconds": 366,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.161181,
+                38.467182
+              ],
+              [
+                27.161076,
+                38.467246
+              ],
+              [
+                27.160876,
+                38.467373
+              ],
+              [
+                27.161169,
+                38.467703
+              ],
+              [
+                27.161386,
+                38.467954
+              ],
+              [
+                27.161467,
+                38.468065
+              ],
+              [
+                27.161554,
+                38.468184
+              ],
+              [
+                27.161683,
+                38.468318
+              ],
+              [
+                27.162027,
+                38.468668
+              ],
+              [
+                27.162082,
+                38.468729
+              ],
+              [
+                27.161854,
+                38.468843
+              ],
+              [
+                27.162003,
+                38.469023
+              ],
+              [
+                27.162193,
+                38.46921
+              ],
+              [
+                27.162343,
+                38.469389
+              ],
+              [
+                27.162421,
+                38.469478
+              ],
+              [
+                27.162492,
+                38.469569
+              ],
+              [
+                27.162721,
+                38.469823
+              ],
+              [
+                27.16292,
+                38.469995
+              ],
+              [
+                27.163038,
+                38.47017
+              ],
+              [
+                27.163149,
+                38.470129
+              ],
+              [
+                27.163262,
+                38.470336
+              ],
+              [
+                27.16347,
+                38.4707
+              ],
+              [
+                27.163362,
+                38.470749
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_31051",
+          "fromStopName": "Atmaca",
+          "fromStopLat": 38.4708,
+          "fromStopLon": 27.1634,
+          "fromStopPatternIndex": 0,
+          "toStopName": "Destination",
+          "toStopLat": 38.47661222105515,
+          "toStopLon": 27.165345727132717,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 739,
+          "durationMinutes": 0,
+          "durationSeconds": 528,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.163362,
+                38.470749
+              ],
+              [
+                27.16347,
+                38.4707
+              ],
+              [
+                27.163535,
+                38.470671
+              ],
+              [
+                27.163668,
+                38.470953
+              ],
+              [
+                27.163755,
+                38.471202
+              ],
+              [
+                27.16381,
+                38.471443
+              ],
+              [
+                27.16384,
+                38.471615
+              ],
+              [
+                27.16386,
+                38.471828
+              ],
+              [
+                27.163873,
+                38.47197
+              ],
+              [
+                27.163901,
+                38.472062
+              ],
+              [
+                27.163912,
+                38.472126
+              ],
+              [
+                27.163975,
+                38.472332
+              ],
+              [
+                27.164011,
+                38.472469
+              ],
+              [
+                27.164074,
+                38.472619
+              ],
+              [
+                27.164146,
+                38.472798
+              ],
+              [
+                27.164169,
+                38.472854
+              ],
+              [
+                27.164208,
+                38.473005
+              ],
+              [
+                27.164251,
+                38.473115
+              ],
+              [
+                27.1643,
+                38.47324
+              ],
+              [
+                27.164389,
+                38.473441
+              ],
+              [
+                27.164465,
+                38.473656
+              ],
+              [
+                27.164555,
+                38.473853
+              ],
+              [
+                27.16469,
+                38.474148
+              ],
+              [
+                27.164743,
+                38.474245
+              ],
+              [
+                27.164885,
+                38.474472
+              ],
+              [
+                27.164725,
+                38.474521
+              ],
+              [
+                27.164382,
+                38.474686
+              ],
+              [
+                27.164443,
+                38.474799
+              ],
+              [
+                27.164526,
+                38.474993
+              ],
+              [
+                27.164651,
+                38.475276
+              ],
+              [
+                27.164675,
+                38.4753
+              ],
+              [
+                27.164768,
+                38.47547
+              ],
+              [
+                27.164855,
+                38.475623
+              ],
+              [
+                27.164946,
+                38.475791
+              ],
+              [
+                27.164987,
+                38.47587
+              ],
+              [
+                27.165044,
+                38.475979
+              ],
+              [
+                27.165054,
+                38.475995
+              ],
+              [
+                27.165143,
+                38.476137
+              ],
+              [
+                27.165268,
+                38.476304
+              ],
+              [
+                27.165366,
+                38.476434
+              ],
+              [
+                27.165348,
+                38.476591
+              ],
+              [
+                27.165346,
+                38.476591
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        }
+      ]
+    },
+    {
+      "planId": "JP-11C7DCEE1270A3B5",
+      "dataSource": "STATIC_GTFS",
+      "routeTypeSummary": "",
+      "departureTime": "2026-08-20T12:00:00+03:00",
+      "arrivalTime": "2026-08-20T13:11:08+03:00",
+      "totalDurationMinutes": 71,
+      "totalJourneyTimeSeconds": 4268,
+      "transferCount": 1,
+      "totalWalkingDistanceMeters": 1869,
+      "totalWalkingTimeSeconds": 1334,
+      "totalWaitingTimeSeconds": 0,
+      "totalInVehicleTimeSeconds": 2331,
+      "initialWaitTimeSeconds": 0,
+      "transferWaitTimes": [],
+      "totalTransitStopCount": 0,
+      "isApproximate": false,
+      "legs": [
+        {
+          "mode": "WALK",
+          "fromStopName": "Origin",
+          "fromStopLat": 38.458672225168584,
+          "fromStopLon": 27.11462104643266,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_20154",
+          "toStopName": "Osman Bey Parkı",
+          "toStopLat": 38.4545,
+          "toStopLon": 27.1187,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 744,
+          "durationMinutes": 0,
+          "durationSeconds": 531,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.114604,
+                38.458675
+              ],
+              [
+                27.114599,
+                38.45866
+              ],
+              [
+                27.114622,
+                38.458637
+              ],
+              [
+                27.114639,
+                38.458608
+              ],
+              [
+                27.114642,
+                38.458576
+              ],
+              [
+                27.114631,
+                38.458545
+              ],
+              [
+                27.114608,
+                38.458519
+              ],
+              [
+                27.114674,
+                38.458528
+              ],
+              [
+                27.114773,
+                38.458526
+              ],
+              [
+                27.114941,
+                38.458502
+              ],
+              [
+                27.115014,
+                38.458488
+              ],
+              [
+                27.115283,
+                38.458321
+              ],
+              [
+                27.11537,
+                38.458239
+              ],
+              [
+                27.115442,
+                38.45817
+              ],
+              [
+                27.115486,
+                38.45814
+              ],
+              [
+                27.115545,
+                38.458101
+              ],
+              [
+                27.115575,
+                38.45777
+              ],
+              [
+                27.115966,
+                38.45766
+              ],
+              [
+                27.116315,
+                38.457419
+              ],
+              [
+                27.116411,
+                38.457366
+              ],
+              [
+                27.117028,
+                38.457006
+              ],
+              [
+                27.117119,
+                38.456955
+              ],
+              [
+                27.11729,
+                38.456847
+              ],
+              [
+                27.1175,
+                38.456721
+              ],
+              [
+                27.117624,
+                38.456641
+              ],
+              [
+                27.117959,
+                38.45644
+              ],
+              [
+                27.117985,
+                38.456413
+              ],
+              [
+                27.118108,
+                38.456353
+              ],
+              [
+                27.118352,
+                38.456211
+              ],
+              [
+                27.118413,
+                38.456178
+              ],
+              [
+                27.118774,
+                38.455966
+              ],
+              [
+                27.119215,
+                38.455668
+              ],
+              [
+                27.119504,
+                38.455452
+              ],
+              [
+                27.119667,
+                38.455296
+              ],
+              [
+                27.119773,
+                38.455235
+              ],
+              [
+                27.119733,
+                38.455211
+              ],
+              [
+                27.119348,
+                38.454964
+              ],
+              [
+                27.118693,
+                38.454506
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_1330_ESHOT_330_0_E0BAEF61",
+          "routeId": "ESHOT_330",
+          "routeShortName": "330",
+          "tripId": "ESHOT_1309155301",
+          "fromStopId": "ESHOT_20154",
+          "fromStopName": "Osman Bey Parkı",
+          "fromStopLat": 38.4545,
+          "fromStopLon": 27.1187,
+          "fromStopPatternIndex": 1,
+          "toStopId": "ESHOT_30956",
+          "toStopName": "Piyale",
+          "toStopLat": 38.46132,
+          "toStopLon": 27.16955,
+          "toStopPatternIndex": 8,
+          "rawGtfsDepartureSeconds": 44207,
+          "departureTime": "2026-08-20T12:16:47+00:00",
+          "rawGtfsArrivalSeconds": 45436,
+          "arrivalTime": "2026-08-20T12:37:16+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 1229,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_30956",
+          "fromStopName": "Piyale",
+          "fromStopLat": 38.46132,
+          "fromStopLon": 27.16955,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_30963",
+          "toStopName": "Matbaa",
+          "toStopLat": 38.4634247103113,
+          "toStopLon": 27.169538377921,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 469,
+          "durationMinutes": 0,
+          "durationSeconds": 335,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.169539,
+                38.461338
+              ],
+              [
+                27.170328,
+                38.461619
+              ],
+              [
+                27.170412,
+                38.461644
+              ],
+              [
+                27.170549,
+                38.461675
+              ],
+              [
+                27.17073,
+                38.461702
+              ],
+              [
+                27.170987,
+                38.461735
+              ],
+              [
+                27.170976,
+                38.461798
+              ],
+              [
+                27.170871,
+                38.461968
+              ],
+              [
+                27.170954,
+                38.461995
+              ],
+              [
+                27.170942,
+                38.462007
+              ],
+              [
+                27.170675,
+                38.462221
+              ],
+              [
+                27.170465,
+                38.462384
+              ],
+              [
+                27.170442,
+                38.462447
+              ],
+              [
+                27.170118,
+                38.462732
+              ],
+              [
+                27.169496,
+                38.463257
+              ],
+              [
+                27.169049,
+                38.463659
+              ],
+              [
+                27.169546,
+                38.463436
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_2503_ESHOT_503_1_BD750E01",
+          "routeId": "ESHOT_503",
+          "routeShortName": "503",
+          "tripId": "ESHOT_1307882602",
+          "fromStopId": "ESHOT_30963",
+          "fromStopName": "Matbaa",
+          "fromStopLat": 38.4634247103113,
+          "fromStopLon": 27.169538377921,
+          "fromStopPatternIndex": 11,
+          "toStopId": "ESHOT_32209",
+          "toStopName": "Meydan",
+          "toStopLat": 38.4728607430977,
+          "toStopLon": 27.1701060240499,
+          "toStopPatternIndex": 26,
+          "rawGtfsDepartureSeconds": 45898,
+          "departureTime": "2026-08-20T12:44:58+00:00",
+          "rawGtfsArrivalSeconds": 47000,
+          "arrivalTime": "2026-08-20T13:03:20+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 1102,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_32209",
+          "fromStopName": "Meydan",
+          "fromStopLat": 38.4728607430977,
+          "fromStopLon": 27.1701060240499,
+          "fromStopPatternIndex": 0,
+          "toStopName": "Destination",
+          "toStopLat": 38.47661222105515,
+          "toStopLon": 27.165345727132717,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 656,
+          "durationMinutes": 0,
+          "durationSeconds": 468,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.170069,
+                38.47284
+              ],
+              [
+                27.170061,
+                38.472849
+              ],
+              [
+                27.169954,
+                38.472941
+              ],
+              [
+                27.169853,
+                38.472947
+              ],
+              [
+                27.169745,
+                38.472958
+              ],
+              [
+                27.169656,
+                38.472977
+              ],
+              [
+                27.169501,
+                38.473026
+              ],
+              [
+                27.169322,
+                38.473129
+              ],
+              [
+                27.169243,
+                38.473188
+              ],
+              [
+                27.169188,
+                38.473143
+              ],
+              [
+                27.16905,
+                38.473212
+              ],
+              [
+                27.168985,
+                38.473237
+              ],
+              [
+                27.168916,
+                38.473254
+              ],
+              [
+                27.168873,
+                38.47326
+              ],
+              [
+                27.16883,
+                38.473262
+              ],
+              [
+                27.168725,
+                38.473266
+              ],
+              [
+                27.168722,
+                38.47329
+              ],
+              [
+                27.168688,
+                38.473427
+              ],
+              [
+                27.16864,
+                38.473542
+              ],
+              [
+                27.168472,
+                38.473704
+              ],
+              [
+                27.168126,
+                38.473997
+              ],
+              [
+                27.167934,
+                38.47426
+              ],
+              [
+                27.167881,
+                38.474307
+              ],
+              [
+                27.167467,
+                38.474085
+              ],
+              [
+                27.167094,
+                38.47457
+              ],
+              [
+                27.167002,
+                38.474675
+              ],
+              [
+                27.166511,
+                38.47519
+              ],
+              [
+                27.166316,
+                38.475407
+              ],
+              [
+                27.165876,
+                38.475983
+              ],
+              [
+                27.165366,
+                38.476434
+              ],
+              [
+                27.165348,
+                38.476591
+              ],
+              [
+                27.165346,
+                38.476591
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        }
+      ]
+    },
+    {
+      "planId": "JP-EC7B120F69C61D81",
+      "dataSource": "STATIC_GTFS",
+      "routeTypeSummary": "",
+      "departureTime": "2026-08-20T12:00:00+03:00",
+      "arrivalTime": "2026-08-20T13:17:58+03:00",
+      "totalDurationMinutes": 77,
+      "totalJourneyTimeSeconds": 4678,
+      "transferCount": 1,
+      "totalWalkingDistanceMeters": 1434,
+      "totalWalkingTimeSeconds": 1023,
+      "totalWaitingTimeSeconds": 0,
+      "totalInVehicleTimeSeconds": 2489,
+      "initialWaitTimeSeconds": 0,
+      "transferWaitTimes": [],
+      "totalTransitStopCount": 0,
+      "isApproximate": false,
+      "legs": [
+        {
+          "mode": "WALK",
+          "fromStopName": "Origin",
+          "fromStopLat": 38.458672225168584,
+          "fromStopLon": 27.11462104643266,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_20154",
+          "toStopName": "Osman Bey Parkı",
+          "toStopLat": 38.4545,
+          "toStopLon": 27.1187,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 744,
+          "durationMinutes": 0,
+          "durationSeconds": 531,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.114604,
+                38.458675
+              ],
+              [
+                27.114599,
+                38.45866
+              ],
+              [
+                27.114622,
+                38.458637
+              ],
+              [
+                27.114639,
+                38.458608
+              ],
+              [
+                27.114642,
+                38.458576
+              ],
+              [
+                27.114631,
+                38.458545
+              ],
+              [
+                27.114608,
+                38.458519
+              ],
+              [
+                27.114674,
+                38.458528
+              ],
+              [
+                27.114773,
+                38.458526
+              ],
+              [
+                27.114941,
+                38.458502
+              ],
+              [
+                27.115014,
+                38.458488
+              ],
+              [
+                27.115283,
+                38.458321
+              ],
+              [
+                27.11537,
+                38.458239
+              ],
+              [
+                27.115442,
+                38.45817
+              ],
+              [
+                27.115486,
+                38.45814
+              ],
+              [
+                27.115545,
+                38.458101
+              ],
+              [
+                27.115575,
+                38.45777
+              ],
+              [
+                27.115966,
+                38.45766
+              ],
+              [
+                27.116315,
+                38.457419
+              ],
+              [
+                27.116411,
+                38.457366
+              ],
+              [
+                27.117028,
+                38.457006
+              ],
+              [
+                27.117119,
+                38.456955
+              ],
+              [
+                27.11729,
+                38.456847
+              ],
+              [
+                27.1175,
+                38.456721
+              ],
+              [
+                27.117624,
+                38.456641
+              ],
+              [
+                27.117959,
+                38.45644
+              ],
+              [
+                27.117985,
+                38.456413
+              ],
+              [
+                27.118108,
+                38.456353
+              ],
+              [
+                27.118352,
+                38.456211
+              ],
+              [
+                27.118413,
+                38.456178
+              ],
+              [
+                27.118774,
+                38.455966
+              ],
+              [
+                27.119215,
+                38.455668
+              ],
+              [
+                27.119504,
+                38.455452
+              ],
+              [
+                27.119667,
+                38.455296
+              ],
+              [
+                27.119773,
+                38.455235
+              ],
+              [
+                27.119733,
+                38.455211
+              ],
+              [
+                27.119348,
+                38.454964
+              ],
+              [
+                27.118693,
+                38.454506
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_1330_ESHOT_330_0_E0BAEF61",
+          "routeId": "ESHOT_330",
+          "routeShortName": "330",
+          "tripId": "ESHOT_1309155301",
+          "fromStopId": "ESHOT_20154",
+          "fromStopName": "Osman Bey Parkı",
+          "fromStopLat": 38.4545,
+          "fromStopLon": 27.1187,
+          "fromStopPatternIndex": 1,
+          "toStopId": "ESHOT_30290",
+          "toStopName": "Smyrna",
+          "toStopLat": 38.4604,
+          "toStopLon": 27.1732,
+          "toStopPatternIndex": 9,
+          "rawGtfsDepartureSeconds": 44207,
+          "departureTime": "2026-08-20T12:16:47+00:00",
+          "rawGtfsArrivalSeconds": 45524,
+          "arrivalTime": "2026-08-20T12:38:44+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 1317,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_30290",
+          "fromStopName": "Smyrna",
+          "fromStopLat": 38.4604,
+          "fromStopLon": 27.1732,
+          "fromStopPatternIndex": 0,
+          "toStopId": "ESHOT_30289",
+          "toStopName": "Smyrna",
+          "toStopLat": 38.461,
+          "toStopLon": 27.1728,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 547,
+          "durationMinutes": 0,
+          "durationSeconds": 390,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.173187,
+                38.460392
+              ],
+              [
+                27.173114,
+                38.460462
+              ],
+              [
+                27.172517,
+                38.460978
+              ],
+              [
+                27.172233,
+                38.461237
+              ],
+              [
+                27.17195,
+                38.461479
+              ],
+              [
+                27.171715,
+                38.461624
+              ],
+              [
+                27.171522,
+                38.461695
+              ],
+              [
+                27.171356,
+                38.461756
+              ],
+              [
+                27.171413,
+                38.461773
+              ],
+              [
+                27.171485,
+                38.461799
+              ],
+              [
+                27.171543,
+                38.461841
+              ],
+              [
+                27.171582,
+                38.461896
+              ],
+              [
+                27.171636,
+                38.461973
+              ],
+              [
+                27.17164,
+                38.461979
+              ],
+              [
+                27.171847,
+                38.462238
+              ],
+              [
+                27.172107,
+                38.462376
+              ],
+              [
+                27.172297,
+                38.462443
+              ],
+              [
+                27.172433,
+                38.462392
+              ],
+              [
+                27.172498,
+                38.462366
+              ],
+              [
+                27.172553,
+                38.462335
+              ],
+              [
+                27.172609,
+                38.462277
+              ],
+              [
+                27.172663,
+                38.461835
+              ],
+              [
+                27.172632,
+                38.46174
+              ],
+              [
+                27.172576,
+                38.46172
+              ],
+              [
+                27.172466,
+                38.4617
+              ],
+              [
+                27.172326,
+                38.461671
+              ],
+              [
+                27.172416,
+                38.461399
+              ],
+              [
+                27.17242,
+                38.461386
+              ],
+              [
+                27.172425,
+                38.461374
+              ],
+              [
+                27.17276,
+                38.461055
+              ],
+              [
+                27.172813,
+                38.461009
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        },
+        {
+          "mode": "TRANSIT",
+          "routeType": 3,
+          "patternId": "P_ESHOT_2502_ESHOT_502_1_10203A86",
+          "routeId": "ESHOT_502",
+          "routeShortName": "502",
+          "tripId": "ESHOT_1307883392",
+          "fromStopId": "ESHOT_30289",
+          "fromStopName": "Smyrna",
+          "fromStopLat": 38.461,
+          "fromStopLon": 27.1728,
+          "fromStopPatternIndex": 10,
+          "toStopId": "ESHOT_31081",
+          "toStopName": "Yasemin",
+          "toStopLat": 38.4766,
+          "toStopLon": 27.1637,
+          "toStopPatternIndex": 25,
+          "rawGtfsDepartureSeconds": 46604,
+          "departureTime": "2026-08-20T12:56:44+00:00",
+          "rawGtfsArrivalSeconds": 47776,
+          "arrivalTime": "2026-08-20T13:16:16+00:00",
+          "intermediateStopCount": 0,
+          "distanceMeters": 0,
+          "durationMinutes": 0,
+          "durationSeconds": 1172,
+          "stopCount": 0,
+          "isApproximate": false,
+          "hasGeometry": false
+        },
+        {
+          "mode": "WALK",
+          "fromStopId": "ESHOT_31081",
+          "fromStopName": "Yasemin",
+          "fromStopLat": 38.4766,
+          "fromStopLon": 27.1637,
+          "fromStopPatternIndex": 0,
+          "toStopName": "Destination",
+          "toStopLat": 38.47661222105515,
+          "toStopLon": 27.165345727132717,
+          "toStopPatternIndex": 0,
+          "intermediateStopCount": 0,
+          "distanceMeters": 143,
+          "durationMinutes": 0,
+          "durationSeconds": 102,
+          "stopCount": 0,
+          "geometryGeoJson": {
+            "coordinates": [
+              [
+                27.163702,
+                38.476652
+              ],
+              [
+                27.163868,
+                38.476648
+              ],
+              [
+                27.164019,
+                38.476636
+              ],
+              [
+                27.164278,
+                38.476631
+              ],
+              [
+                27.164361,
+                38.476632
+              ],
+              [
+                27.16465,
+                38.476616
+              ],
+              [
+                27.164721,
+                38.476613
+              ],
+              [
+                27.165129,
+                38.476594
+              ],
+              [
+                27.165346,
+                38.476591
+              ]
+            ],
+            "type": "LineString"
+          },
+          "walkingSource": "OSRM",
+          "isApproximate": false,
+          "hasGeometry": true
+        }
+      ]
+    }
+  ]
+}

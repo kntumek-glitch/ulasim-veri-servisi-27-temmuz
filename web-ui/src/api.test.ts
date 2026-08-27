@@ -14,7 +14,10 @@ describe('API functions', () => {
           busId: '35 TEST 123',
           direction: 'Buca',
           latitude: 38.4,
-          longitude: 27.1
+          longitude: 27.1,
+          locationContext: 'Some location',
+          destinationName: 'Destination',
+          originDepartureTime: '08:00'
         }
       ]
     };

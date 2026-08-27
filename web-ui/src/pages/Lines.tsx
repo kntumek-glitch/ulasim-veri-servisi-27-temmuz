@@ -8,19 +8,41 @@ import { useNavigate, useLocation } from 'react-router-dom';
 const Lines: React.FC = () => {
   const location = useLocation();
   const [search, setSearch] = useState('');
-  const [page, setPage] = useState(1);
   const [selectedRoute, setSelectedRoute] = useState<RouteDto | null>(location.state?.route || null);
+  const [page, setPage] = useState<number>(1);
   const [isCollapsed, setIsCollapsed] = useState(false);
 
+  const collator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
+
+  // Fetch all pages of routes (no pagination on UI)
+  const fetchAllRoutes = async (searchTerm: string) => {
+    const pageSize = 10000;
+    let pageNum = 1;
+    const all: RouteDto[] = [];
+    // eslint-disable-next-line no-constant-condition
+    while (true) {
+      const resp = await getRoutes(searchTerm, pageNum, pageSize);
+      all.push(...(resp.items ?? []));
+      if (!resp.hasNextPage) break;
+      pageNum += 1;
+    }
+    return { items: all } as any;
+  };
+
   const { data: routesData, isLoading: isLoadingRoutes } = useQuery({
-    queryKey: ['routes', search, page],
-    queryFn: () => getRoutes(search, page, 20),
+    queryKey: ['allRoutes', search],
+    queryFn: () => fetchAllRoutes(search),
     placeholderData: (prev) => prev,
   });
 
+  const allItems = routesData?.items ?? [];
+  const pageSize = 10;
+  const sortedItems = [...allItems].sort((a, b) => collator.compare(a.routeShortName, b.routeShortName));
+  const totalPages = Math.max(1, Math.ceil(sortedItems.length / pageSize));
+  const displayedRoutes = sortedItems.slice((page - 1) * pageSize, page * pageSize);
+
   const handleSearch = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
-    setPage(1);
   };
 
   if (selectedRoute) {
@@ -64,54 +86,54 @@ const Lines: React.FC = () => {
         )}
 
         <div className="route-list">
-          {routesData?.items.map((route) => (
-            <div 
-              key={route.routeId} 
-              className="itinerary-card" 
-              style={{ display: 'flex', alignItems: 'center', gap: 16 }}
-              onClick={() => setSelectedRoute(route)}
-            >
-              <div style={{
-                background: `#${route.routeColor || '333'}`,
-                color: `#${route.routeTextColor || 'fff'}`,
-                fontWeight: 'bold',
-                padding: '8px 16px',
-                borderRadius: '8px',
-                minWidth: '60px',
-                textAlign: 'center'
-              }}>
-                {route.routeShortName}
+          {displayedRoutes.map((route: RouteDto) => (
+              <div 
+                key={route.routeId} 
+                className="itinerary-card" 
+                style={{ display: 'flex', alignItems: 'center', gap: 16 }}
+                onClick={() => setSelectedRoute(route)}
+              >
+                <div style={{
+                  background: `#${route.routeColor || '333'}`,
+                  color: `#${route.routeTextColor || 'fff'}`,
+                  fontWeight: 'bold',
+                  padding: '8px 16px',
+                  borderRadius: '8px',
+                  minWidth: '60px',
+                  textAlign: 'center'
+                }}>
+                  {route.routeShortName}
+                </div>
+                <div style={{ flex: 1, fontWeight: 600 }}>
+                  {route.routeLongName}
+                </div>
               </div>
-              <div style={{ flex: 1, fontWeight: 600 }}>
-                {route.routeLongName}
-              </div>
-            </div>
-          ))}
+            ))}
         </div>
 
-        {routesData && routesData.totalPages > 1 && (
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, padding: '0 16px' }}>
-            <button 
-              className="action-btn" 
-              style={{ flex: 'none', padding: '8px 12px' }}
-              disabled={!routesData.hasPreviousPage}
-              onClick={() => setPage(p => p - 1)}
-            >
-              <ChevronLeft size={16} /> Önceki
-            </button>
-            <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
-              Sayfa {routesData.page} / {routesData.totalPages}
-            </span>
-            <button 
-              className="action-btn" 
-              style={{ flex: 'none', padding: '8px 12px' }}
-              disabled={!routesData.hasNextPage}
-              onClick={() => setPage(p => p + 1)}
-            >
-              Sonraki <ChevronRight size={16} />
-            </button>
-          </div>
-        )}
+          {totalPages > 1 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 16, padding: '0 16px' }}>
+              <button 
+                className="action-btn" 
+                style={{ flex: 'none', padding: '8px 12px' }}
+                disabled={page <= 1}
+                onClick={() => setPage(p => Math.max(p - 1, 1))}
+              >
+                <ChevronLeft size={16} /> Önceki
+              </button>
+              <span style={{ fontSize: 13, color: 'var(--color-text-muted)' }}>
+                Sayfa {page} / {totalPages}
+              </span>
+              <button 
+                className="action-btn" 
+                style={{ flex: 'none', padding: '8px 12px' }}
+                disabled={page >= totalPages}
+                onClick={() => setPage(p => p + 1)}
+              >
+                Sonraki <ChevronRight size={16} />
+              </button>
+            </div>
+          )}
       </div>
         </>)}
     </div>

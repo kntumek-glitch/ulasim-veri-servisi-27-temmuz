@@ -57,6 +57,8 @@ public class ItineraryDto
     public int TotalTransitStopCount { get; set; }
     public bool IsApproximate { get; set; }
     
+    public List<FareDto> Fares { get; set; } = new();
+    
     public List<LegDto> Legs { get; set; } = new();
 }
 

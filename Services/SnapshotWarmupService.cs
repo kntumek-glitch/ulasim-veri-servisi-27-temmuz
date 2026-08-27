@@ -13,6 +13,10 @@ namespace ulasim_veri_servisi.Services;
 
 public class SnapshotWarmupService : BackgroundService
 {
+    private const int MaxRetryAttempts = 5;
+    private const int InitialRetryDelaySeconds = 5;
+    private const int NoDataRetryDelaySeconds = 30;
+
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SnapshotWarmupService> _logger;
 
@@ -24,33 +28,43 @@ public class SnapshotWarmupService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        try
+        _logger.LogInformation("SnapshotWarmupService starting...");
+
+        while (!stoppingToken.IsCancellationRequested)
         {
-            _logger.LogInformation("SnapshotWarmupService starting...");
-            
-            using var scope = _scopeFactory.CreateScope();
-            var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
-            var snapshotManager = scope.ServiceProvider.GetRequiredService<IRoutingSnapshotManager>();
-
-            // Find the currently active GTFS Import Run
-            var activeRun = await dbContext.GtfsImportRuns
-                .AsNoTracking()
-                .FirstOrDefaultAsync(r => r.IsActive, stoppingToken);
-
-            if (activeRun == null)
+            try
             {
-                _logger.LogWarning("No active GTFS Import Run found in database. Snapshot warmup skipped.");
+                using var scope = _scopeFactory.CreateScope();
+                var dbContext = scope.ServiceProvider.GetRequiredService<AppDbContext>();
+                var snapshotManager = scope.ServiceProvider.GetRequiredService<IRoutingSnapshotManager>();
+
+                var activeRun = await dbContext.GtfsImportRuns
+                    .AsNoTracking()
+                    .FirstOrDefaultAsync(r => r.IsActive, stoppingToken);
+
+                if (activeRun == null)
+                {
+                    _logger.LogInformation("No active GTFS Import Run found in database. Waiting for data...");
+                    await Task.Delay(TimeSpan.FromSeconds(NoDataRetryDelaySeconds), stoppingToken);
+                    continue;
+                }
+
+                _logger.LogInformation("Found active GTFS Import Run ID: {RunId}. Initiating snapshot build...", activeRun.Id);
+                var candidate = await snapshotManager.BuildCandidateSnapshotAsync(activeRun.Id, activeRun.FileHash ?? "UNKNOWN_HASH", stoppingToken);
+                snapshotManager.PromoteSnapshot(candidate);
+                _logger.LogInformation("Snapshot warmup completed successfully.");
+                return; // Success – exit the loop
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                _logger.LogInformation("SnapshotWarmupService cancelled.");
                 return;
             }
-
-            _logger.LogInformation("Found active GTFS Import Run ID: {RunId}. Initiating snapshot build...", activeRun.Id);
-            var candidate = await snapshotManager.BuildCandidateSnapshotAsync(activeRun.Id, activeRun.FileHash ?? "UNKNOWN_HASH", stoppingToken);
-            snapshotManager.PromoteSnapshot(candidate);
-            _logger.LogInformation("Snapshot warmup completed successfully.");
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "An error occurred during snapshot warmup.");
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Snapshot warmup failed. Retrying in 30s...");
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
         }
     }
 }

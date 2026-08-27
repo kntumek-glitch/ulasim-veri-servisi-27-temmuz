@@ -62,44 +62,57 @@ namespace ulasim_veri_servisi.Services
                     .Where(t => t.RouteId == dbRouteId && t.DirectionId == 1 && t.TripHeadsign != null && t.TripHeadsign != "")
                     .Select(t => t.TripHeadsign)
                     .FirstOrDefaultAsync(cancellationToken);
-                    
+
                 if (!string.IsNullOrEmpty(hs0)) headsign0 = hs0;
-                else if (!string.IsNullOrEmpty(dbRoute.RouteLongName))
+                else
                 {
-                    var parts = dbRoute.RouteLongName.Split(new[] { " - " }, StringSplitOptions.RemoveEmptyEntries);
-                    if (parts.Length == 2)
-                    {
-                        headsign0 = parts[0].Trim();
-                        headsign1 = parts[1].Trim();
-                    }
-                    else
-                    {
-                        headsign0 = dbRoute.RouteLongName;
-                        headsign1 = dbRoute.RouteLongName;
-                    }
+                    // Fallback to the last stop of Direction 0
+                    var lastStop = await _context.GtfsStopTimes
+                        .Where(st => st.Trip.RouteId == dbRouteId && st.Trip.DirectionId == 0)
+                        .OrderByDescending(st => st.StopSequence)
+                        .Select(st => st.Stop.StopName)
+                        .FirstOrDefaultAsync(cancellationToken);
+                    if (!string.IsNullOrEmpty(lastStop)) headsign0 = lastStop;
                 }
                 
                 if (!string.IsNullOrEmpty(hs1)) headsign1 = hs1;
-            }
-
-            var shapePoints = new List<TransportDataService.Domain.GtfsShapePoint>();
-            if (dbRoute != null)
-            {
-                var shapeIds = await _context.GtfsTrips
-                    .Where(t => t.RouteId == dbRouteId && t.ShapeId != null)
-                    .Select(t => t.ShapeId)
-                    .Distinct()
-                    .Take(4)
-                    .ToListAsync(cancellationToken);
-
-                if (shapeIds.Count > 0)
+                else
                 {
-                    shapePoints = await _context.GtfsShapePoints
-                        .Where(sp => shapeIds.Contains(sp.ShapeId))
-                        .AsNoTracking()
-                        .ToListAsync(cancellationToken);
+                    // Fallback to the last stop of Direction 1
+                    var lastStop = await _context.GtfsStopTimes
+                        .Where(st => st.Trip.RouteId == dbRouteId && st.Trip.DirectionId == 1)
+                        .OrderByDescending(st => st.StopSequence)
+                        .Select(st => st.Stop.StopName)
+                        .FirstOrDefaultAsync(cancellationToken);
+                    if (!string.IsNullOrEmpty(lastStop)) headsign1 = lastStop;
                 }
             }
+
+            var shapePoints0 = new List<TransportDataService.Domain.GtfsShapePoint>();
+            var shapePoints1 = new List<TransportDataService.Domain.GtfsShapePoint>();
+            if (dbRoute != null)
+            {
+                var shapeId0 = await _context.GtfsTrips
+                    .Where(t => t.RouteId == dbRouteId && t.DirectionId == 0 && t.ShapeId != null)
+                    .Select(t => t.ShapeId)
+                    .FirstOrDefaultAsync(cancellationToken);
+                    
+                var shapeId1 = await _context.GtfsTrips
+                    .Where(t => t.RouteId == dbRouteId && t.DirectionId == 1 && t.ShapeId != null)
+                    .Select(t => t.ShapeId)
+                    .FirstOrDefaultAsync(cancellationToken);
+
+                if (shapeId0 != null)
+                    shapePoints0 = await _context.GtfsShapePoints.Where(sp => sp.ShapeId == shapeId0).AsNoTracking().ToListAsync(cancellationToken);
+                if (shapeId1 != null)
+                    shapePoints1 = await _context.GtfsShapePoints.Where(sp => sp.ShapeId == shapeId1).AsNoTracking().ToListAsync(cancellationToken);
+            }
+
+            // Spatial voting to map Yon to DirectionId
+            int yon1VotesFor0 = 0;
+            int yon1VotesFor1 = 0;
+            
+            var validBuses = new List<(ulasim_veri_servisi.Models.External.RouteVehicleDto Bus, double Lat, double Lon, double MinDist0, double MinDist1)>();
 
             foreach (var bus in uniqueBuses)
             { 
@@ -110,24 +123,48 @@ namespace ulasim_veri_servisi.Services
                 if (corrected.Latitude == null || corrected.Longitude == null)
                     continue;
 
-                // Check distance to route shape
-                if (shapePoints.Count > 0)
+                double minDistance0 = double.MaxValue;
+                foreach (var sp in shapePoints0)
                 {
-                    double minDistance = double.MaxValue;
-                    foreach (var sp in shapePoints)
-                    {
-                        var dist = GeoUtils.CalculateDistance(corrected.Latitude.Value, corrected.Longitude.Value, sp.Latitude, sp.Longitude);
-                        if (dist < minDistance) minDistance = dist;
-                    }
-                    
-                    if (minDistance > 250) // 250 meters filter
-                    {
-                        continue; // Skip this bus, it's too far from the route
-                    }
+                    var dist = GeoUtils.CalculateDistance(corrected.Latitude.Value, corrected.Longitude.Value, sp.Latitude, sp.Longitude);
+                    if (dist < minDistance0) minDistance0 = dist;
                 }
                 
-                string destination = bus.Yon == 0 ? headsign0 : headsign1;
-                string locationCtx = await _geocodeService.GetLocationContextAsync(corrected.Latitude, corrected.Longitude, cancellationToken);
+                double minDistance1 = double.MaxValue;
+                foreach (var sp in shapePoints1)
+                {
+                    var dist = GeoUtils.CalculateDistance(corrected.Latitude.Value, corrected.Longitude.Value, sp.Latitude, sp.Longitude);
+                    if (dist < minDistance1) minDistance1 = dist;
+                }
+                
+                double overallMin = Math.Min(minDistance0, minDistance1);
+                if (overallMin > 250 && (shapePoints0.Count > 0 || shapePoints1.Count > 0))
+                    continue; // Skip buses too far from any route shape
+                    
+                validBuses.Add((bus, corrected.Latitude.Value, corrected.Longitude.Value, minDistance0, minDistance1));
+                
+                if (bus.Yon == 1)
+                {
+                    if (minDistance0 < minDistance1) yon1VotesFor0++;
+                    else if (minDistance1 < minDistance0) yon1VotesFor1++;
+                }
+            }
+
+            bool yon1MapsTo0 = yon1VotesFor0 >= yon1VotesFor1;
+
+            foreach (var item in validBuses)
+            {
+                var bus = item.Bus;
+                int mappedDirection = bus.Yon == 1 ? (yon1MapsTo0 ? 0 : 1) : (yon1MapsTo0 ? 1 : 0);
+                
+                // If shape data was completely missing, fallback to raw 1->0 mapping
+                if (shapePoints0.Count == 0 && shapePoints1.Count == 0)
+                {
+                    mappedDirection = bus.Yon == 1 ? 0 : 1;
+                }
+                
+                string destination = mappedDirection == 0 ? headsign0 : headsign1;
+                string locationCtx = await _geocodeService.GetLocationContextAsync(item.Lat, item.Lon, cancellationToken);
                 
                 // Estimate departure time by finding the closest scheduled trip today before now
                 string depTime = "Bilinmiyor";
@@ -135,7 +172,7 @@ namespace ulasim_veri_servisi.Services
                 {
                     var nowTimeStr = DateTime.Now.ToString("HH:mm:ss");
                     var trip = await _context.GtfsStopTimes
-                        .Where(st => st.Trip.RouteId == dbRouteId && st.Trip.DirectionId == bus.Yon && st.StopSequence == 1 && st.DepartureTimeRaw != null && string.Compare(st.DepartureTimeRaw, nowTimeStr) <= 0)
+                        .Where(st => st.Trip.RouteId == dbRouteId && st.Trip.DirectionId == mappedDirection && st.StopSequence == 1 && st.DepartureTimeRaw != null && string.Compare(st.DepartureTimeRaw, nowTimeStr) <= 0)
                         .OrderByDescending(st => st.DepartureTimeRaw)
                         .Select(st => st.DepartureTimeRaw)
                         .FirstOrDefaultAsync(cancellationToken);
@@ -149,9 +186,9 @@ namespace ulasim_veri_servisi.Services
                 result.Vehicles.Add(new RouteVehicleItem
                 {
                     BusId = bus.OtobusId.ToString(),
-                    Direction = bus.Yon.ToString(),
-                    Latitude = corrected.Latitude,
-                    Longitude = corrected.Longitude,
+                    Direction = mappedDirection.ToString(),
+                    Latitude = item.Lat,
+                    Longitude = item.Lon,
                     DestinationName = destination,
                     LocationContext = locationCtx,
                     OriginDepartureTime = depTime

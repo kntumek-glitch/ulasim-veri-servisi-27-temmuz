@@ -22,8 +22,8 @@ class BroadcastChannelMock {
 global.BroadcastChannel = BroadcastChannelMock as any;
 
 // Polyfill WritableStream and ReadableStream for msw SSE support
-import { WritableStream, ReadableStream } from 'web-streams-polyfill/dist/ponyfill.js';
 // @ts-ignore
+import { WritableStream, ReadableStream } from 'web-streams-polyfill/dist/ponyfill.js';
 global.WritableStream = WritableStream as any;
 // @ts-ignore
 global.ReadableStream = ReadableStream as any;

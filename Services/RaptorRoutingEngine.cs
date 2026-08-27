@@ -6,6 +6,7 @@ using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Configuration;
 using TransportDataService.Models.Gtfs.JourneyPlan;
 using TransportDataService.Models.Exceptions;
@@ -20,17 +21,24 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
     private readonly WalkingRoutingService _walkingRoutingService;
     private readonly ILogger<RaptorRoutingEngine> _logger;
     private readonly IConfiguration _configuration;
+    private readonly IServiceProvider _serviceProvider;
+    private readonly int _transferPenaltySeconds;
+    private readonly double _walkPenaltyMultiplier;
 
     public RaptorRoutingEngine(
         IRoutingSnapshotManager snapshotManager,
         WalkingRoutingService walkingRoutingService,
         ILogger<RaptorRoutingEngine> logger,
-        IConfiguration configuration)
+        IConfiguration configuration,
+        IServiceProvider serviceProvider)
     {
+        _serviceProvider = serviceProvider;
         _snapshotManager = snapshotManager;
         _walkingRoutingService = walkingRoutingService;
         _logger = logger;
         _configuration = configuration;
+        _transferPenaltySeconds = _configuration.GetValue<int>("JourneyPlan:TransferPenaltySeconds", 300);
+        _walkPenaltyMultiplier = _configuration.GetValue<double>("JourneyPlan:WalkPenaltyMultiplier", 1.5);
     }
 
     
@@ -52,6 +60,15 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             telemetry.ResultCount = response.Itineraries.Count;
             if (telemetry.ResultCount == 0 && response.ReasonCode == "SUCCESS") telemetry.ReasonCode = "NO_ROUTE_FOUND";
             else telemetry.ReasonCode = response.ReasonCode;
+            
+            if (request.IncludeIntermediateStops && response.Itineraries.Any() && snapshot != null)
+            {
+                using var scope = _serviceProvider.CreateScope();
+                var mapper = scope.ServiceProvider.GetRequiredService<ulasim_veri_servisi.Services.JourneyPlanning.Mapping.IJourneyResultMapper>();
+                var trtOffset = TimeSpan.FromHours(3);
+                var tzi = TimeZoneInfo.CreateCustomTimeZone("TRT", trtOffset, "TRT", "TRT");
+                await mapper.PopulateIntermediateStopsAsync(response.Itineraries, tzi, snapshot.ActiveImportId, cancellationToken);
+            }
             
             foreach (var it in response.Itineraries)
             {
@@ -89,7 +106,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         {
             sw.Stop();
             telemetry.CalculationDurationMs = sw.ElapsedMilliseconds;
-            _logger.LogInformation("V2 Routing Telemetry: {@Telemetry}", telemetry);
+            _logger.LogInformation("V2 Routing Telemetry: {Telemetry}", System.Text.Json.JsonSerializer.Serialize(telemetry));
         }
     }
 
@@ -148,7 +165,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         {
             sw.Stop();
             telemetry.CalculationDurationMs = sw.ElapsedMilliseconds;
-            _logger.LogInformation("V2 Routing Telemetry: {@Telemetry}", telemetry);
+            _logger.LogInformation("V2 Routing Telemetry: {Telemetry}", System.Text.Json.JsonSerializer.Serialize(telemetry));
         }
     }
 
@@ -210,6 +227,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
         if (!destinationStops.Any()) throw new NoNearbyStopException("No valid transit stops found within the specified destination walking radius.", false);
 
         var destStopsSet = destinationStops.Select(s => s.StopId).ToHashSet();
+        var destStopsWalkTime = destinationStops.ToDictionary(s => s.StopId, s => s.WalkingDurationSeconds);
         
         DateTime searchDateToday = requestTimeTrt.Date;
         DateTime searchDateYesterday = searchDateToday.AddDays(-1);
@@ -249,9 +267,9 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                 labels[0][idx].Round = -1;
                 activeStops.Add(idx);
                 
-                if (destStopsSet.Contains(os.StopId))
+                if (destStopsWalkTime.TryGetValue(os.StopId, out int finalWalk1))
                 {
-                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, labels[0][idx].AbsoluteArrivalSeconds);
+                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, labels[0][idx].AbsoluteArrivalSeconds + finalWalk1);
                 }
             }
         }
@@ -347,9 +365,9 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                                 labels[k][stopIdx] = newLabel;
                                 newlyActiveStops.Add(stopIdx);
                                 
-                                if (destStopsSet.Contains(stopId))
+                                if (destStopsWalkTime.TryGetValue(stopId, out int finalWalk2))
                                 {
-                                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, arrivalTime);
+                                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, arrivalTime + finalWalk2);
                                 }
                             }
                         }
@@ -419,9 +437,9 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                                 labels[k][toIdx] = newLabel;
                                 transferActiveStops.Add(toIdx);
                                 
-                                if (destStopsSet.Contains(tr.ToStopId))
+                                if (destStopsWalkTime.TryGetValue(tr.ToStopId, out int finalWalk3))
                                 {
-                                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, arrival);
+                                    globalBestArrivalTime = Math.Min(globalBestArrivalTime, arrival + finalWalk3);
                                 }
                             }
                         }
@@ -506,7 +524,8 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                 {
                     var prevIdx = snapshot.StopIdToIndex[curr.PreviousStopId];
                     var transfer = snapshot.StopTransfers[curr.PreviousStopId].First(x => x.ToStopId == curr.StopId);
-                    legs.Add(new LegDto
+                    
+                    var transferWalkLeg = new LegDto
                     {
                         Mode = "WALK",
                         DurationSeconds = transfer.WalkingTimeSeconds,
@@ -523,7 +542,25 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
                         IsApproximate = true,
                         WalkingWarning = "Station-to-station static transfer",
                         HasGeometry = false
-                    });
+                    };
+                    
+                    var wrTransfer = await _walkingRoutingService.CalculateWalkingRouteAsync(
+                        transferWalkLeg.FromStopLat.Value, transferWalkLeg.FromStopLon.Value,
+                        transferWalkLeg.ToStopLat.Value, transferWalkLeg.ToStopLon.Value,
+                        request.IncludeWalkingGeometry, "foot", cancellationToken);
+                        
+                    if (wrTransfer.State.IsSuccess)
+                    {
+                        transferWalkLeg.DistanceMeters = (int)wrTransfer.DistanceMeters;
+                        transferWalkLeg.DurationSeconds = (int)wrTransfer.DurationSeconds;
+                        transferWalkLeg.GeometryGeoJson = wrTransfer.GeometryGeoJson;
+                        transferWalkLeg.HasGeometry = wrTransfer.GeometryGeoJson != null;
+                        transferWalkLeg.IsApproximate = false;
+                        transferWalkLeg.WalkingSource = "OSRM";
+                        transferWalkLeg.WalkingWarning = null;
+                    }
+                    
+                    legs.Add(transferWalkLeg);
                     currIdx = prevIdx;
                     // currRound stays the same for walk transfers
                 }
@@ -598,7 +635,7 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             });
             
             // Forward Cascade Simulation!
-            bool isValid = CascadeSimulateItinerary(legs, searchDateToday, departureTimeSeconds, prepBuffer, transferBuffer, snapshot, activeServicesToday, activeServicesYesterday, out int finalArrivalTimeSeconds);
+            bool isValid = CascadeSimulateItinerary(legs, searchDateToday, departureTimeSeconds, prepBuffer, transferBuffer, snapshot, activeServicesToday, activeServicesYesterday, out int finalArrivalTimeSeconds, trtOffset);
             if (!isValid) continue; // Itinerary broken by OSRM delay
 
             bool isApprox = legs.Any(l => l.Mode == "WALK" && l.IsApproximate);
@@ -638,13 +675,18 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
             .Take(request.MaxResults)
             .ToList();
 
+        foreach (var iti in itineraries)
+        {
+            iti.Fares = FareCalculatorService.CalculateFares(iti);
+        }
+
         return new JourneyPlanSearchResponse { Itineraries = itineraries };
     }
 
-    private bool CascadeSimulateItinerary(List<LegDto> legs, DateTime searchDate, int currentTimeSeconds, int prepBuffer, int transferBuffer, RoutingSnapshot snapshot, HashSet<string> activeToday, HashSet<string> activeYesterday, out int finalArrivalTimeSeconds)
+    private bool CascadeSimulateItinerary(List<LegDto> legs, DateTime searchDate, int currentTimeSeconds, int prepBuffer, int transferBuffer, RoutingSnapshot snapshot, HashSet<string> activeToday, HashSet<string> activeYesterday, out int finalArrivalTimeSeconds, TimeSpan trtOffset)
     {
         finalArrivalTimeSeconds = currentTimeSeconds;
-        DateTime midnight = searchDate.Date;
+        DateTimeOffset midnight = new DateTimeOffset(searchDate.Year, searchDate.Month, searchDate.Day, 0, 0, 0, trtOffset);
 
         for (int i = 0; i < legs.Count; i++)
         {
@@ -719,11 +761,19 @@ public class RaptorRoutingEngine : IRaptorRoutingEngine
 
     private bool Dominates(RouteLabel newLabel, RouteLabel oldLabel)
     {
-        if (newLabel.AbsoluteArrivalSeconds < oldLabel.AbsoluteArrivalSeconds) return true;
-        if (newLabel.AbsoluteArrivalSeconds > oldLabel.AbsoluteArrivalSeconds) return false;
+        if (oldLabel.AbsoluteArrivalSeconds == int.MaxValue) return true;
 
-        if (newLabel.TotalWalkDurationSeconds < oldLabel.TotalWalkDurationSeconds) return true;
-        if (newLabel.TotalWalkDurationSeconds > oldLabel.TotalWalkDurationSeconds) return false;
+        long newPenalty = newLabel.Round > 0 ? newLabel.Round * _transferPenaltySeconds : 0;
+        long oldPenalty = oldLabel.Round > 0 ? oldLabel.Round * _transferPenaltySeconds : 0;
+        
+        long newWalk = (long)(newLabel.TotalWalkDurationSeconds * _walkPenaltyMultiplier);
+        long oldWalk = (long)(oldLabel.TotalWalkDurationSeconds * _walkPenaltyMultiplier);
+
+        long newScore = (long)newLabel.AbsoluteArrivalSeconds + newPenalty + newWalk;
+        long oldScore = (long)oldLabel.AbsoluteArrivalSeconds + oldPenalty + oldWalk;
+
+        if (newScore < oldScore) return true;
+        if (newScore > oldScore) return false;
 
         return newLabel.TotalWaitDurationSeconds < oldLabel.TotalWaitDurationSeconds;
     }
@@ -908,11 +958,19 @@ private class LocalWalkEdge
     }
         private bool DominatesBackward(BackwardRouteLabel newLabel, BackwardRouteLabel oldLabel)
     {
-        if (newLabel.AbsoluteDepartureSeconds > oldLabel.AbsoluteDepartureSeconds) return true;
-        if (newLabel.AbsoluteDepartureSeconds < oldLabel.AbsoluteDepartureSeconds) return false;
+        if (oldLabel.AbsoluteDepartureSeconds == -1) return true;
 
-        if (newLabel.TotalWalkDurationSeconds < oldLabel.TotalWalkDurationSeconds) return true;
-        if (newLabel.TotalWalkDurationSeconds > oldLabel.TotalWalkDurationSeconds) return false;
+        long newPenalty = newLabel.Round > 0 ? newLabel.Round * _transferPenaltySeconds : 0;
+        long oldPenalty = oldLabel.Round > 0 ? oldLabel.Round * _transferPenaltySeconds : 0;
+
+        long newWalk = (long)(newLabel.TotalWalkDurationSeconds * _walkPenaltyMultiplier);
+        long oldWalk = (long)(oldLabel.TotalWalkDurationSeconds * _walkPenaltyMultiplier);
+
+        long newScore = (long)newLabel.AbsoluteDepartureSeconds - newPenalty - newWalk;
+        long oldScore = (long)oldLabel.AbsoluteDepartureSeconds - oldPenalty - oldWalk;
+
+        if (newScore > oldScore) return true;
+        if (newScore < oldScore) return false;
 
         return newLabel.TotalWaitDurationSeconds < oldLabel.TotalWaitDurationSeconds;
     }
@@ -992,7 +1050,7 @@ private class LocalWalkEdge
         
         return -1;
     }
-    private ItineraryDto? ReconstructBackwardItinerary(
+    private async Task<ItineraryDto?> ReconstructBackwardItinerary(
         RoutingSnapshot snapshot, 
         BackwardRouteLabel[][] labels, int finalRound, 
         int originStopIdx, 
@@ -1000,7 +1058,8 @@ private class LocalWalkEdge
         LocalWalkEdge destWalk, 
         JourneyPlanV2SearchRequest request, 
         int targetArrivalTimeSeconds, 
-        int prepBuffer)
+        int prepBuffer,
+        CancellationToken cancellationToken)
     {
         var legs = new List<LegDto>();
         int currIdx = originStopIdx;
@@ -1035,7 +1094,7 @@ private class LocalWalkEdge
             {
                 if (destWalk != null)
                 {
-                    legs.Add(new LegDto
+                    var destWalkLeg = new LegDto
                     {
                         Mode = "WALK",
                         DurationSeconds = destWalk.WalkingDurationSeconds,
@@ -1050,34 +1109,71 @@ private class LocalWalkEdge
                         WalkingSource = "Haversine",
                         IsApproximate = true,
                         HasGeometry = false
-                    });
+                    };
+                    
+                    var wrDest = await _walkingRoutingService.CalculateWalkingRouteAsync(
+                        destWalkLeg.FromStopLat.Value, destWalkLeg.FromStopLon.Value,
+                        destWalkLeg.ToStopLat.Value, destWalkLeg.ToStopLon.Value,
+                        request.IncludeWalkingGeometry, "foot", cancellationToken);
+                        
+                    if (wrDest.State.IsSuccess)
+                    {
+                        destWalkLeg.DistanceMeters = (int)wrDest.DistanceMeters;
+                        destWalkLeg.DurationSeconds = (int)wrDest.DurationSeconds;
+                        destWalkLeg.GeometryGeoJson = wrDest.GeometryGeoJson;
+                        destWalkLeg.HasGeometry = wrDest.GeometryGeoJson != null;
+                        destWalkLeg.IsApproximate = false;
+                        destWalkLeg.WalkingSource = "OSRM";
+                        destWalkLeg.WalkingWarning = null;
+                    }
+                    
+                    legs.Add(destWalkLeg);
                 }
                 break;
             }
             
             if (curr.UsedTransferEdge)
             {
-                var nextIdx = snapshot.StopIdToIndex[curr.NextStopId];
-                var transfer = snapshot.StopTransfers[curr.StopId].First(x => x.ToStopId == curr.NextStopId);
-                legs.Add(new LegDto
-                {
-                    Mode = "WALK",
-                    DurationSeconds = transfer.WalkingTimeSeconds,
-                    DistanceMeters = transfer.DistanceMeters,
-                    FromStopId = curr.StopId,
-                    FromStopName = snapshot.StopsByIndex[currIdx].StopName,
-                    FromStopLat = snapshot.StopsByIndex[currIdx].StopLat,
-                    FromStopLon = snapshot.StopsByIndex[currIdx].StopLon,
-                    ToStopId = curr.NextStopId,
-                    ToStopName = snapshot.StopsByIndex[nextIdx].StopName,
-                    ToStopLat = snapshot.StopsByIndex[nextIdx].StopLat,
-                    ToStopLon = snapshot.StopsByIndex[nextIdx].StopLon,
-                    WalkingSource = "Haversine",
-                    IsApproximate = true,
-                    WalkingWarning = "Station-to-station static transfer",
-                    HasGeometry = false
-                });
-                currIdx = nextIdx;
+                  var nextIdx = snapshot.StopIdToIndex[curr.NextStopId];
+                  var transfer = snapshot.StopTransfers[curr.StopId].First(x => x.ToStopId == curr.NextStopId);
+                  
+                  var transferWalkLeg = new LegDto
+                  {
+                      Mode = "WALK",
+                      DurationSeconds = transfer.WalkingTimeSeconds,
+                      DistanceMeters = transfer.DistanceMeters,
+                      FromStopId = curr.StopId,
+                      FromStopName = snapshot.StopsByIndex[currIdx].StopName,
+                      FromStopLat = snapshot.StopsByIndex[currIdx].StopLat,
+                      FromStopLon = snapshot.StopsByIndex[currIdx].StopLon,
+                      ToStopId = curr.NextStopId,
+                      ToStopName = snapshot.StopsByIndex[nextIdx].StopName,
+                      ToStopLat = snapshot.StopsByIndex[nextIdx].StopLat,
+                      ToStopLon = snapshot.StopsByIndex[nextIdx].StopLon,
+                      WalkingSource = "Haversine",
+                      IsApproximate = true,
+                      WalkingWarning = "Station-to-station static transfer",
+                      HasGeometry = false
+                  };
+                  
+                  var wrTransfer = await _walkingRoutingService.CalculateWalkingRouteAsync(
+                      transferWalkLeg.FromStopLat.Value, transferWalkLeg.FromStopLon.Value,
+                      transferWalkLeg.ToStopLat.Value, transferWalkLeg.ToStopLon.Value,
+                      request.IncludeWalkingGeometry, "foot", cancellationToken);
+                      
+                  if (wrTransfer.State.IsSuccess)
+                  {
+                      transferWalkLeg.DistanceMeters = (int)wrTransfer.DistanceMeters;
+                      transferWalkLeg.DurationSeconds = (int)wrTransfer.DurationSeconds;
+                      transferWalkLeg.GeometryGeoJson = wrTransfer.GeometryGeoJson;
+                      transferWalkLeg.HasGeometry = wrTransfer.GeometryGeoJson != null;
+                      transferWalkLeg.IsApproximate = false;
+                      transferWalkLeg.WalkingSource = "OSRM";
+                      transferWalkLeg.WalkingWarning = null;
+                  }
+                  
+                  legs.Add(transferWalkLeg);
+                  currIdx = nextIdx;
                     // currRound stays the same for walk transfers
             }
             else
@@ -1179,6 +1275,7 @@ private class LocalWalkEdge
         if (!destinationStops.Any()) throw new NoNearbyStopException("No valid transit stops found within the specified destination walking radius.", false);
 
         var origStopsSet = originStops.Select(s => s.StopId).ToHashSet();
+        var origStopsWalkTime = originStops.ToDictionary(s => s.StopId, s => s.WalkingDurationSeconds);
         
         DateTime searchDateToday = requestTimeTrt.Date;
         DateTime searchDateYesterday = searchDateToday.AddDays(-1);
@@ -1217,9 +1314,9 @@ private class LocalWalkEdge
                 labels[0][idx].Round = -1;
                 activeStops.Add(idx);
                 
-                if (origStopsSet.Contains(ds.StopId))
+                if (origStopsWalkTime.TryGetValue(ds.StopId, out int finalWalk4))
                 {
-                    int originDepTime = labels[0][idx].AbsoluteDepartureSeconds - prepBuffer;
+                    int originDepTime = labels[0][idx].AbsoluteDepartureSeconds - finalWalk4 - prepBuffer;
                     globalBestDepartureTime = Math.Max(globalBestDepartureTime, originDepTime);
                 }
             }
@@ -1314,9 +1411,9 @@ private class LocalWalkEdge
                                 labels[k][stopIdx] = newLabel;
                                 newlyActiveStops.Add(stopIdx);
                                 
-                                if (origStopsSet.Contains(stopId))
+                                if (origStopsWalkTime.TryGetValue(stopId, out int finalWalk5))
                                 {
-                                    int origDepTime = departureTime - prepBuffer;
+                                    int origDepTime = departureTime - finalWalk5 - prepBuffer;
                                     globalBestDepartureTime = Math.Max(globalBestDepartureTime, origDepTime);
                                 }
                             }
@@ -1378,9 +1475,9 @@ private class LocalWalkEdge
                                 labels[k][fromIdx] = newLabel;
                                 transferActiveStops.Add(fromIdx);
                                 
-                                if (origStopsSet.Contains(tr.FromStopId))
+                                if (origStopsWalkTime.TryGetValue(tr.FromStopId, out int finalWalk6))
                                 {
-                                    int origDepTime = requiredArrivalAtFromStop - prepBuffer;
+                                    int origDepTime = requiredArrivalAtFromStop - finalWalk6 - prepBuffer;
                                     globalBestDepartureTime = Math.Max(globalBestDepartureTime, origDepTime);
                                 }
                             }
@@ -1418,7 +1515,7 @@ private class LocalWalkEdge
             var lbl = osData.Label;
             
             // Reconstruct forward!
-            var itin = ReconstructBackwardItinerary(snapshot, labels, osData.FinalRound, sIdx, os, destinationStops.FirstOrDefault(d => d.StopId == GetFinalDestinationStop(snapshot, labels, osData.FinalRound, sIdx)), request, targetArrivalTimeSeconds, prepBuffer);
+            var itin = await ReconstructBackwardItinerary(snapshot, labels, osData.FinalRound, sIdx, os, destinationStops.FirstOrDefault(d => d.StopId == GetFinalDestinationStop(snapshot, labels, osData.FinalRound, sIdx)), request, targetArrivalTimeSeconds, prepBuffer, cancellationToken);
             if (itin != null) itineraries.Add(itin);
         }
 
@@ -1431,7 +1528,7 @@ private class LocalWalkEdge
             var originWalk = itin.Legs.First();
             int departureTimeSeconds = firstTransit.RawGtfsDepartureSeconds!.Value - originWalk.DurationSeconds - prepBuffer;
             
-            bool isValid = CascadeSimulateItinerary(itin.Legs, searchDateToday, departureTimeSeconds, prepBuffer, transferBuffer, snapshot, activeServicesToday, activeServicesYesterday, out int finalArrivalSec);
+            bool isValid = CascadeSimulateItinerary(itin.Legs, searchDateToday, departureTimeSeconds, prepBuffer, transferBuffer, snapshot, activeServicesToday, activeServicesYesterday, out int finalArrivalSec, trtOffset);
             if (isValid)
             {
                 DateTimeOffset midnightTrt = new DateTimeOffset(searchDateToday.Year, searchDateToday.Month, searchDateToday.Day, 0, 0, 0, trtOffset);
@@ -1456,9 +1553,14 @@ private class LocalWalkEdge
             .OrderByDescending(i => i.DepartureTime.AddSeconds(-i.TotalWalkingTimeSeconds * 1.5))
             .ThenBy(i => i.TransferCount)
             .ThenBy(i => i.TotalWalkingTimeSeconds)
-            .ThenBy(i => i.TotalWaitingTimeSeconds)
+            .ThenBy(x => x.TotalWaitingTimeSeconds) // Priority 4: Least Wait
             .Take(request.MaxResults)
             .ToList();
+
+        foreach (var iti in finalSorted)
+        {
+            iti.Fares = FareCalculatorService.CalculateFares(iti);
+        }
 
         return new JourneyPlanSearchResponse { Itineraries = finalSorted, ReasonCode = JourneyPlanResolutionCode.SUCCESS.ToString() };
     }

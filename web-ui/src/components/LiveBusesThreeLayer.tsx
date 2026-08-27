@@ -5,6 +5,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import { MercatorCoordinate } from 'maplibre-gl';
 import { RouteVehicleItem } from '../api';
+import { useMapState } from '../context/MapContext';
 
 interface LiveBusesThreeLayerProps {
   vehicles: RouteVehicleItem[];
@@ -25,6 +26,7 @@ const LAYER_ID = '3d-model-buses';
 
 const LiveBusesThreeLayer: React.FC<LiveBusesThreeLayerProps> = ({ vehicles }) => {
   const { current: mapRef } = useMap();
+  const { selectedRouteShape } = useMapState();
   const busStatesRef = useRef<Record<string, BusState>>({});
   const layerAdded = useRef(false);
   const sceneRef = useRef<THREE.Scene | null>(null);
@@ -223,10 +225,36 @@ const LiveBusesThreeLayer: React.FC<LiveBusesThreeLayerProps> = ({ vehicles }) =
     vehicles.forEach(v => {
       if (!v.longitude || !v.latitude) return;
       const id = v.busId;
+      
+      let routeBearing: number | null = null;
+      if (selectedRouteShape) {
+         const directionIdx = parseInt(v.direction);
+         const shape = selectedRouteShape[directionIdx];
+         if (shape && shape.length > 1) {
+            let minDist = Infinity;
+            let bestBearing = 0;
+            
+            for (let i = 0; i < shape.length - 1; i++) {
+               const p1 = shape[i];
+               const p2 = shape[i + 1];
+               const distSq = Math.pow(p1.longitude - v.longitude, 2) + Math.pow(p1.latitude - v.latitude, 2);
+               
+               if (distSq < minDist) {
+                 minDist = distSq;
+                 const m1 = MercatorCoordinate.fromLngLat([p1.longitude, p1.latitude], 0);
+                 const m2 = MercatorCoordinate.fromLngLat([p2.longitude, p2.latitude], 0);
+                 bestBearing = Math.atan2(m2.y - m1.y, m2.x - m1.x);
+               }
+            }
+            routeBearing = bestBearing;
+         }
+      }
+
       const state = busStatesRef.current[id];
       if (!state) {
         busStatesRef.current[id] = {
-          lng: v.longitude, lat: v.latitude, bearing: 0,
+          lng: v.longitude, lat: v.latitude, 
+          bearing: routeBearing !== null ? routeBearing : 0,
           targetLng: v.longitude, targetLat: v.latitude,
           lastUpdate: performance.now(),
         };
@@ -234,8 +262,7 @@ const LiveBusesThreeLayer: React.FC<LiveBusesThreeLayerProps> = ({ vehicles }) =
         const dist = Math.sqrt(
           Math.pow(v.longitude - state.targetLng, 2) + Math.pow(v.latitude - state.targetLat, 2)
         );
-        // Only update direction if the bus moved significantly (approx 5 meters)
-        // This prevents GPS drift from making stopped buses spin randomly
+        
         if (dist > 0.00005) {
           const prevLng = state.targetLng;
           const prevLat = state.targetLat;
@@ -246,14 +273,16 @@ const LiveBusesThreeLayer: React.FC<LiveBusesThreeLayerProps> = ({ vehicles }) =
           state.targetLat = v.latitude;
           state.lastUpdate = performance.now();
           
-          // Calculate angle in MapLibre Mercator space
-          const currentMerc = MercatorCoordinate.fromLngLat([prevLng, prevLat], 0);
-          const nextMerc = MercatorCoordinate.fromLngLat([v.longitude, v.latitude], 0);
-          
-          const dX = nextMerc.x - currentMerc.x;
-          const dY = nextMerc.y - currentMerc.y;
-          
-          state.bearing = Math.atan2(dY, dX); // Saves the angle directly in radians
+          if (routeBearing === null) {
+            const currentMerc = MercatorCoordinate.fromLngLat([prevLng, prevLat], 0);
+            const nextMerc = MercatorCoordinate.fromLngLat([v.longitude, v.latitude], 0);
+            state.bearing = Math.atan2(nextMerc.y - currentMerc.y, nextMerc.x - currentMerc.x);
+          }
+        }
+        
+        // Always snap to route bearing if we have one
+        if (routeBearing !== null) {
+           state.bearing = routeBearing;
         }
       }
     });

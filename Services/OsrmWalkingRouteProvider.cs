@@ -4,6 +4,7 @@ using System.Net.Http;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using ulasim_veri_servisi.Models;
@@ -13,16 +14,22 @@ namespace ulasim_veri_servisi.Services;
 
 public class OsrmWalkingRouteProvider : IWalkingRouteProvider
 {
+    private static readonly TimeSpan CacheTtl = TimeSpan.FromMinutes(5);
+
     private readonly HttpClient _httpClient;
     private readonly OsrmConfiguration _config;
     private readonly ILogger<OsrmWalkingRouteProvider> _logger;
+    private readonly IMemoryCache _routeCache;
+    private static readonly SemaphoreSlim _rateLimitSemaphore = new(5, 5);
+    private static DateTime _lastRequestTime = DateTime.MinValue;
 
-    public OsrmWalkingRouteProvider(HttpClient httpClient, IOptions<OsrmConfiguration> options, ILogger<OsrmWalkingRouteProvider> logger)
+    public OsrmWalkingRouteProvider(HttpClient httpClient, IOptions<OsrmConfiguration> options, ILogger<OsrmWalkingRouteProvider> logger, IMemoryCache cache)
     {
         _httpClient = httpClient;
         _httpClient.DefaultRequestHeaders.Add("User-Agent", "UlasimVeriServisi/1.0");
         _config = options.Value;
         _logger = logger;
+        _routeCache = cache;
     }
 
     public async Task<WalkingResult> GetWalkingRouteAsync(double sourceLat, double sourceLon, double targetLat, double targetLon, bool includeGeometry = false, string profile = "foot", CancellationToken cancellationToken = default)
@@ -44,123 +51,151 @@ public class OsrmWalkingRouteProvider : IWalkingRouteProvider
             var tgtLatStr = targetLat.ToString(CultureInfo.InvariantCulture);
             var tgtLonStr = targetLon.ToString(CultureInfo.InvariantCulture);
 
+            var cacheKey = $"{actualProfile}_{srcLatStr}_{srcLonStr}_{tgtLatStr}_{tgtLonStr}_{includeGeometry}";
+            if (_routeCache.TryGetValue(cacheKey, out WalkingResult? cachedResult) && cachedResult != null)
+            {
+                return cachedResult;
+            }
 
             // OSRM format: /route/v1/{profile}/{coordinates}?overview=full
             // Coordinates format: {longitude},{latitude};{longitude},{latitude}
             var geometries = includeGeometry ? "geojson" : "polyline";
             var path = $"{baseUrl}/route/v1/{actualProfile}/{srcLonStr},{srcLatStr};{tgtLonStr},{tgtLatStr}?overview=full&geometries={geometries}&alternatives=3";
             
-            var response = await _httpClient.GetAsync(path, cancellationToken);
-            if (!response.IsSuccessStatusCode)
+            await _rateLimitSemaphore.WaitAsync(cancellationToken);
+            try
             {
-                _logger.LogWarning("OSRM API returned status code {StatusCode}", (int)response.StatusCode);
-                return new WalkingResult { State = ErrorState.Failure("Yönlendirme sunucusuna erişilemedi.", "API_ERROR") };
-            }
-
-            var content = await response.Content.ReadAsStringAsync(cancellationToken);
-            using var doc = JsonDocument.Parse(content);
-            var root = doc.RootElement;
-
-            if (root.TryGetProperty("code", out var codeElement))
-            {
-                var code = codeElement.GetString();
-                if (code == "Ok")
+                var response = await _httpClient.GetAsync(path, cancellationToken);
+                _lastRequestTime = DateTime.UtcNow;
+                
+                if (!response.IsSuccessStatusCode)
                 {
-                    if (root.TryGetProperty("waypoints", out var waypointsElement))
+                    _logger.LogWarning("OSRM API returned status code {StatusCode}", (int)response.StatusCode);
+                    return new WalkingResult { State = ErrorState.Failure($"OSRM API error: {response.StatusCode}", "API_ERROR") };
+                }
+
+                var responseString = await response.Content.ReadAsStringAsync(cancellationToken);
+                using var document = JsonDocument.Parse(responseString);
+                var root = document.RootElement;
+
+                if (root.TryGetProperty("code", out var codeElement))
+                {
+                    var code = codeElement.GetString();
+                    if (code == "Ok")
                     {
-                        foreach (var waypoint in waypointsElement.EnumerateArray())
+                        if (root.TryGetProperty("waypoints", out var waypointsElement))
                         {
-                            if (waypoint.TryGetProperty("distance", out var distElement))
+                            foreach (var waypoint in waypointsElement.EnumerateArray())
                             {
-                                if (distElement.GetDouble() > 2000) // 2000m snap tolerance (relaxed for car/far points)
+                                if (waypoint.TryGetProperty("distance", out var distElement))
                                 {
-                                    _logger.LogWarning("OSRM waypoint distance {Distance} exceeds 2000m threshold", distElement.GetDouble());
-                                    return new WalkingResult { State = ErrorState.Failure("Verilen koordinatlar yol ağına çok uzak.", "UNROUTABLE_LOCATION") };
+                                    if (distElement.GetDouble() > 2000) // 2000m snap tolerance (relaxed for car/far points)
+                                    {
+                                        _logger.LogWarning("OSRM waypoint distance {Distance} exceeds 2000m threshold", distElement.GetDouble());
+                                        return new WalkingResult { State = ErrorState.Failure("Verilen koordinatlar yol ağına çok uzak.", "UNROUTABLE_LOCATION") };
+                                    }
                                 }
                             }
                         }
-                    }
 
-                    if (root.TryGetProperty("routes", out var routesElement) && routesElement.GetArrayLength() > 0)
-                    {
-                        var route = routesElement[0];
-                        var distance = route.GetProperty("distance").GetDouble();
-                        var duration = route.GetProperty("duration").GetDouble();
-                        
-                        double haversineDist = GetHaversineDistance(sourceLat, sourceLon, targetLat, targetLon);
-                        
-                        double originalDuration = duration;
-                        if (actualProfile == "foot")
+                        if (root.TryGetProperty("routes", out var routesElement) && routesElement.GetArrayLength() > 0)
                         {
-                            // Enforce a realistic walking speed (1.4 m/s) over the valid distance
-                            duration = distance / 1.4;
-                        }
-                        
-                        Console.WriteLine($"[OSRM Walking] Profile: {profile}, ActualProfile: {actualProfile}, Distance: {distance}, OriginalDuration: {originalDuration}, NewDuration: {duration}");
-                        
-                        var geometryProp = route.GetProperty("geometry");
-
-                        var result = new WalkingResult
-                        {
-                            State = ErrorState.Success(),
-                            DistanceMeters = distance,
-                            DurationSeconds = duration,
-                            Alternatives = new System.Collections.Generic.List<WalkingRouteAlternative>()
-                        };
-
-                        if (includeGeometry)
-                        {
-                            var rawJson = geometryProp.GetRawText();
-                            result.GeometryGeoJson = JsonSerializer.Deserialize<object>(rawJson);
-                        }
-                        else
-                        {
-                            result.EncodedPolyline = geometryProp.GetString();
-                        }
-
-                        // Parse alternatives
-                        for (int i = 1; i < routesElement.GetArrayLength(); i++)
-                        {
-                            var altRoute = routesElement[i];
-                            var altDistance = altRoute.GetProperty("distance").GetDouble();
-                            var altDuration = altRoute.GetProperty("duration").GetDouble();
+                            var route = routesElement[0];
+                            var distance = route.GetProperty("distance").GetDouble();
+                            var duration = route.GetProperty("duration").GetDouble();
                             
+                            double haversineDist = GetHaversineDistance(sourceLat, sourceLon, targetLat, targetLon);
+                            
+                            double originalDuration = duration;
                             if (actualProfile == "foot")
                             {
-                                altDuration = altDistance / 1.2;
+                                // Enforce a realistic walking speed (1.4 m/s) over the valid distance
+                                duration = distance / 1.4;
                             }
+                            
+                            Console.WriteLine($"[OSRM Walking] Profile: {profile}, ActualProfile: {actualProfile}, Distance: {distance}, OriginalDuration: {originalDuration}, NewDuration: {duration}");
+                            
+                            var geometryProp = route.GetProperty("geometry");
 
-                            var altGeometryProp = altRoute.GetProperty("geometry");
-
-                            var altObj = new WalkingRouteAlternative
+                            var result = new WalkingResult
                             {
-                                DistanceMeters = altDistance,
-                                DurationSeconds = altDuration
+                                State = ErrorState.Success(),
+                                DistanceMeters = distance,
+                                DurationSeconds = duration,
+                                Alternatives = new System.Collections.Generic.List<WalkingRouteAlternative>()
                             };
 
                             if (includeGeometry)
                             {
-                                altObj.GeometryGeoJson = JsonSerializer.Deserialize<object>(altGeometryProp.GetRawText());
+                                var rawJson = geometryProp.GetRawText();
+                                var dict = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(rawJson);
+                                if (dict != null)
+                                {
+                                    dict["type"] = "LineString";
+                                    result.GeometryGeoJson = dict;
+                                }
                             }
                             else
                             {
-                                altObj.EncodedPolyline = altGeometryProp.GetString();
+                                result.EncodedPolyline = geometryProp.GetString();
                             }
 
-                            result.Alternatives.Add(altObj);
-                        }
+                            // Parse alternatives
+                            for (int i = 1; i < routesElement.GetArrayLength(); i++)
+                            {
+                                var altRoute = routesElement[i];
+                                var altDistance = altRoute.GetProperty("distance").GetDouble();
+                                var altDuration = altRoute.GetProperty("duration").GetDouble();
+                                
+                                if (actualProfile == "foot")
+                                {
+                                    altDuration = altDistance / 1.2;
+                                }
 
-                        return result;
+                                var altGeometryProp = altRoute.GetProperty("geometry");
+
+                                var altObj = new WalkingRouteAlternative
+                                {
+                                    DistanceMeters = altDistance,
+                                    DurationSeconds = altDuration
+                                };
+
+                                if (includeGeometry)
+                                {
+                                    var altRawJson = altGeometryProp.GetRawText();
+                                    var altDict = JsonSerializer.Deserialize<System.Collections.Generic.Dictionary<string, object>>(altRawJson);
+                                    if (altDict != null)
+                                    {
+                                        altDict["type"] = "LineString";
+                                        altObj.GeometryGeoJson = altDict;
+                                    }
+                                }
+                                else
+                                {
+                                    altObj.EncodedPolyline = altGeometryProp.GetString();
+                                }
+
+                                result.Alternatives.Add(altObj);
+                            }
+
+                            var cacheOptions = new MemoryCacheEntryOptions { AbsoluteExpirationRelativeToNow = CacheTtl, Size = 1 };
+                            _routeCache.Set(cacheKey, result, cacheOptions);
+                            return result;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogWarning("OSRM returned non-Ok code: {Code} for request {Path}", code, path);
+                        return new WalkingResult { State = ErrorState.Failure($"OSRM returned code: {code}", "NO_ROUTE") };
                     }
                 }
-                else
-                {
-                    _logger.LogWarning("OSRM returned non-Ok code: {Code} for request {Path}", code, path);
-                    return new WalkingResult { State = ErrorState.Failure($"OSRM returned code: {code}", "NO_ROUTE") };
-                }
+                
+                return new WalkingResult { State = ErrorState.Failure("No route found in OSRM response", "NO_ROUTE") };
             }
-
-            return new WalkingResult { State = ErrorState.Failure("Bilinmeyen yanıt formatı.", "INVALID_FORMAT") };
+            finally
+            {
+                _rateLimitSemaphore.Release();
+            }
         }
         catch (OperationCanceledException ex) when (cancellationToken.IsCancellationRequested)
         {

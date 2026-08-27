@@ -14,6 +14,8 @@ using ulasim_veri_servisi.HealthChecks;
 using ulasim_veri_servisi.Workers;
 using Microsoft.AspNetCore.RateLimiting;
 using System.Threading.RateLimiting;
+using Polly;
+using Polly.Extensions.Http;
 
 var builder = WebApplication.CreateBuilder(args);
 Console.WriteLine("ContentRoot: " + builder.Environment.ContentRootPath);
@@ -79,7 +81,9 @@ builder.Services.AddRateLimiter(options =>
 
 
 builder.Services
-    .AddHttpClient<IGtfsImportService, GtfsImportService>();
+    .AddHttpClient<IGtfsImportService, GtfsImportService>()
+    .AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))))
+    .AddTransientHttpErrorPolicy(p => p.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)));
 builder.Services.Configure<ApiBehaviorOptions>(options =>
 {
     options.InvalidModelStateResponseFactory = context =>
@@ -122,7 +126,9 @@ builder.Services.AddHttpClient<IExternalEshotService, ExternalEshotService>(clie
 {
     client.Timeout = TimeSpan.FromSeconds(10);
     client.DefaultRequestHeaders.Add("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/115.0.0.0 Safari/537.36");
-});
+})
+.AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(2, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))))
+.AddTransientHttpErrorPolicy(p => p.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)));
 builder.Services.AddHttpClient<ReverseGeocodeService>();
 builder.Services.AddSingleton<ulasim_veri_servisi.Services.JourneyPlanCacheTokenSource>();
 builder.Services.AddSingleton<ulasim_veri_servisi.Services.Interfaces.IRoutingSnapshotManager, ulasim_veri_servisi.Services.RoutingSnapshotManager>();
@@ -153,7 +159,9 @@ builder.Services.AddHttpClient<IWalkingRouteProvider, OsrmWalkingRouteProvider>(
     }
     client.Timeout = TimeSpan.FromSeconds(config.TimeoutSeconds);
     client.DefaultRequestHeaders.UserAgent.ParseAdd("ulasim-veri-servisi/1.0");
-});
+})
+.AddTransientHttpErrorPolicy(p => p.WaitAndRetryAsync(3, attempt => TimeSpan.FromSeconds(Math.Pow(2, attempt))))
+.AddTransientHttpErrorPolicy(p => p.CircuitBreakerAsync(5, TimeSpan.FromSeconds(30)));
 builder.Services.AddScoped<WalkingRoutingService>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.GtfsETagCacheFilterAttribute>();
 builder.Services.AddScoped<ulasim_veri_servisi.Filters.AdminKeyAuthAttribute>();

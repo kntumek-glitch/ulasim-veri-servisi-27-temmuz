@@ -242,18 +242,25 @@ namespace ulasim_veri_servisi.Services
             bool isSuccessful,
             string? errorMessage)
         {
-            _context.ExternalApiLogs.Add(new ExternalApiLog
+            try
             {
-                EndpointName = endpointName,
-                RequestUrl = requestUrl,
-                HttpStatusCode = statusCode,
-                ResponseDurationMs = duration,
-                IsSuccessful = isSuccessful,
-                ErrorMessage = errorMessage,
-                CreatedAt = DateTime.UtcNow
-            });
+                _context.ExternalApiLogs.Add(new ExternalApiLog
+                {
+                    EndpointName = endpointName,
+                    RequestUrl = requestUrl,
+                    HttpStatusCode = statusCode,
+                    ResponseDurationMs = duration,
+                    IsSuccessful = isSuccessful,
+                    ErrorMessage = errorMessage,
+                    CreatedAt = DateTime.UtcNow
+                });
 
-            await _context.SaveChangesAsync();
+                await _context.SaveChangesAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Dış API log kaydı yazılırken hata oluştu. Endpoint: {Endpoint}, URL: {Url}", endpointName, requestUrl);
+            }
         }
     }
 }

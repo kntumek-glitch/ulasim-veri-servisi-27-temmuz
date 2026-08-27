@@ -8,9 +8,9 @@ import { useMapState } from '../context/MapContext';
 const TripPlanner: React.FC = () => {
   const [timeMode, setTimeMode] = useState<'DEPART_AT' | 'ARRIVE_BY'>('DEPART_AT');
   const [timeValue, setTimeValue] = useState<string>('12:00');
-  const [dateValue] = useState<string>(new Date().toISOString().split('T')[0]);
+  const [dateValue] = useState<string>('2026-08-20');
   const [maxTransfers, setMaxTransfers] = useState<number>(2);
-  const [maxWalking, setMaxWalking] = useState<number>(3000);
+  const [maxWalking, setMaxWalking] = useState<number>(800);
 
   const { mapOrigin, mapDestination, setMapOrigin, setMapDestination, selectedItinerary, setSelectedItinerary, itineraries, setItineraries, setPickingLocationFor, travelMode, setTravelMode, directRoute, setDirectRoute, selectedDirectRouteIdx, setSelectedDirectRouteIdx } = useMapState();
 
@@ -251,7 +251,7 @@ const TripPlanner: React.FC = () => {
                         type="time" 
                         value={timeValue}
                         onChange={(e) => setTimeValue(e.target.value)}
-                        style={{ width: '100%', padding: '7px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white' }}
+                        style={{ width: '100%', padding: '7px', borderRadius: '6px', background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', colorScheme: 'dark' }}
                       />
                     </div>
                   </div>
@@ -385,6 +385,25 @@ const TripPlanner: React.FC = () => {
                       <div className="breakdown-item">| Bekleme: {waitTime}dk</div>
                     </div>
 
+                    {itinerary.fares && itinerary.fares.length > 0 && (
+                      <div className="itinerary-fares" style={{ marginTop: '8px', padding: '8px', background: 'rgba(0, 240, 255, 0.05)', borderRadius: '4px', borderLeft: '2px solid var(--color-accent-primary)' }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px' }}>
+                          <span><strong>Ücret:</strong> {itinerary.fares.find(f => f.fareType === 'Tam')?.totalFare.toFixed(2)} TL (Tam)</span>
+                          <span style={{ color: 'var(--color-text-muted)' }}>{itinerary.fares.find(f => f.fareType === 'Öğrenci')?.totalFare.toFixed(2)} TL (Öğrenci)</span>
+                        </div>
+                        {isExpanded && (
+                          <div style={{ marginTop: '6px', fontSize: '12px', color: 'var(--color-text-muted)', borderTop: '1px solid rgba(255,255,255,0.1)', paddingTop: '4px' }}>
+                            {itinerary.fares.find(f => f.fareType === 'Tam')?.breakdown.map((leg, i) => (
+                              <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0' }}>
+                                <span>{leg.routeShortName} ({leg.description})</span>
+                                <span>{leg.amount.toFixed(2)} TL</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                      </div>
+                    )}
+
                     {lines.length > 0 && (
                       <div className="itinerary-lines">
                         Hatlar: 
@@ -458,7 +477,7 @@ const TripPlanner: React.FC = () => {
                                               {leg.intermediateStops!.map((istop, iIdx) => (
                                                 <div key={iIdx} className="intermediate-stop-item">
                                                   <span className="istop-time">{new Date(istop.arrivalTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
-                                                  <span className="istop-name">{istop.name}</span>
+                                                  <span className="istop-name">{istop.stopName}</span>
                                                 </div>
                                               ))}
                                             </div>

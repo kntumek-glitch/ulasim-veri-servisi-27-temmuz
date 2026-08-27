@@ -112,13 +112,20 @@ public class JourneyResultMapper : IJourneyResultMapper
 
         foreach (var leg in transitLegs)
         {
-            if (leg.TripId == null || leg.FromStopSequence == null || leg.ToStopSequence == null || leg.ServiceDate == null) 
+            if (leg.TripId == null) 
                 continue;
 
-            var baseDate = DateTime.Parse(leg.ServiceDate);
-            var intermediates = stopTimes
-                .Where(st => st.TripId == leg.TripId && st.StopSequence > leg.FromStopSequence.Value && st.StopSequence < leg.ToStopSequence.Value)
-                .OrderBy(st => st.StopSequence)
+            var baseDate = leg.ServiceDate != null ? DateTime.Parse(leg.ServiceDate) : leg.DepartureTime?.Date ?? DateTime.UtcNow.Date;
+            
+            var tripStops = stopTimes.Where(st => st.TripId == leg.TripId).OrderBy(st => st.StopSequence).ToList();
+            
+            int fromSeq = leg.FromStopSequence ?? tripStops.FirstOrDefault(st => st.DepartureSeconds == leg.RawGtfsDepartureSeconds && st.StopId == leg.FromStopId)?.StopSequence ?? -1;
+            int toSeq = leg.ToStopSequence ?? tripStops.FirstOrDefault(st => st.ArrivalSeconds == leg.RawGtfsArrivalSeconds && st.StopId == leg.ToStopId)?.StopSequence ?? -1;
+            
+            if (fromSeq == -1 || toSeq == -1 || fromSeq >= toSeq) continue;
+
+            var intermediates = tripStops
+                .Where(st => st.StopSequence > fromSeq && st.StopSequence < toSeq)
                 .Select(st => 
                 {
                     DateTime stDepDt = baseDate.AddSeconds(st.DepartureSeconds ?? 0);

@@ -1,21 +1,28 @@
-﻿FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:8.0 AS backend-build
 WORKDIR /src
 
-# Sadece csproj dosyasini kopyalayıp dependency'leri indiriyoruz (caching icin)
+# Restore and build backend
 COPY ["ulasim-veri-servisi.csproj", "./"]
 RUN dotnet restore "ulasim-veri-servisi.csproj"
-
-# Kalan dosyalari kopyalayip publish aliyoruz
 COPY . .
 RUN dotnet publish "ulasim-veri-servisi.csproj" -c Release -o /app/publish
 
-# Calisma ortami icin runtime imaji
+# Build frontend (web-ui) using Node
+FROM node:20-alpine AS frontend-build
+WORKDIR /web
+COPY web-ui/package*.json ./
+RUN npm install
+COPY web-ui/ ./
+RUN npm run build
+
+# Runtime image
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS final
 WORKDIR /app
 EXPOSE 8080
 
-# Build asamasindaki dosyalari runtime imajina tasiyoruz
-COPY --from=build /app/publish .
+# Copy backend publish
+COPY --from=backend-build /app/publish .
+# Copy frontend static files into wwwroot
+COPY --from=frontend-build /web/dist ./wwwroot
 
-# Uygulamayi baslatiyoruz
 ENTRYPOINT ["dotnet", "ulasim-veri-servisi.dll"]

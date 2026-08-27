@@ -64,7 +64,8 @@ const LiveBuses: React.FC = () => {
       setLiveVehicles([]);
     }
     
-    const shapes = [[], []];
+    type Coord = { latitude: number; longitude: number; sequence: number };
+    const shapes: Coord[][] = [[], []];
     if (shapeData0 && shapeData0.length > 0) shapes[0] = shapeData0.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude, sequence: p.sequence }));
     if (shapeData1 && shapeData1.length > 0) shapes[1] = shapeData1.map((p: any) => ({ latitude: p.latitude, longitude: p.longitude, sequence: p.sequence }));
 

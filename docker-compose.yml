@@ -31,7 +31,7 @@ services:
       - ConnectionStrings__DefaultConnection=Host=db;Port=5432;Database=TransportDb;Username=postgres;Password=password;
       - Osrm__BaseUrl=http://osrm:5000
     ports:
-      - "8080:8080"
+      - "5108:8080"
     restart: always
 
   init-otp:
@@ -72,7 +72,7 @@ services:
       - "5000:5000"
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "if [ ! -f /data/izmir.osrm ]; then osrm-extract -p /opt/foot.lua /data/izmir.osm.pbf -f izmir.osrm && osrm-partition /data/izmir.osrm && osrm-customize /data/izmir.osrm; fi && osrm-routed --algorithm mld /data/izmir.osrm"
+      "if [ ! -f /data/izmir-foot.osrm ]; then cp /data/izmir.osm.pbf /data/izmir-foot.osm.pbf && osrm-extract -p /opt/foot.lua /data/izmir-foot.osm.pbf && osrm-partition /data/izmir-foot.osrm && osrm-customize /data/izmir-foot.osrm; fi && osrm-routed --algorithm mld /data/izmir-foot.osrm"
     depends_on:
       init-osrm:
         condition: service_completed_successfully
@@ -86,7 +86,7 @@ services:
       - "5001:5000"
     entrypoint: ["/bin/sh", "-c"]
     command: >
-      "if [ ! -f /data/izmir-car.osrm ]; then osrm-extract -p /opt/car.lua /data/izmir.osm.pbf -f izmir-car.osrm && osrm-partition /data/izmir-car.osrm && osrm-customize /data/izmir-car.osrm; fi && osrm-routed --algorithm mld /data/izmir-car.osrm"
+      "if [ ! -f /data/izmir-car.osrm ]; then cp /data/izmir.osm.pbf /data/izmir-car.osm.pbf && osrm-extract -p /opt/car.lua /data/izmir-car.osm.pbf && osrm-partition /data/izmir-car.osrm && osrm-customize /data/izmir-car.osrm; fi && osrm-routed --algorithm mld /data/izmir-car.osrm"
     depends_on:
       init-osrm:
         condition: service_completed_successfully

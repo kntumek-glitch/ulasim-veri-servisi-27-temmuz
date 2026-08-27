@@ -1,10 +1,11 @@
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useState, useEffect, useCallback, useRef } from 'react';
 import { NavLink } from 'react-router-dom';
-import { Map, Activity, ListOrdered, Navigation2, Bus, ChevronLeft, ChevronRight, LocateFixed, Route, Sun, Moon } from 'lucide-react';
+import { Map, Activity, ListOrdered, Bus, ChevronLeft, LocateFixed, Route, Sun, Moon } from 'lucide-react';
 import MapBackground from './MapBackground';
 import ErrorBoundary from './ErrorBoundary';
 
 import { useMapState } from '../context/MapContext';
+import { useGeolocation } from '../hooks/useGeolocation';
 
 interface LayoutProps {
   children: ReactNode;
@@ -13,10 +14,45 @@ interface LayoutProps {
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   const { userLocation, setUserLocation, theme, setTheme } = useMapState();
   const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+  const [userAddress, setUserAddress] = useState('');
+  const [manualLat, setManualLat] = useState('');
+  const [manualLng, setManualLng] = useState('');
+const { status, position, error, requestLocation, stopWatch } = useGeolocation({ enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }, false);
 
-  return (
-    <div className="app-container">
-      {/* Background 3D/MapLibre Map */}
+  // Sync geolocation result with context
+useEffect(() => {
+  if (status === 'requesting') {
+    // Clear previous address while a new location is being fetched
+    setUserAddress('');
+  }
+  if (status === 'granted' && position) {
+    const { latitude, longitude } = position.coords;
+    setUserLocation({ latitude, longitude });
+    // reverse geocode
+    (async () => {
+      try {
+        const apiKey = process.env.REACT_APP_GOOGLE_MAPS_API_KEY;
+        const res = await fetch(`https://maps.googleapis.com/maps/api/geocode/json?latlng=${latitude},${longitude}&key=${apiKey}`);
+        const data = await res.json();
+        if (data.results && data.results[0]) {
+          setUserAddress(data.results[0].formatted_address);
+        } else {
+          setUserAddress('');
+        }
+      } catch (e) {
+        console.error('Geocode hatası:', e);
+        setUserAddress('');
+      }
+    })();
+  } else if (status === 'denied' || status === 'unavailable') {
+    setUserLocation(null);
+    setUserAddress('');
+  }
+}, [status, position]);
+
+return (
+  <div className="app-container">
+    {/* Background 3D/MapLibre Map */}
       <div className="map-container">
         <ErrorBoundary>
           <MapBackground />
@@ -93,40 +129,39 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
               <NavLink to="/status" className={({ isActive }) => isActive ? 'nav-item active' : 'nav-item'}>
                 <Activity size={20} />
                 <span>Sistem Durumu</span>
+<span className="geo-status-badge" style={{
+  marginLeft: 8,
+  fontSize: '0.75rem',
+  color: status === 'granted' ? 'var(--color-success)' :
+         status === 'requesting' ? 'var(--color-warning)' :
+         status === 'denied' ? 'var(--color-error)' : 'var(--color-muted)'
+}}>{status}</span>
               </NavLink>
             </li>
           </ul>
 
           {/* Location Button inside Menu */}
-          <div style={{ marginTop: 'auto', padding: isSidebarCollapsed ? '20px 0' : '20px', display: 'flex', justifyContent: 'center' }}>
+          <div style={{ marginTop: 'auto', padding: isSidebarCollapsed ? '20px 0' : '20px', display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
             {isSidebarCollapsed ? (
-              <div 
-                style={{ cursor: 'pointer', padding: '8px' }}
-                onClick={() => {
-                  if (userLocation) {
-                    setUserLocation(null);
-                    return;
-                  }
-                  if (!navigator.geolocation) {
-                    alert('Tarayıcınız konum özelliğini desteklemiyor.');
-                    return;
-                  }
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      setUserLocation({
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                      });
-                    },
-                    (err) => alert('Konum alınamadı: ' + err.message),
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                  );
-                }}
-                title={userLocation ? "Konumu Gizle" : "Konumumu Göster"}
-              >
-                <LocateFixed size={28} style={{ color: userLocation ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }} />
-              </div>
-            ) : (
+  <div
+    style={{ cursor: 'pointer', padding: '8px' }}
+    onClick={() => {
+       if (userLocation) {
+         stopWatch();
+         setUserLocation(null);
+         setUserAddress('');
+       } else {
+         // Clear any stale location/address before requesting a new one
+         setUserLocation(null);
+         setUserAddress('');
+         requestLocation();
+       }
+     }}
+    title={userLocation ? "Konumu Gizle" : "Konumumu Göster"}
+  >
+    <LocateFixed size={28} style={{ color: userLocation ? 'var(--color-accent-primary)' : 'var(--color-text-muted)' }} />
+  </div>
+) : (
               <button
                 className="action-btn"
                 style={{ 
@@ -136,23 +171,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 }}
                 onClick={() => {
                   if (userLocation) {
+                    stopWatch();
                     setUserLocation(null);
-                    return;
+                    setUserAddress('');
+                  } else {
+                    requestLocation();
                   }
-                  if (!navigator.geolocation) {
-                    alert('Tarayıcınız konum özelliğini desteklemiyor.');
-                    return;
-                  }
-                  navigator.geolocation.getCurrentPosition(
-                    (pos) => {
-                      setUserLocation({
-                        latitude: pos.coords.latitude,
-                        longitude: pos.coords.longitude
-                      });
-                    },
-                    (err) => alert('Konum alınamadı: ' + err.message),
-                    { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-                  );
                 }}
                 title={userLocation ? "Konumu Gizle" : "Konumumu Göster"}
               >
@@ -160,6 +184,12 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
                 <span style={{ color: userLocation ? 'var(--color-accent-primary)' : 'inherit' }}>{userLocation ? 'Gizle' : 'Konumum'}</span>
               </button>
             )}
+            {userAddress && (
+              <div className="address-display" style={{ marginTop: '8px', color: 'var(--color-text-muted)', fontSize: '0.9rem' }}>
+                {userAddress}
+              </div>
+            )}
+
           </div>
         </nav>
 

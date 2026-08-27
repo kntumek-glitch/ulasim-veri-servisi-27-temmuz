@@ -34,6 +34,7 @@ export interface JourneyPlanRequest {
   maxTransfers: number;
   maxWalkingMeters: number;
   includeIntermediateStops?: boolean;
+  includeWalkingGeometry?: boolean;
 }
 
 export interface JourneyPlanResponse {
@@ -41,6 +42,21 @@ export interface JourneyPlanResponse {
   isFeedStale: boolean;
   algorithm: string;
   itineraries: Itinerary[];
+}
+
+export interface FareLeg {
+  legId: string;
+  routeShortName: string;
+  amount: number;
+  isTransfer: boolean;
+  description: string;
+}
+
+export interface Fare {
+  totalFare: number;
+  currency: string;
+  fareType: string;
+  breakdown: FareLeg[];
 }
 
 export interface Itinerary {
@@ -55,6 +71,7 @@ export interface Itinerary {
   totalWaitingTimeSeconds: number;
   totalInVehicleTimeSeconds: number;
   legs: Leg[];
+  fares?: Fare[];
 }
 
 export interface Leg {
@@ -87,11 +104,16 @@ export interface Leg {
   toStopLat?: number;
   toStopLon?: number;
   
-  intermediateStops?: { id: number; name: string; arrivalTime: string }[]; // Optional depending on IncludeIntermediateStops
+  intermediateStops?: { stopId: string; stopName: string; arrivalTime: string; lat: number; lon: number }[]; // Optional depending on IncludeIntermediateStops
   geometryGeoJson?: any; // Walk geometry from OSRM
 }
 
-const API_BASE = import.meta.env.MODE === 'test' ? 'http://localhost:5108/api' : (import.meta.env.VITE_API_BASE_URL ?? '/api');
+const API_BASE = (() => {
+  if (process.env.NODE_ENV === 'test') {
+    return 'http://localhost:5108/api';
+  }
+  return process.env.VITE_API_BASE_URL ?? '/api';
+})();
 
 export const searchStops = async (query: string): Promise<StopSearchResponse> => {
   const res = await fetch(`${API_BASE}/v1/gtfs/stops?search=${encodeURIComponent(query)}&pageSize=50`);

@@ -87,7 +87,10 @@ describe('TripPlanner Component', () => {
 
     // The component renders "60 dk | 0 aktarma" for the itinerary
     await waitFor(() => {
-      expect(screen.getByText(/60 dk/i)).toBeInTheDocument();
+      const durationElems = screen.getAllByText(/60 dk/i);
+      const transferElems = screen.getAllByText(/0 aktarma/i);
+      expect(durationElems.length).toBeGreaterThan(0);
+      expect(transferElems.length).toBeGreaterThan(0);
     });
   });
 

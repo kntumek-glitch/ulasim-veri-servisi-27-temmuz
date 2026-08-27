@@ -1,0 +1,70 @@
+/* Design tokens */
+:root {
+  --color-primary-h: 200;
+  --color-primary-s: 85%;
+  --color-primary-l: 55%;
+  --color-primary: hsl(var(--color-primary-h), var(--color-primary-s), var(--color-primary-l));
+  --color-primary-dark: hsl(var(--color-primary-h), var(--color-primary-s), calc(var(--color-primary-l) - 10%));
+  --color-accent: #00f0ff; /* backward compatibility */
+  --color-background-light: #f5f6fa;
+  --color-background-dark: #0a0a0c;
+  --color-surface-light: rgba(255,255,255,0.85);
+  --color-surface-dark: rgba(20,20,25,0.65);
+  --color-text-light: #1a1a24;
+  --color-text-dark: #f0f0f5;
+  --color-success: #2ed573;
+  --color-error: #ff4757;
+
+  /* Typography */
+  --font-family-main: 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --font-size-base: 0.875rem;
+  --font-size-lg: 1rem;
+  --font-size-xl: 1.125rem;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 24px;
+  --space-6: 32px;
+
+  /* Border radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+
+  /* Shadows */
+  --shadow-sm: 0 2px 8px rgba(0,0,0,0.1);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.15);
+  --shadow-lg: 0 8px 32px rgba(0,0,0,0.2);
+
+  /* Transitions */
+  --transition-fast: 0.2s ease;
+  --transition-medium: 0.3s cubic-bezier(0.25,0.8,0.25,1);
+
+  /* Glassmorphism */
+  --glass-blur: blur(16px);
+  --glass-bg-light: rgba(255,255,255,0.5);
+  --glass-bg-dark: rgba(0,0,0,0.3);
+  --glass-border-light: rgba(0,0,0,0.15);
+  --glass-border-dark: rgba(255,255,255,0.1);
+}
+
+/* Light theme */
+[data-theme="light"] {
+  --color-background: var(--color-background-light);
+  --color-surface: var(--color-surface-light);
+  --color-text: var(--color-text-light);
+  --glass-bg: var(--glass-bg-light);
+  --glass-border: var(--glass-border-light);
+}
+
+/* Dark theme */
+[data-theme="dark"] {
+  --color-background: var(--color-background-dark);
+  --color-surface: var(--color-surface-dark);
+  --color-text: var(--color-text-dark);
+  --glass-bg: var(--glass-bg-dark);
+  --glass-border: var(--glass-border-dark);
+}

@@ -16,15 +16,7 @@ const queryClient = new QueryClient({
   },
 });
 
-const renderWithProviders = (component: React.ReactElement) => {
-  return render(
-    <QueryClientProvider client={queryClient}>
-      <MapProvider>
-        {component}
-      </MapProvider>
-    </QueryClientProvider>
-  );
-};
+
 
 describe('LiveBuses Component', () => {
   beforeEach(() => {
