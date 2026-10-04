@@ -1,6 +1,29 @@
 # Ulaşım Veri Servisi (Transportation Data Service)
 
+![.NET](https://img.shields.io/badge/.NET-5C2D91?style=for-the-badge&logo=.net&logoColor=white)
+![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)
+![Postgres](https://img.shields.io/badge/postgres-%23316192.svg?style=for-the-badge&logo=postgresql&logoColor=white)
+![Docker](https://img.shields.io/badge/docker-%230db7ed.svg?style=for-the-badge&logo=docker&logoColor=white)
+
 Bu proje, İzmir (ESHOT vb.) ulaşım verilerini, GTFS formatlı veritabanı senkronizasyonunu ve canlı veri akışını yöneten merkezi backend servisidir.
+
+## 🚀 Hızlı Başlangıç (Quick Start)
+
+Projeyi kendi bilgisayarınızda çalıştırmak için Docker'ın kurulu olduğundan emin olun.
+
+1. Tüm backend, veritabanı ve ulaşım (OSRM/OTP) servislerini Docker üzerinden ayağa kaldırın:
+   ```bash
+   docker-compose up --build -d
+   ```
+
+2. Frontend (Web UI) arayüzünü başlatın:
+   ```bash
+   npm run dev
+   ```
+
+Servisler ayağa kalktığında API dokümantasyonuna `http://localhost:5108/swagger` adresinden, React arayüzüne ise terminalde belirtilen adresten (genelde `http://localhost:5173`) ulaşabilirsiniz.
+
+---
 
 ## 🏗️ Sistem Mimarisi (Phase 7 - V2)
 
