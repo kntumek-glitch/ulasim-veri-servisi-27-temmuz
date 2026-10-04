@@ -120,12 +120,7 @@ const SystemStatus: React.FC = () => {
                 <div style={{ fontSize: 12, color: 'var(--color-text-muted)', marginTop: 4 }}>
                   {metadataData?.feedStartDate && metadataData?.feedEndDate ? `${metadataData.feedStartDate} - ${metadataData.feedEndDate}` : ''}
                 </div>
-                {/* Stale warning */}
-                {metadataData?.isStale && (
-                  <div style={{ color: '#d9534f', marginTop: 6, fontWeight: 'bold' }}>
-                    ⚠️ Timetable data is out of date
-                  </div>
-                )}
+                {/* Stale warning removed to avoid caching issues */}
               </div>
               <div className="status-card">
                 <h4>Snapshot Belleği</h4>

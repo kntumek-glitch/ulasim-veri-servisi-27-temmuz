@@ -38,7 +38,9 @@ public class GtfsController : ControllerBase
         if (run.FeedEndDate.HasValue)
         {
             var today = DateOnly.FromDateTime(DateTime.UtcNow);
-            if (run.FeedEndDate.Value < today)
+            // 14 günlük tolerans (grace period) ekliyoruz
+            var toleratedEndDate = run.FeedEndDate.Value.AddDays(14);
+            if (toleratedEndDate < today)
                 isStale = true;
         }
 
